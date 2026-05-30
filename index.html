@@ -2,74 +2,117 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <meta name="theme-color" content="#0f766e">
 <title>יומן מסע</title>
 <link rel="manifest" href="manifest.json">
-<!-- iOS: PWA installable + אייקון מסך-בית -->
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="יומן">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
-  :root{ --teal:#0f766e; --teal2:#115e59; --ink:#0b1220; --muted:#64748b; }
+  :root{ --teal:#0f766e; --teal2:#115e59; --ink:#0b1220; --muted:#64748b; --bg:#f1f5f9; --line:#e2e8f0; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent }
-  html,body{ margin:0; height:100%; font-family:system-ui,"Segoe UI",Arial,sans-serif; background:#f1f5f9; color:var(--ink) }
-  body{ display:flex; flex-direction:column; padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom) }
-  header{ display:flex; align-items:center; justify-content:space-between; padding:12px 2px 6px }
-  header h1{ font-size:1.15rem; margin:0; color:var(--teal2) }
-  #status{ font-size:.85rem; padding:5px 11px; border-radius:999px; background:#e2e8f0; color:var(--muted); white-space:nowrap }
-  #status.ok{ background:#dcfce7; color:#15803d } #status.pending{ background:#fef9c3; color:#a16207 } #status.off{ background:#fee2e2; color:#b91c1c }
-  textarea{ width:100%; flex:1; min-height:34vh; font-size:1.25rem; padding:14px; border:1px solid #cbd5e1; border-radius:14px; resize:none; line-height:1.5 }
-  .row{ display:flex; gap:10px; margin:12px 0 8px }
-  button,.cam{ flex:1; border:0; border-radius:16px; font-size:1.15rem; font-weight:600; padding:18px; color:#fff; background:var(--teal); display:flex; align-items:center; justify-content:center; gap:8px }
-  button:active,.cam:active{ background:var(--teal2) }
-  .cam{ background:#334155 } #cam{ display:none }
+  html,body{ margin:0; height:100%; font-family:system-ui,"Segoe UI",Arial,sans-serif; background:var(--bg); color:var(--ink) }
+  body{ display:flex; flex-direction:column; padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) }
+  /* header */
+  header{ display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--teal); color:#fff }
+  header .icon{ background:transparent; border:0; color:#fff; font-size:1.4rem; padding:4px 8px; border-radius:10px }
+  header .icon:active{ background:rgba(255,255,255,.15) }
+  #tripname{ flex:1; font-weight:700; font-size:1.05rem; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:transparent; border:0; color:#fff }
+  #who{ font-size:.8rem; background:rgba(255,255,255,.18); border:0; color:#fff; border-radius:999px; padding:4px 10px; white-space:nowrap }
+  /* main */
+  main{ flex:1; display:flex; flex-direction:column; padding:12px; gap:10px; min-height:0 }
+  textarea{ width:100%; flex:1; min-height:26vh; font-size:1.25rem; padding:14px; border:1px solid #cbd5e1; border-radius:14px; resize:none; line-height:1.5; background:#fff }
+  .actions{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+  button.act,label.act{ display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:16px; font-size:1.05rem; font-weight:600; padding:16px; color:#fff; background:var(--teal) }
+  button.act:active,label.act:active{ background:var(--teal2) }
+  .act.save{ grid-column:1 / -1; font-size:1.2rem; padding:18px }
+  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 }
   button:disabled{ opacity:.5 }
-  #log{ font-size:.8rem; color:var(--muted); max-height:16vh; overflow:auto; padding:4px 2px }
-  #log div{ padding:2px 0; border-bottom:1px solid #e2e8f0 }
-  .who{ border:1px solid #99f6e4; background:#ccfbf1; color:var(--teal2); border-radius:999px; font-size:.8rem; font-weight:600; padding:3px 10px; vertical-align:middle }
-  .gate{ position:fixed; inset:0; background:rgba(11,18,32,.55); display:flex; align-items:center; justify-content:center; z-index:9 }
+  input[type=file]{ display:none }
+  #log{ font-size:.8rem; color:var(--muted); max-height:14vh; overflow:auto }
+  #log div{ padding:3px 0; border-bottom:1px solid var(--line) }
+  #status{ font-size:.85rem; padding:6px 12px; border-radius:999px; background:#e2e8f0; color:var(--muted); align-self:flex-start }
+  #status.ok{ background:#dcfce7; color:#15803d } #status.pending{ background:#fef9c3; color:#a16207 } #status.off{ background:#fee2e2; color:#b91c1c }
+  /* drawer */
+  .scrim{ position:fixed; inset:0; background:rgba(11,18,32,.45); opacity:0; pointer-events:none; transition:opacity .2s; z-index:8 }
+  .scrim.open{ opacity:1; pointer-events:auto }
+  #drawer{ position:fixed; top:0; right:-86vw; width:86vw; max-width:340px; height:100%; background:#fff; z-index:9;
+           transition:right .22s ease; display:flex; flex-direction:column; box-shadow:-8px 0 24px rgba(0,0,0,.15) }
+  #drawer.open{ right:0 }
+  #drawer h2{ margin:0; padding:18px 16px; background:var(--teal); color:#fff; font-size:1.1rem; padding-top:calc(18px + env(safe-area-inset-top)) }
+  #triplist{ flex:1; overflow:auto; padding:6px 0 }
+  .trip{ display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); font-size:1.05rem }
+  .trip.active{ background:#ccfbf1; font-weight:700 }
+  .trip .dot{ width:8px; height:8px; border-radius:50%; background:#cbd5e1 } .trip.active .dot{ background:var(--teal) }
+  #drawer .foot{ padding:12px 16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px }
+  #drawer .foot button{ width:100%; padding:14px; border:0; border-radius:14px; font-size:1.05rem; font-weight:600; background:var(--teal); color:#fff }
+  #drawer .foot a{ text-align:center; color:var(--teal2); font-size:.9rem; text-decoration:none }
+  /* gates / modals */
+  .gate{ position:fixed; inset:0; background:rgba(11,18,32,.55); display:flex; align-items:center; justify-content:center; z-index:11; padding:18px }
   .gate[hidden]{ display:none }
-  .gate .card{ background:#fff; border-radius:18px; padding:24px; width:min(86vw,360px); text-align:center }
-  .gate .card p{ font-size:1.2rem; margin:0 0 16px; color:var(--ink) }
-  .gate .card button{ width:100%; margin:8px 0; padding:18px; font-size:1.2rem; border:0; border-radius:14px; background:var(--teal); color:#fff; font-weight:600 }
+  .gate .card{ background:#fff; border-radius:18px; padding:22px; width:min(90vw,380px); text-align:center }
+  .gate .card p{ font-size:1.15rem; margin:0 0 14px }
   .gate .card input{ width:100%; margin:6px 0 12px; padding:14px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; text-align:center }
+  .gate .card button{ width:100%; margin:6px 0; padding:16px; font-size:1.1rem; border:0; border-radius:14px; background:var(--teal); color:#fff; font-weight:600 }
+  .gate .card .ghost{ background:#e2e8f0; color:var(--ink) }
 </style>
 </head>
 <body>
   <header>
-    <h1>יומן מסע 🏔️ <button id="who" class="who"></button></h1>
-    <span id="status">…</span>
+    <button class="icon" id="menu" aria-label="תפריט">☰</button>
+    <button id="tripname">…</button>
+    <button id="who" aria-label="כותב"></button>
   </header>
 
-  <textarea id="txt" placeholder="דבר אל המקלדת או הקלד מה קורה עכשיו…" autocapitalize="sentences"></textarea>
-
-  <div class="row">
-    <button id="save">💾 שמור ליומן</button>
-    <label class="cam" for="cam">📷 תמונה</label>
+  <main>
+    <textarea id="txt" placeholder="דבר אל המקלדת או הקלד מה קורה עכשיו…" autocapitalize="sentences"></textarea>
+    <div class="actions">
+      <button class="act save" id="save">💾 שמור ליומן</button>
+      <label class="act photo" for="cam">📷 תמונה</label>
+      <label class="act doc" for="docfile">📁 מסמך</label>
+      <label class="act receipt" for="rcptfile" style="grid-column:1 / -1">🧾 קבלה</label>
+    </div>
     <input id="cam" type="file" accept="image/*" capture="environment">
-  </div>
+    <input id="docfile" type="file">
+    <input id="rcptfile" type="file" accept="image/*,application/pdf">
+    <div id="status">…</div>
+    <div id="log"></div>
+  </main>
 
-  <div id="log"></div>
-
-  <!-- הזנת token (פעם ראשונה במכשיר, אם הקישור עם ?t= לא נשמר) -->
-  <div id="tokengate" class="gate" hidden>
-    <div class="card">
-      <p>הדבק את ה-token · Paste token</p>
-      <input id="tokin" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-…">
-      <button id="toksave">שמור · Save</button>
+  <!-- drawer -->
+  <div class="scrim" id="scrim"></div>
+  <nav id="drawer" aria-label="המסעות שלי">
+    <h2>🏔️ המסעות שלי</h2>
+    <div id="triplist"></div>
+    <div class="foot">
+      <button id="newtrip">➕ טיול חדש</button>
+      <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
     </div>
-  </div>
+  </nav>
 
-  <!-- בחירת כותב (פעם ראשונה / החלפה בלחיצה על השם בכותרת) -->
-  <div id="gate" class="gate" hidden>
-    <div class="card">
-      <p>מי כותב? · Who's writing?</p>
-      <button data-name="יחיאל">יחיאל</button>
-      <button data-name="Sky">Sky</button>
-    </div>
-  </div>
+  <!-- token gate -->
+  <div id="tokengate" class="gate" hidden><div class="card">
+    <p>הדבק את ה-token · Paste token</p>
+    <input id="tokin" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-…">
+    <button id="toksave">שמור · Save</button>
+  </div></div>
+
+  <!-- author gate -->
+  <div id="gate" class="gate" hidden><div class="card">
+    <p>מי כותב? · Who's writing?</p>
+    <button data-name="יחיאל">יחיאל</button>
+    <button data-name="Sky">Sky</button>
+  </div></div>
+
+  <!-- new trip gate -->
+  <div id="newtripgate" class="gate" hidden><div class="card">
+    <p>שם הטיול החדש · New trip name</p>
+    <input id="newtripname" type="text" placeholder="לדוגמה: יוון 2026">
+    <button id="newtripcreate">צור טיול · Create</button>
+    <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
+  </div></div>
 
 <script src="app.js"></script>
 </body>
