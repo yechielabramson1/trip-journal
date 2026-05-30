@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>יומן מסע</title>
+<link rel="manifest" href="manifest.json">
+<!-- iOS: PWA installable + אייקון מסך-בית -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="יומן">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  :root{ --teal:#0f766e; --teal2:#115e59; --ink:#0b1220; --muted:#64748b; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent }
+  html,body{ margin:0; height:100%; font-family:system-ui,"Segoe UI",Arial,sans-serif; background:#f1f5f9; color:var(--ink) }
+  body{ display:flex; flex-direction:column; padding:env(safe-area-inset-top) 14px env(safe-area-inset-bottom) }
+  header{ display:flex; align-items:center; justify-content:space-between; padding:12px 2px 6px }
+  header h1{ font-size:1.15rem; margin:0; color:var(--teal2) }
+  #status{ font-size:.85rem; padding:5px 11px; border-radius:999px; background:#e2e8f0; color:var(--muted); white-space:nowrap }
+  #status.ok{ background:#dcfce7; color:#15803d } #status.pending{ background:#fef9c3; color:#a16207 } #status.off{ background:#fee2e2; color:#b91c1c }
+  textarea{ width:100%; flex:1; min-height:34vh; font-size:1.25rem; padding:14px; border:1px solid #cbd5e1; border-radius:14px; resize:none; line-height:1.5 }
+  .row{ display:flex; gap:10px; margin:12px 0 8px }
+  button,.cam{ flex:1; border:0; border-radius:16px; font-size:1.15rem; font-weight:600; padding:18px; color:#fff; background:var(--teal); display:flex; align-items:center; justify-content:center; gap:8px }
+  button:active,.cam:active{ background:var(--teal2) }
+  .cam{ background:#334155 } #cam{ display:none }
+  button:disabled{ opacity:.5 }
+  #log{ font-size:.8rem; color:var(--muted); max-height:16vh; overflow:auto; padding:4px 2px }
+  #log div{ padding:2px 0; border-bottom:1px solid #e2e8f0 }
+  .who{ border:1px solid #99f6e4; background:#ccfbf1; color:var(--teal2); border-radius:999px; font-size:.8rem; font-weight:600; padding:3px 10px; vertical-align:middle }
+  .gate{ position:fixed; inset:0; background:rgba(11,18,32,.55); display:flex; align-items:center; justify-content:center; z-index:9 }
+  .gate[hidden]{ display:none }
+  .gate .card{ background:#fff; border-radius:18px; padding:24px; width:min(86vw,360px); text-align:center }
+  .gate .card p{ font-size:1.2rem; margin:0 0 16px; color:var(--ink) }
+  .gate .card button{ width:100%; margin:8px 0; padding:18px; font-size:1.2rem; border:0; border-radius:14px; background:var(--teal); color:#fff; font-weight:600 }
+</style>
+</head>
+<body>
+  <header>
+    <h1>יומן מסע 🏔️ <button id="who" class="who"></button></h1>
+    <span id="status">…</span>
+  </header>
+
+  <textarea id="txt" placeholder="דבר אל המקלדת או הקלד מה קורה עכשיו…" autocapitalize="sentences"></textarea>
+
+  <div class="row">
+    <button id="save">💾 שמור ליומן</button>
+    <label class="cam" for="cam">📷 תמונה</label>
+    <input id="cam" type="file" accept="image/*" capture="environment">
+  </div>
+
+  <div id="log"></div>
+
+  <!-- בחירת כותב (פעם ראשונה / החלפה בלחיצה על השם בכותרת) -->
+  <div id="gate" class="gate" hidden>
+    <div class="card">
+      <p>מי כותב? · Who's writing?</p>
+      <button data-name="יחיאל">יחיאל</button>
+      <button data-name="Sky">Sky</button>
+    </div>
+  </div>
+
+<script src="app.js"></script>
+</body>
+</html>
