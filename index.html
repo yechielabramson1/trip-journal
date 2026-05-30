@@ -34,6 +34,7 @@
   .gate .card{ background:#fff; border-radius:18px; padding:24px; width:min(86vw,360px); text-align:center }
   .gate .card p{ font-size:1.2rem; margin:0 0 16px; color:var(--ink) }
   .gate .card button{ width:100%; margin:8px 0; padding:18px; font-size:1.2rem; border:0; border-radius:14px; background:var(--teal); color:#fff; font-weight:600 }
+  .gate .card input{ width:100%; margin:6px 0 12px; padding:14px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; text-align:center }
 </style>
 </head>
 <body>
@@ -51,6 +52,15 @@
   </div>
 
   <div id="log"></div>
+
+  <!-- הזנת token (פעם ראשונה במכשיר, אם הקישור עם ?t= לא נשמר) -->
+  <div id="tokengate" class="gate" hidden>
+    <div class="card">
+      <p>הדבק את ה-token · Paste token</p>
+      <input id="tokin" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-…">
+      <button id="toksave">שמור · Save</button>
+    </div>
+  </div>
 
   <!-- בחירת כותב (פעם ראשונה / החלפה בלחיצה על השם בכותרת) -->
   <div id="gate" class="gate" hidden>

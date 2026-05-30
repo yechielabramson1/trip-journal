@@ -55,6 +55,7 @@ function clientId(){ let c=localStorage.getItem('cid'); if(!c){c=uuid();localSto
 function getAuthor(){ return localStorage.getItem('author') || ''; }
 function setAuthor(n){ localStorage.setItem('author', n); $('who').textContent = n ? ('· '+n) : '?'; applyLang(); render(); }
 function showGate(){ $('gate').hidden = false; }
+function showTokenGate(){ $('tokengate').hidden = false; const i=$('tokin'); if(i){ i.value=token(); i.focus(); } }
 
 /* ----------------------------------------------------------------------------
  * IndexedDB — תור מתמשך. בחרנו IndexedDB (ולא localStorage) כי הוא:
@@ -196,6 +197,14 @@ $('cam').onchange=async(e)=>{
 $('who').onclick = showGate;
 $('gate').querySelectorAll('button').forEach(b=> b.onclick = ()=>{ setAuthor(b.dataset.name); $('gate').hidden = true; });
 
+// הזנת token ידנית (fallback לאייפון אם ?t= לא נשמר)
+$('toksave').onclick = ()=>{
+  const v=$('tokin').value.trim(); if(!v) return;
+  localStorage.setItem('token', v); $('tokengate').hidden = true;
+  if(!getAuthor()) showGate();        // אחרי token → בחר כותב
+  render(); flush();
+};
+
 // iOS: אין background sync — מסנכרנים בכל חזרה לפורגראונד + על 'online'
 addEventListener('online', flush);
 addEventListener('offline', render);
@@ -207,6 +216,7 @@ document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) flush()
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
   setAuthor(getAuthor());            // מצייר את השם בכותרת + מחיל שפה
   applyLang();
-  if(!getAuthor()) showGate();       // פעם ראשונה במכשיר → בחר מי אתה
+  if(!token()) showTokenGate();      // אין token → בקש להדביק (חסין-תקלות לאייפון)
+  else if(!getAuthor()) showGate();  // יש token, אין כותב → בחר מי אתה
   await render(); flush();
 })();
