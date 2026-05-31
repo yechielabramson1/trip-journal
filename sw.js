@@ -1,9 +1,8 @@
-/* Service Worker — app-shell precache (cache-first).
- * מאפשר לאפליקציה להיפתח גם בלי קליטה (קריטי בדולומיטים).
- * שים לב: בכל שינוי קוד — העלה את CACHE (v1→v2) כדי לדחוף עדכון.
- * הערה ל-iOS: אין Background Sync; ה-flush של התור נעשה ב-app.js בפתיחה/online.
+/* Service Worker — NETWORK-FIRST for the app shell.
+ * תמיד מנסה רשת קודם (כדי שעדכונים יופיעו מיד), ונופל ל-cache רק כשאין רשת
+ * (כך האפליקציה עדיין נפתחת אופליין בדולומיטים). POSTים לשרת לא עוברים דרך ה-SW.
  */
-const CACHE = 'fieldcapture-v16';
+const CACHE = 'fieldcapture-v17';
 const SHELL = ['./','./index.html','./app.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 
 self.addEventListener('install', e=>{
@@ -14,6 +13,11 @@ self.addEventListener('activate', e=>{
 });
 self.addEventListener('fetch', e=>{
   const url=new URL(e.request.url);
-  if(e.request.method!=='GET' || url.origin!==location.origin) return; // POSTים לשרת לא נכנסים ל-SW
-  e.respondWith(caches.match(e.request).then(hit=> hit || fetch(e.request)));
+  if(e.request.method!=='GET' || url.origin!==location.origin) return;   // לשרת (POST) — לא נוגעים
+  e.respondWith(
+    fetch(e.request).then(resp=>{
+      const copy=resp.clone(); caches.open(CACHE).then(c=>c.put(e.request, copy)).catch(()=>{});
+      return resp;
+    }).catch(()=> caches.match(e.request).then(hit=> hit || caches.match('./index.html')))
+  );
 });
