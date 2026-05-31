@@ -315,7 +315,8 @@ $('exSave').onclick=async()=>{
 };
 
 /* ---------- Itinerary (תכנית יומית) ---------- */
-let itinItems=[], itinStart='', itinDays=0, editItem=null;
+let itinItems=[], itinStart='', itinDays=0, editItem=null, itinDayView=null;
+function toMin(t){ if(!t) return null; const p=String(t).split(':'); if(p.length<2) return null; return (+p[0])*60+(+p[1]); }
 const TYPE_ICON={activity:'🥾',sight:'📸',meal:'🍽️',hotel:'🏨',travel:'🚗'};
 function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function parseYmd(s){ const p=String(s).split('-'); return new Date(+p[0], (+p[1]||1)-1, (+p[2]||1)); }
@@ -329,6 +330,7 @@ function dayList(){
 }
 async function openItin(){
   if(!ensureTrip()) return;
+  itinDayView=null;
   $('itin').hidden=false; $('itinTitle').textContent='🗓️ '+(getTripName()||'תכנית');
   $('itinBody').innerHTML='<div class="emptyday">טוען…</div>';
   await reloadItin();
@@ -339,37 +341,65 @@ async function reloadItin(){
     else $('itinBody').innerHTML='<div class="emptyday">שגיאה: '+escapeHtml(r.error||'')+'</div>';
   }catch(e){ $('itinBody').innerHTML='<div class="emptyday">אין חיבור</div>'; }
 }
-function renderItin(){
+function renderItin(){ if(itinDayView) renderDayGrid(itinDayView); else renderOverview(); }
+function itemCard(it, withLinks){
+  const c=document.createElement('div'); c.className='icard'; c.onclick=()=>openItem(it, it.day);
+  const tm=(it.time||'')+(it.endTime?('–'+it.endTime):'');
+  let links='';
+  const q=(it.address||it.location||'').trim();
+  if(withLinks && q){ const eq=encodeURIComponent(q);
+    links+='<a class="lnk" href="https://www.google.com/maps/search/?api=1&query='+eq+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺️ מפות</a>';
+    links+='<a class="lnk" href="waze://?q='+eq+'&navigate=yes" onclick="event.stopPropagation()">🚗 Waze</a>'; }
+  const sub=[it.location, it.notes].filter(Boolean).map(escapeHtml).join(' · ');
+  c.innerHTML='<div class="t">'+escapeHtml(tm||'—')+'</div><div class="bd"><div class="ttl">'+(TYPE_ICON[it.type]||'•')+' '+escapeHtml(it.title||'')+'</div>'+(sub?('<div class="sub">'+sub+'</div>'):'')+(links?('<div class="sub">'+links+'</div>'):'')+'</div>';
+  return c;
+}
+function renderOverview(){
   const body=$('itinBody'); body.innerHTML='';
   dayList().forEach((day,idx)=>{
-    const hdr=document.createElement('div'); hdr.className='dayhdr';
-    const lbl=document.createElement('span'); lbl.textContent='יום '+(idx+1)+' · '+dayLabel(day); hdr.appendChild(lbl);
-    const add=document.createElement('button'); add.textContent='＋'; add.onclick=()=>openItem(null, day); hdr.appendChild(add);
+    const hdr=document.createElement('div'); hdr.className='dayhdr tap';
+    const lbl=document.createElement('span'); lbl.style.flex='1'; lbl.textContent='יום '+(idx+1)+' · '+dayLabel(day);
+    hdr.appendChild(lbl);
+    const add=document.createElement('button'); add.textContent='＋'; add.onclick=(e)=>{ e.stopPropagation(); openItem(null, day); }; hdr.appendChild(add);
+    hdr.onclick=()=>{ itinDayView=day; renderItin(); $('itinBody').scrollTop=0; };
     body.appendChild(hdr);
     const items=itinItems.filter(i=>i.day===day).sort((a,b)=>(a.order-b.order)||String(a.time).localeCompare(String(b.time)));
-    if(!items.length){ const e=document.createElement('div'); e.className='emptyday'; e.textContent='— אין פריטים —'; body.appendChild(e); return; }
-    items.forEach(it=>{
-      const c=document.createElement('div'); c.className='icard'; c.onclick=()=>openItem(it, it.day);
-      const tm=(it.time||'')+(it.endTime?('–'+it.endTime):'');
-      let links='';
-      const q=(it.address||it.location||'').trim();
-      if(q){ const eq=encodeURIComponent(q);
-        links+='<a class="lnk" href="https://www.google.com/maps/search/?api=1&query='+eq+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺️ מפות</a>';
-        links+='<a class="lnk" href="waze://?q='+eq+'&navigate=yes" onclick="event.stopPropagation()">🚗 Waze</a>'; }
-      const sub=[it.location, it.notes].filter(Boolean).map(escapeHtml).join(' · ');
-      c.innerHTML='<div class="t">'+escapeHtml(tm)+'</div><div class="bd"><div class="ttl">'+(TYPE_ICON[it.type]||'•')+' '+escapeHtml(it.title||'')+'</div>'+(sub?('<div class="sub">'+sub+'</div>'):'')+(links?('<div class="sub">'+links+'</div>'):'')+'</div>';
-      body.appendChild(c);
-    });
+    if(!items.length){ const e=document.createElement('div'); e.className='emptyday'; e.textContent='— ריק (הקש על היום לתצוגת שעות) —'; body.appendChild(e); return; }
+    items.forEach(it=> body.appendChild(itemCard(it, true)));
   });
+}
+function renderDayGrid(day){
+  const body=$('itinBody'); body.innerHTML='';
+  const back=document.createElement('button'); back.className='iback'; back.textContent='← כל הימים'; back.onclick=()=>{ itinDayView=null; renderItin(); }; body.appendChild(back);
+  const idx=dayList().indexOf(day);
+  const ttl=document.createElement('div'); ttl.className='dayhdr'; ttl.innerHTML='<span>יום '+(idx+1)+' · '+escapeHtml(dayLabel(day))+'</span>'; body.appendChild(ttl);
+  // פריטים ללא שעה — למעלה
+  const dayItems=itinItems.filter(i=>i.day===day);
+  dayItems.filter(i=>toMin(i.time)==null).forEach(it=> body.appendChild(itemCard(it, true)));
+  // רשת שעות
+  const H0=0,H1=24,HH=54;
+  const grid=document.createElement('div'); grid.className='grid'; grid.style.height=((H1-H0)*HH)+'px';
+  for(let h=H0;h<H1;h++){ const row=document.createElement('div'); row.className='hour'; row.style.top=((h-H0)*HH)+'px';
+    const hl=document.createElement('span'); hl.className='hl'; hl.textContent=String(h).padStart(2,'0')+':00'; row.appendChild(hl);
+    row.onclick=()=>openItem(null, day, String(h).padStart(2,'0')+':00'); grid.appendChild(row); }
+  dayItems.filter(i=>toMin(i.time)!=null).forEach(it=>{
+    const sm=toMin(it.time); let em=toMin(it.endTime); if(em==null||em<=sm) em=sm+60;
+    const b=document.createElement('div'); b.className='gblock '+(it.type||'');
+    b.style.top=(((sm/60)-H0)*HH)+'px'; b.style.height=Math.max(26,((em-sm)/60)*HH-2)+'px';
+    b.innerHTML='<div class="gt">'+escapeHtml(it.time||'')+(it.endTime?('–'+escapeHtml(it.endTime)):'')+'</div>'+(TYPE_ICON[it.type]||'')+' '+escapeHtml(it.title||'');
+    b.onclick=(e)=>{ e.stopPropagation(); openItem(it, day); }; grid.appendChild(b);
+  });
+  body.appendChild(grid);
+  $('itinBody').scrollTop = 7*HH;   // התחל סביב 07:00
 }
 function fillDaySelect(){
   const sel=$('itDay'); sel.innerHTML='';
   dayList().forEach((day,idx)=>{ const o=document.createElement('option'); o.value=day; o.textContent='יום '+(idx+1)+' · '+dayLabel(day); sel.appendChild(o); });
 }
-function openItem(it, day){
+function openItem(it, day, presetTime){
   editItem=it; fillDaySelect();
   $('itDay').value=(it?it.day:day)||dayList()[0];
-  $('itTime').value=it?(it.time||''):''; $('itEnd').value=it?(it.endTime||''):'';
+  $('itTime').value=it?(it.time||''):(presetTime||''); $('itEnd').value=it?(it.endTime||''):'';
   $('itTitleInp').value=it?(it.title||''):''; $('itType').value=it?(it.type||'activity'):'activity';
   $('itLoc').value=it?(it.location||''):''; $('itAddr').value=it?(it.address||''):''; $('itNotes').value=it?(it.notes||''):'';
   $('itDelete').style.display=it?'block':'none'; $('itemHdr').textContent=it?'עריכת פריט':'פריט חדש';
