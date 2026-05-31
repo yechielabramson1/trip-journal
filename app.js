@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v26';
+const APP_VER='v27';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -726,7 +726,8 @@ $('wrapGen').onclick=async()=>{
   $('wrapGen').disabled=true; const pend=wrapMsg('ai', T().wrap_summarizing);
   try{ const r=await api({ action:'trip_wrapup', tripId:getTripId() });
     pend.remove();
-    if(r.ok){ wrapUrl=r.url||'#'; wrapLastLessons=r.text||''; wrapMsg('ai', r.text); }
+    if(r.ok && r.text){ wrapUrl=r.url||'#'; wrapLastLessons=r.text||''; wrapMsg('ai', r.text); }
+    else if(r && r.service){ wrapMsg('ai', L('⏳ ההפקה ארכה מעט — הקש שוב על "הפק סיכום"','⏳ That took a moment — tap "Generate summary" again')); }
     else wrapMsg('ai','⚠️ '+(r.error||'error'));
   }catch(e){ pend.remove(); wrapMsg('ai', L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ $('wrapGen').disabled=false; }
@@ -738,7 +739,8 @@ async function wrapSendChat(){
   $('wrapSend').disabled=true; const pend=wrapMsg('ai', T().wrap_thinking);
   try{ const r=await api({ action:'wrapup_chat', tripId:getTripId(), text:q });
     pend.remove();
-    if(r.ok){ wrapLastLessons=r.reply||wrapLastLessons; wrapMsg('ai', r.reply); }
+    if(r.ok && r.reply){ wrapLastLessons=r.reply||wrapLastLessons; wrapMsg('ai', r.reply); }
+    else if(r && r.service){ wrapMsg('ai', L('⏳ ארך מעט — שלח שוב','⏳ Took a moment — send again')); }
     else wrapMsg('ai','⚠️ '+(r.error||'error'));
   }catch(e){ pend.remove(); wrapMsg('ai', L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ $('wrapSend').disabled=false; }
