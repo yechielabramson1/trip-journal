@@ -174,7 +174,9 @@ function showGate(){ $('gate').hidden=false; }
 $('save').onclick=async()=>{ const t=$('txt').value.trim(); if(!t) return; if(!ensureTrip()) return;
   $('save').disabled=true; await enqueueJournal(t); $('txt').value=''; logLine(T().saved+': '+t.slice(0,40)); await render(); flush(); $('save').disabled=false; };
 async function handleFile(input, category){ const f=input.files[0]; if(!f) return; input.value=''; if(!ensureTrip()) return;
-  logLine(T().compressing); const ok=await enqueueFile(f,category); if(ok) logLine(T().queued); await render(); flush(); }
+  logLine(T().compressing); const ok=await enqueueFile(f,category); if(ok) logLine(T().queued); await render(); flush();
+  if(ok && !$('filesgate').hidden) setTimeout(refreshFiles, 2500);   // רענן את הגלריה אחרי שההעלאה נשלחה
+}
 $('cam').onchange     =()=>handleFile($('cam'),'photo');
 $('docfile').onchange =()=>handleFile($('docfile'),'document');
 $('rcptfile').onchange=()=>handleFile($('rcptfile'),'receipt');
@@ -464,6 +466,27 @@ $('itinAskBtn').onclick=async()=>{
     if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin(); } else alert('שגיאה: '+(r.error||''));
   }catch(e){ alert('אין חיבור — נסה שוב'); } finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
 };
+
+/* ---------- files gallery (photos / documents / receipts) ---------- */
+let filesCategory='document';
+const FILES_TITLE={ photo:'📷 תמונות', document:'📁 מסמכים', receipt:'🧾 קבלות' };
+const FILES_INPUT={ photo:'cam', document:'docfile', receipt:'rcptfile' };
+async function refreshFiles(){
+  try{ const r=await api({ action:'list_files', tripId:getTripId(), category:filesCategory });
+    const el=$('filesList'); el.innerHTML=''; const files=(r.ok&&r.files)||[];
+    if(!files.length){ el.innerHTML='<div class="emptyday">— ריק. הקש "העלה / צלם חדש" —</div>'; return; }
+    files.forEach(f=>{ const a=document.createElement('a'); a.className='fitem'; a.href=f.url; a.target='_blank'; a.rel='noopener';
+      if(/^image\//.test(f.mime)) a.innerHTML='<img loading="lazy" src="https://drive.google.com/thumbnail?id='+f.id+'&sz=w400">';
+      else a.innerHTML='<div class="fdoc">'+(/pdf/i.test(f.mime)?'📄':'📎')+'</div>';
+      a.innerHTML+='<div class="fn">'+escapeHtml(f.name)+'</div>'; el.appendChild(a); });
+  }catch(e){ $('filesList').innerHTML='<div class="emptyday">אין חיבור</div>'; }
+}
+async function openFiles(cat){ if(!ensureTrip()) return; filesCategory=cat; $('filesHdr').textContent=FILES_TITLE[cat]; $('filesList').innerHTML='<div class="emptyday">טוען…</div>'; $('filesgate').hidden=false; await refreshFiles(); }
+$('photobtn').onclick=()=>openFiles('photo');
+$('docbtn').onclick=()=>openFiles('document');
+$('rcptbtn').onclick=()=>openFiles('receipt');
+$('filesUpload').onclick=()=>$(FILES_INPUT[filesCategory]).click();
+$('filesClose').onclick=()=>{ $('filesgate').hidden=true; };
 
 addEventListener('online', flush); addEventListener('offline', render);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ flush(); initTrips();

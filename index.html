@@ -80,6 +80,11 @@
   .icard .lnk{ display:inline-block; margin-inline-end:12px; font-size:.84rem; text-decoration:none; color:#0e7490 }
   .icard .typ{ font-size:1.15rem }
   .emptyday{ color:var(--muted); font-size:.84rem; padding:2px 2px 6px }
+  #filesList{ max-height:54vh; overflow:auto; margin:8px 0; display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-start }
+  .fitem{ width:47%; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; text-decoration:none; color:var(--ink); display:flex; flex-direction:column }
+  .fitem img{ width:100%; height:96px; object-fit:cover; background:#f1f5f9 }
+  .fitem .fdoc{ height:96px; display:flex; align-items:center; justify-content:center; font-size:2rem; background:#f8fafc }
+  .fitem .fn{ font-size:.72rem; padding:5px 6px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
   .dayhdr.tap{ cursor:pointer } .dayhdr.tap:active{ background:#e2e8f0; border-radius:8px }
   .iback{ background:#e2e8f0;border:0;border-radius:8px;padding:6px 12px;color:var(--teal2);font-size:.95rem;margin:6px 0 }
   .grid{ position:relative; margin:4px 0 40px }
@@ -108,9 +113,9 @@
     <div class="actions">
       <button class="act save" id="save">💾 שמור ליומן</button>
       <button class="act itin" id="itinbtn" style="grid-column:1 / -1">🗓️ תכנית הטיול</button>
-      <label class="act photo" for="cam">📷 תמונה</label>
-      <label class="act doc" for="docfile">📁 מסמך</label>
-      <label class="act receipt" for="rcptfile">🧾 קבלה</label>
+      <button class="act photo" id="photobtn">📷 תמונות</button>
+      <button class="act doc" id="docbtn">📁 מסמכים</button>
+      <button class="act receipt" id="rcptbtn">🧾 קבלות</button>
       <button class="act expense" id="expensebtn">💶 הוצאה</button>
       <button class="act ask" id="askbtn" style="grid-column:1 / -1">🤖 שאל את הקונסיירז'</button>
     </div>
@@ -129,7 +134,7 @@
     <div class="foot">
       <button id="newtrip">➕ טיול חדש</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v21 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v22 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -166,6 +171,14 @@
     <button id="itSave">💾 שמור</button>
     <button id="itDelete" class="ghost" style="display:none; color:#b91c1c">🗑️ מחק</button>
     <button id="itCancel" class="ghost">סגור</button>
+  </div></div>
+
+  <!-- files gallery (photos / documents / receipts) -->
+  <div id="filesgate" class="gate" hidden><div class="card" style="text-align:right; width:min(94vw,460px)">
+    <p id="filesHdr">קבצים</p>
+    <button id="filesUpload">➕ העלה / צלם חדש</button>
+    <div id="filesList"></div>
+    <button id="filesClose" class="ghost">סגור</button>
   </div></div>
 
   <!-- token gate -->
@@ -226,6 +239,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=21"></script>
+<script src="app.js?v=22"></script>
 </body>
 </html>
