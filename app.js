@@ -230,6 +230,7 @@ let exFile=null, editingId=null;
 function resetExpenseForm(){
   editingId=null; exFile=null; $('exAmount').value=''; $('exDesc').value='';
   $('exReceiptLabel').textContent='📷 צרף קבלה / צילום מסך'; $('exSave').textContent='💾 שמור הוצאה';
+  $('exKeepImg').checked=false;
   $('exList').style.display='none'; $('exList').innerHTML='';
 }
 $('expensebtn').onclick=async()=>{
@@ -286,14 +287,15 @@ $('exSave').onclick=async()=>{
   $('exSave').disabled=true;
   const fields={ amount:amount, currency:$('exCurrency').value, category:$('exCategory').value, description:$('exDesc').value.trim(), method:$('exMethod').value };
   let ok=true;
+  const keepImg = $('exKeepImg').checked;       // התמונה נשמרת רק אם סומן (אחרת רק הנתונים)
   if(editingId){            // עריכה — דורש חיבור (update ישיר)
     if(!navigator.onLine){ alert('עריכת הוצאה דורשת חיבור'); $('exSave').disabled=false; return; }
     try{ const payload={ action:'update_expense', tripId:getTripId(), expenseId:editingId, ...fields };
-      if(exFile){ const blob=/^image\//.test(exFile.type)?await compressImage(exFile):exFile; payload.mime='image/jpeg'; payload.name='receipt.jpg'; payload.dataB64=await blobToB64(blob); }
+      if(exFile && keepImg){ const blob=/^image\//.test(exFile.type)?await compressImage(exFile):exFile; payload.mime='image/jpeg'; payload.name='receipt.jpg'; payload.dataB64=await blobToB64(blob); }
       const r=await api(payload); ok=r.ok; if(ok) logLine('✏️ עודכן: '+fields.category+' · '+amount);
     }catch(e){ ok=false; }
   } else {                  // חדש — דרך התור (עובד offline)
-    ok=await enqueueExpense(fields, exFile);
+    ok=await enqueueExpense(fields, keepImg ? exFile : null);
     if(ok) logLine('💶 '+fields.category+' · '+amount+' '+fields.currency);
   }
   if(ok){ resetExpenseForm(); $('expensegate').hidden=true; }
