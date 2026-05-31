@@ -390,7 +390,7 @@ function renderDayGrid(day){
     makeBlockInteractive(b, it, HH); grid.appendChild(b);
   });
   body.appendChild(grid);
-  $('itinBody').scrollTop = 7*HH;   // התחל סביב 07:00
+  $('itinBody').scrollTop = 8*HH;   // התחל ממוקד על 08:00 (בוקר), גלילה ידנית לפני/אחרי
 }
 function fmtMin(m){ m=((Math.round(m)%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
 async function saveItemQuick(it){ try{ const r=await api({action:'save_item', tripId:getTripId(), item:it}); if(r.ok) await reloadItin(); else alert('שגיאה'); }catch(e){ alert('אין חיבור — נסה שוב'); } }
@@ -403,11 +403,15 @@ function makeBlockInteractive(b, it, HH){
   function down(e, m){ mode=m; moved=false; startY=e.clientY; origTop=parseFloat(b.style.top)||0; origH=parseFloat(b.style.height)||HH;
     b.classList.add('drag'); try{ b.setPointerCapture(e.pointerId); }catch(_){}
     window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); e.preventDefault(); e.stopPropagation(); }
-  function move(e){ const d=e.clientY-startY; if(Math.abs(d)>5) moved=true;
+  function move(e){ const d=e.clientY-startY; if(Math.abs(d)>8) moved=true;
     if(mode==='move') b.style.top=Math.max(0, origTop+d)+'px';
     else b.style.height=Math.max(20, origH+d)+'px'; }
   function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); b.classList.remove('drag');
     if(!moved){ openItem(it, it.day); return; }
+    // אחרי גרירה — בלע את ה"קליק" המדומה שה-iOS יורה, כדי שלא ייפתח עריכה/הוספה בטעות
+    const swallow=(ev)=>{ ev.stopPropagation(); ev.preventDefault(); };
+    window.addEventListener('click', swallow, true);
+    setTimeout(()=>window.removeEventListener('click', swallow, true), 450);
     if(mode==='move'){ let ns=snap(parseFloat(b.style.top)/HH*60); ns=Math.max(0, Math.min(1440-dur, ns)); it.time=fmtMin(ns); it.endTime=fmtMin(ns+dur); }
     else { let ne=snap(sm + parseFloat(b.style.height)/HH*60); ne=Math.max(sm+15, Math.min(1440, ne)); it.endTime=fmtMin(ne); }
     saveItemQuick(it);
