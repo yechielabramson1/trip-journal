@@ -458,7 +458,7 @@ $('itinUndo').onclick=async()=>{
 $('itinAskBtn').onclick=async()=>{
   const q=$('itinAsk').value.trim(); if(!q) return;
   if(!navigator.onLine){ alert('צריך חיבור ל-AI'); return; }
-  if(/ייבא|מהמייל|מהאימייל|gmail|import/i.test(q) && !confirm('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail ותשלח תקציר ל-AI. להמשיך?')) return;
+  if(/ייבא|מה?מייל|מה?אימייל|מה?דוא|from .*e-?mail|import|gmail/i.test(q) && !confirm('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail ותשלח תקציר ל-AI. להמשיך?')) return;
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
   try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
     if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin(); } else alert('שגיאה: '+(r.error||''));
