@@ -450,9 +450,15 @@ $('itDelete').onclick=async()=>{
   try{ const r=await api({action:'delete_item', tripId:getTripId(), itemId:editItem.id}); if(r.ok){ $('itemgate').hidden=true; await reloadItin(); } }
   catch(e){ alert('אין חיבור'); }
 };
+$('itinUndo').onclick=async()=>{
+  if(!navigator.onLine){ alert('שחזור דורש חיבור'); return; }
+  if(!confirm('לשחזר את התכנית מהגיבוי האחרון (לפני שינוי ה-AI האחרון)?')) return;
+  try{ const r=await api({ action:'restore_itinerary', tripId:getTripId() }); if(r.ok){ itinItems=r.items||[]; renderItin(); } else alert(r.error||'אין גיבוי'); }catch(e){ alert('אין חיבור'); }
+};
 $('itinAskBtn').onclick=async()=>{
   const q=$('itinAsk').value.trim(); if(!q) return;
   if(!navigator.onLine){ alert('צריך חיבור ל-AI'); return; }
+  if(/ייבא|מהמייל|מהאימייל|gmail|import/i.test(q) && !confirm('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail ותשלח תקציר ל-AI. להמשיך?')) return;
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
   try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
     if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin(); } else alert('שגיאה: '+(r.error||''));
