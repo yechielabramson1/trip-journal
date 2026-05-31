@@ -230,7 +230,7 @@ let exFile=null, editingId=null;
 function resetExpenseForm(){
   editingId=null; exFile=null; $('exAmount').value=''; $('exDesc').value='';
   $('exReceiptLabel').textContent='📷 צרף קבלה / צילום מסך'; $('exSave').textContent='💾 שמור הוצאה';
-  $('exKeepImg').checked=false;
+  $('exKeepImg').checked=false; $('exDelete').style.display='none';
   $('exList').style.display='none'; $('exList').innerHTML='';
 }
 $('expensebtn').onclick=async()=>{
@@ -276,12 +276,22 @@ $('exEditBtn').onclick=async()=>{
       d.onclick=()=>{ editingId=e.id; $('exAmount').value=e.amount; $('exDesc').value=e.description||'';
         if([...$('exCurrency').options].some(o=>o.value===e.currency)) $('exCurrency').value=e.currency;
         const o=[...$('exCategory').options].find(x=>x.value===e.category); if(o) $('exCategory').value=e.category;
-        $('exMethod').value=e.method||'Apple Pay'; $('exSave').textContent='💾 עדכן הוצאה'; list.style.display='none'; $('exAmount').focus(); };
+        $('exMethod').value=e.method||'Apple Pay'; $('exSave').textContent='💾 עדכן הוצאה'; $('exDelete').style.display='block'; list.style.display='none'; $('exAmount').focus(); };
       list.appendChild(d); });
     list.style.display='block';
   } else { list.innerHTML='<div style="padding:8px;color:#64748b">אין הוצאות עדיין</div>'; list.style.display='block'; }
 };
 $('exClose').onclick=()=>{ $('expensegate').hidden=true; };
+$('exDelete').onclick=async()=>{
+  if(!editingId) return;
+  if(!navigator.onLine){ alert('מחיקה דורשת חיבור'); return; }
+  if(!confirm('למחוק את ההוצאה הזו?')) return;
+  $('exDelete').disabled=true;
+  try{ const r=await api({ action:'delete_expense', tripId:getTripId(), expenseId:editingId });
+    if(r.ok){ logLine('🗑️ הוצאה נמחקה'); resetExpenseForm(); $('expensegate').hidden=true; } else alert('שגיאה: '+(r.error||''));
+  }catch(e){ alert('אין חיבור — נסה שוב'); }
+  finally{ $('exDelete').disabled=false; }
+};
 $('exSave').onclick=async()=>{
   const amount=parseFloat($('exAmount').value); if(!(amount>0)){ $('exAmount').focus(); return; }
   $('exSave').disabled=true;
