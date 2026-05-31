@@ -226,20 +226,65 @@ $('storybtn').onclick=async()=>{
 };
 
 // expenses
-let exFile=null;
+let exFile=null, editingId=null;
+function resetExpenseForm(){
+  editingId=null; exFile=null; $('exAmount').value=''; $('exDesc').value='';
+  $('exReceiptLabel').textContent='📷 צרף קבלה / צילום מסך'; $('exSave').textContent='💾 שמור הוצאה';
+  $('exList').style.display='none'; $('exList').innerHTML='';
+}
 $('expensebtn').onclick=async()=>{
-  $('exAmount').value=''; $('exDesc').value=''; exFile=null;
-  $('exReceiptLabel').textContent='📷 צרף קבלה (לא חובה)'; $('exSheetLink').style.display='none';
+  resetExpenseForm(); $('exSheetLink').style.display='none';
   $('expensegate').hidden=false; $('exAmount').focus();
   if(navigator.onLine){ try{ const r=await api({ action:'expense_url', tripId:getTripId() }); if(r.ok && r.url){ $('exSheetLink').href=r.url; $('exSheetLink').style.display='block'; } }catch(e){} }
 };
-$('exReceipt').onchange=()=>{ exFile=$('exReceipt').files[0]||null; if(exFile) $('exReceiptLabel').textContent='📷 '+(exFile.name||'קבלה מצורפת'); };
+// צירוף צילום → קריאה אוטומטית (Vision) והשלמת השדות
+$('exReceipt').onchange=async()=>{
+  exFile=$('exReceipt').files[0]||null; if(!exFile) return;
+  if(!navigator.onLine){ $('exReceiptLabel').textContent='📷 '+(exFile.name||'קבלה'); return; }
+  $('exReceiptLabel').textContent='🔍 קורא את הקבלה…';
+  try{
+    const blob=await compressImage(exFile); const b64=await blobToB64(blob);
+    const r=await api({ action:'parse_receipt', mime:'image/jpeg', dataB64:b64 });
+    if(r.ok && r.data){ const d=r.data;
+      if(d.amount) $('exAmount').value=d.amount;
+      if(d.currency && [...$('exCurrency').options].some(o=>o.value===d.currency)) $('exCurrency').value=d.currency;
+      if(d.merchant) $('exDesc').value=d.merchant;
+      if(d.category){ const o=[...$('exCategory').options].find(x=>x.value===d.category||x.text===d.category); if(o) $('exCategory').value=o.value; }
+      $('exReceiptLabel').textContent='✅ '+(d.merchant||'נקרא')+' · '+(d.amount||'')+' '+(d.currency||'');
+    } else $('exReceiptLabel').textContent='📷 קבלה מצורפת (מלא ידנית)';
+  }catch(e){ $('exReceiptLabel').textContent='📷 קבלה מצורפת'; }
+};
+$('exEditBtn').onclick=async()=>{
+  if(!navigator.onLine){ alert('צריך חיבור כדי לטעון הוצאות לעריכה'); return; }
+  const r=await api({ action:'list_expenses', tripId:getTripId() }); const list=$('exList'); list.innerHTML='';
+  if(r.ok && r.expenses && r.expenses.length){
+    r.expenses.forEach(e=>{ const d=document.createElement('div'); d.className='trip';
+      d.textContent='💶 '+e.date+' · '+e.category+' · '+e.amount+' '+e.currency+(e.description?(' · '+e.description):'');
+      d.onclick=()=>{ editingId=e.id; $('exAmount').value=e.amount; $('exDesc').value=e.description||'';
+        if([...$('exCurrency').options].some(o=>o.value===e.currency)) $('exCurrency').value=e.currency;
+        const o=[...$('exCategory').options].find(x=>x.value===e.category); if(o) $('exCategory').value=e.category;
+        $('exMethod').value=e.method||'Apple Pay'; $('exSave').textContent='💾 עדכן הוצאה'; list.style.display='none'; $('exAmount').focus(); };
+      list.appendChild(d); });
+    list.style.display='block';
+  } else { list.innerHTML='<div style="padding:8px;color:#64748b">אין הוצאות עדיין</div>'; list.style.display='block'; }
+};
 $('exClose').onclick=()=>{ $('expensegate').hidden=true; };
 $('exSave').onclick=async()=>{
   const amount=parseFloat($('exAmount').value); if(!(amount>0)){ $('exAmount').focus(); return; }
   $('exSave').disabled=true;
-  const ok=await enqueueExpense({ amount:amount, currency:$('exCurrency').value, category:$('exCategory').value, description:$('exDesc').value.trim(), method:$('exMethod').value }, exFile);
-  if(ok){ logLine('💶 '+$('exCategory').value+' · '+amount+' '+$('exCurrency').value); $('expensegate').hidden=true; }
+  const fields={ amount:amount, currency:$('exCurrency').value, category:$('exCategory').value, description:$('exDesc').value.trim(), method:$('exMethod').value };
+  let ok=true;
+  if(editingId){            // עריכה — דורש חיבור (update ישיר)
+    if(!navigator.onLine){ alert('עריכת הוצאה דורשת חיבור'); $('exSave').disabled=false; return; }
+    try{ const payload={ action:'update_expense', tripId:getTripId(), expenseId:editingId, ...fields };
+      if(exFile){ const blob=/^image\//.test(exFile.type)?await compressImage(exFile):exFile; payload.mime='image/jpeg'; payload.name='receipt.jpg'; payload.dataB64=await blobToB64(blob); }
+      const r=await api(payload); ok=r.ok; if(ok) logLine('✏️ עודכן: '+fields.category+' · '+amount);
+    }catch(e){ ok=false; }
+  } else {                  // חדש — דרך התור (עובד offline)
+    ok=await enqueueExpense(fields, exFile);
+    if(ok) logLine('💶 '+fields.category+' · '+amount+' '+fields.currency);
+  }
+  if(ok){ resetExpenseForm(); $('expensegate').hidden=true; }
   await render(); flush(); $('exSave').disabled=false;
 };
 
