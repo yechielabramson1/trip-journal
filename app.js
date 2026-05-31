@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v28';
+const APP_VER='v29';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -38,7 +38,7 @@ const I18N = {
        food_kinds:{'מסעדה':'🍴 מסעדה','קפה':'☕ קפה','סופרמרקט':'🛒 סופרמרקט','בישול':'🍳 בישלנו','אחר':'אחר'},
        group_country:'קבץ לפי מדינה', no_country:'— ללא מדינה —', organize_confirm:'לארגן מחדש את כל המסמך? (ממזג כפילויות ומסדר לפי נושאים)', organizing_all:'🤖 מסדר…', restore_confirm:'לשחזר את המסמך מהגיבוי שלפני הסידור האחרון?', restored_ok:'↩️ שוחזר מהגיבוי',
        btn_wrap:'🏁 סיום מסע — סיכום ולקחים', wrap_title:'🏁 סיכום המסע', wrap_gen:'✨ הפק סיכום ולקחים', wrap_chat_ph:'מה היה טוב? מה לשפר לפעם הבאה?', wrap_save_lessons:'📥 שמור את הלקחים למוח',
-       wrap_summarizing:'🤖 מארגן ומסכם את כל המסע…', wrap_thinking:'🤖 חושב…', wrap_saved_lessons:'✅ הלקחים נשמרו במוח (לקחים)', wrap_nolessons:'אין עדיין לקחים לשמור — הפק סיכום או שוחח קודם', wrap_hint:'הפק סיכום, ואז שוחחו כדי לחלץ לקחים לטיולים הבאים 🛫',
+       wrap_gathering:'🗂️ אוסף את נתוני המסע…', wrap_summarizing:'🤖 מסכם ומפיק לקחים…', wrap_thinking:'🤖 חושב…', wrap_retry:'⏳ ארך מעט — הקש/שלח שוב', wrap_saved_lessons:'✅ הלקחים נשמרו במוח (לקחים)', wrap_nolessons:'אין עדיין לקחים לשמור — הפק סיכום או שוחח קודם', wrap_hint:'הפק סיכום, ואז שוחחו כדי לחלץ לקחים לטיולים הבאים 🛫',
        types:{activity:'🥾 פעילות',sight:'📸 אתר',meal:'🍽️ אוכל',hotel:'🏨 מלון',travel:'🚗 נסיעה'},
        cats:{'טיסות':'טיסות','השכרת רכב':'השכרת רכב','לינה':'לינה','אוכל ומסעדות':'אוכל ומסעדות','דלק/תחבורה':'דלק/תחבורה','אטרקציות':'אטרקציות','קניות':'קניות','אחר':'אחר'},
        methods:{'Apple Pay':'Apple Pay','מזומן':'מזומן','כרטיס אשראי':'כרטיס אשראי','אחר':'אחר'} },
@@ -59,7 +59,7 @@ const I18N = {
        food_kinds:{'מסעדה':'🍴 Restaurant','קפה':'☕ Café','סופרמרקט':'🛒 Supermarket','בישול':'🍳 Cooked','אחר':'Other'},
        group_country:'Group by country', no_country:'— no country —', organize_confirm:'Reorganize the whole document? (merges duplicates, sorts by topic)', organizing_all:'🤖 Organizing…', restore_confirm:'Restore the document from the backup before the last reorganize?', restored_ok:'↩️ Restored from backup',
        btn_wrap:'🏁 Wrap up trip — summary & lessons', wrap_title:'🏁 Trip wrap-up', wrap_gen:'✨ Generate summary & lessons', wrap_chat_ph:'What went well? What to improve next time?', wrap_save_lessons:'📥 Save the lessons to the Brain',
-       wrap_summarizing:'🤖 Organizing & summarizing the whole trip…', wrap_thinking:'🤖 Thinking…', wrap_saved_lessons:'✅ Lessons saved to the Brain (Lessons)', wrap_nolessons:'No lessons to save yet — generate a summary or chat first', wrap_hint:'Generate a summary, then chat to extract lessons for future trips 🛫',
+       wrap_gathering:'🗂️ Gathering the trip data…', wrap_summarizing:'🤖 Summarizing & extracting lessons…', wrap_thinking:'🤖 Thinking…', wrap_retry:'⏳ Took a moment — tap/send again', wrap_saved_lessons:'✅ Lessons saved to the Brain (Lessons)', wrap_nolessons:'No lessons to save yet — generate a summary or chat first', wrap_hint:'Generate a summary, then chat to extract lessons for future trips 🛫',
        types:{activity:'🥾 Activity',sight:'📸 Sight',meal:'🍽️ Food',hotel:'🏨 Hotel',travel:'🚗 Travel'},
        cats:{'טיסות':'Flights','השכרת רכב':'Car rental','לינה':'Lodging','אוכל ומסעדות':'Food & dining','דלק/תחבורה':'Fuel / Transport','אטרקציות':'Attractions','קניות':'Shopping','אחר':'Other'},
        methods:{'Apple Pay':'Apple Pay','מזומן':'Cash','כרטיס אשראי':'Credit card','אחר':'Other'} }
@@ -725,19 +725,31 @@ $('foodSave').onclick=async()=>{
 };
 
 /* --- 🏁 סיום מסע — סיכום + שיחת הפקת-לקחים --- */
-let wrapUrl='#', wrapLastLessons='';
+let wrapUrl='#', wrapLastLessons='', wrapCtxReady=false;
 function wrapMsg(role, text){ const d=document.createElement('div'); d.className='wmsg '+(role==='me'?'me':'ai'); d.textContent=text; $('wrapBody').appendChild(d); $('wrapBody').scrollTop=$('wrapBody').scrollHeight; return d; }
-function openWrap(){ if(!ensureTrip()) return; $('wrap').hidden=false; $('wrapBody').innerHTML=''; wrapLastLessons=''; wrapUrl='#'; wrapMsg('ai', T().wrap_hint); }
+function openWrap(){ if(!ensureTrip()) return; $('wrap').hidden=false; $('wrapBody').innerHTML=''; wrapLastLessons=''; wrapUrl='#'; wrapCtxReady=false; wrapMsg('ai', T().wrap_hint); }
 $('wrapbtn').onclick=openWrap;
 $('wrapClose').onclick=()=>{ $('wrap').hidden=true; };
 $('wrapDoc').onclick=()=>{ if(wrapUrl && wrapUrl!=='#') window.open(wrapUrl,'_blank','noopener'); };
+// שלב 1 (פעם אחת לכל פתיחה): בונה+שומר את הקשר-המסע בקאש בשרת, כך ששלב הסיכום/הצ'אט מהירים (<60ש')
+async function ensureWrapCtx(pend){
+  if(wrapCtxReady) return true;
+  if(pend) pend.textContent=T().wrap_gathering;
+  const c=await api({ action:'wrapup_context', tripId:getTripId() });
+  if(c && c.ok){ wrapCtxReady=true; return true; }
+  return c;   // מחזיר את התשובה הכושלת לטיפול
+}
 $('wrapGen').onclick=async()=>{
   if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
-  $('wrapGen').disabled=true; const pend=wrapMsg('ai', T().wrap_summarizing);
-  try{ const r=await api({ action:'trip_wrapup', tripId:getTripId() });
+  $('wrapGen').disabled=true; const pend=wrapMsg('ai', T().wrap_gathering);
+  try{
+    const c=await ensureWrapCtx(pend);
+    if(c!==true){ pend.remove(); wrapMsg('ai', (c&&c.service)?T().wrap_retry:('⚠️ '+((c&&c.error)||'error'))); return; }
+    pend.textContent=T().wrap_summarizing;
+    const r=await api({ action:'trip_wrapup', tripId:getTripId() });
     pend.remove();
     if(r.ok && r.text){ wrapUrl=r.url||'#'; wrapLastLessons=r.text||''; wrapMsg('ai', r.text); }
-    else if(r && r.service){ wrapMsg('ai', L('⏳ ההפקה ארכה מעט — הקש שוב על "הפק סיכום"','⏳ That took a moment — tap "Generate summary" again')); }
+    else if(r && r.service){ wrapMsg('ai', T().wrap_retry); }
     else wrapMsg('ai','⚠️ '+(r.error||'error'));
   }catch(e){ pend.remove(); wrapMsg('ai', L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ $('wrapGen').disabled=false; }
@@ -747,10 +759,14 @@ async function wrapSendChat(){
   if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
   $('wrapChat').value=''; wrapMsg('me', q);
   $('wrapSend').disabled=true; const pend=wrapMsg('ai', T().wrap_thinking);
-  try{ const r=await api({ action:'wrapup_chat', tripId:getTripId(), text:q });
+  try{
+    const c=await ensureWrapCtx(pend);
+    if(c!==true){ pend.remove(); wrapMsg('ai', (c&&c.service)?T().wrap_retry:('⚠️ '+((c&&c.error)||'error'))); return; }
+    pend.textContent=T().wrap_thinking;
+    const r=await api({ action:'wrapup_chat', tripId:getTripId(), text:q });
     pend.remove();
     if(r.ok && r.reply){ wrapLastLessons=r.reply||wrapLastLessons; wrapMsg('ai', r.reply); }
-    else if(r && r.service){ wrapMsg('ai', L('⏳ ארך מעט — שלח שוב','⏳ Took a moment — send again')); }
+    else if(r && r.service){ wrapMsg('ai', T().wrap_retry); }
     else wrapMsg('ai','⚠️ '+(r.error||'error'));
   }catch(e){ pend.remove(); wrapMsg('ai', L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ $('wrapSend').disabled=false; }
