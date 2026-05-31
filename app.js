@@ -237,13 +237,13 @@ $('expensebtn').onclick=async()=>{
   $('expensegate').hidden=false; $('exAmount').focus();
   if(navigator.onLine){ try{ const r=await api({ action:'expense_url', tripId:getTripId() }); if(r.ok && r.url){ $('exSheetLink').href=r.url; $('exSheetLink').style.display='block'; } }catch(e){} }
 };
-// צירוף צילום → קריאה אוטומטית (Vision) והשלמת השדות
-$('exReceipt').onchange=async()=>{
-  exFile=$('exReceipt').files[0]||null; if(!exFile) return;
-  if(!navigator.onLine){ $('exReceiptLabel').textContent='📷 '+(exFile.name||'קבלה'); return; }
+// צירוף/הדבקת צילום → קריאה אוטומטית (Vision) והשלמת השדות
+async function useReceiptImage(file){
+  exFile=file; if(!file) return;
+  if(!navigator.onLine){ $('exReceiptLabel').textContent='📷 צורף (אין רשת לקריאה אוטומטית)'; return; }
   $('exReceiptLabel').textContent='🔍 קורא את הקבלה…';
   try{
-    const blob=await compressImage(exFile); const b64=await blobToB64(blob);
+    const blob=await compressImage(file); const b64=await blobToB64(blob);
     const r=await api({ action:'parse_receipt', mime:'image/jpeg', dataB64:b64 });
     if(r.ok && r.data){ const d=r.data;
       if(d.amount) $('exAmount').value=d.amount;
@@ -251,8 +251,20 @@ $('exReceipt').onchange=async()=>{
       if(d.merchant) $('exDesc').value=d.merchant;
       if(d.category){ const o=[...$('exCategory').options].find(x=>x.value===d.category||x.text===d.category); if(o) $('exCategory').value=o.value; }
       $('exReceiptLabel').textContent='✅ '+(d.merchant||'נקרא')+' · '+(d.amount||'')+' '+(d.currency||'');
-    } else $('exReceiptLabel').textContent='📷 קבלה מצורפת (מלא ידנית)';
-  }catch(e){ $('exReceiptLabel').textContent='📷 קבלה מצורפת'; }
+    } else $('exReceiptLabel').textContent='📷 צורף (מלא ידנית)';
+  }catch(e){ $('exReceiptLabel').textContent='📷 צורף'; }
+}
+$('exReceipt').onchange=()=>{ const f=$('exReceipt').files[0]; if(f) useReceiptImage(f); };
+$('exPaste').onclick=async()=>{
+  if(!navigator.clipboard || !navigator.clipboard.read){ alert('הדפדפן לא תומך בהדבקה מהלוח — השתמש ב"צרף קבלה".'); return; }
+  try{
+    const items=await navigator.clipboard.read();
+    for(const it of items){
+      const type=it.types.find(t=>t.startsWith('image/'));
+      if(type){ const blob=await it.getType(type); useReceiptImage(new File([blob],'screenshot.'+(type.split('/')[1]||'png'),{type})); return; }
+    }
+    alert('לא נמצאה תמונה בלוח. עשה "Copy and Delete" על צילום המסך באייפון ואז נסה שוב.');
+  }catch(e){ alert('לא ניתן לקרוא מהלוח. ודא שהענקת הרשאה, או השתמש ב"צרף קבלה".'); }
 };
 $('exEditBtn').onclick=async()=>{
   if(!navigator.onLine){ alert('צריך חיבור כדי לטעון הוצאות לעריכה'); return; }
