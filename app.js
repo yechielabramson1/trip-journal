@@ -52,6 +52,7 @@ function setTrip(id, name){
   $('drivelink').href = id ? ('https://drive.google.com/drive/folders/'+id) : '#';
 }
 function cachedTrips(){ try{ return JSON.parse(localStorage.getItem('trips')||'[]'); }catch(e){ return []; } }
+function ensureTrip(){ if(!getTripId()){ alert('בחר טיול קודם דרך התפריט ☰'); openDrawer(); return false; } return true; }
 async function initTrips(){
   try{
     const r = await api({ action:'list_trips' });
@@ -170,9 +171,9 @@ function showTokenGate(){ $('tokengate').hidden=false; const i=$('tokin'); if(i)
 function showGate(){ $('gate').hidden=false; }
 
 /* ---------- events ---------- */
-$('save').onclick=async()=>{ const t=$('txt').value.trim(); if(!t) return;
+$('save').onclick=async()=>{ const t=$('txt').value.trim(); if(!t) return; if(!ensureTrip()) return;
   $('save').disabled=true; await enqueueJournal(t); $('txt').value=''; logLine(T().saved+': '+t.slice(0,40)); await render(); flush(); $('save').disabled=false; };
-async function handleFile(input, category){ const f=input.files[0]; if(!f) return; input.value='';
+async function handleFile(input, category){ const f=input.files[0]; if(!f) return; input.value=''; if(!ensureTrip()) return;
   logLine(T().compressing); const ok=await enqueueFile(f,category); if(ok) logLine(T().queued); await render(); flush(); }
 $('cam').onchange     =()=>handleFile($('cam'),'photo');
 $('docfile').onchange =()=>handleFile($('docfile'),'document');
@@ -294,6 +295,7 @@ $('exDelete').onclick=async()=>{
 };
 $('exSave').onclick=async()=>{
   const amount=parseFloat($('exAmount').value); if(!(amount>0)){ $('exAmount').focus(); return; }
+  if(!ensureTrip()) return;
   $('exSave').disabled=true;
   const fields={ amount:amount, currency:$('exCurrency').value, category:$('exCategory').value, description:$('exDesc').value.trim(), method:$('exMethod').value };
   let ok=true;
