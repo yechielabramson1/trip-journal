@@ -134,7 +134,7 @@
     <div class="foot">
       <button id="newtrip">➕ טיול חדש</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v22 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v23 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -197,7 +197,7 @@
 
   <!-- AI concierge -->
   <div id="askgate" class="gate" hidden><div class="card" style="text-align:right">
-    <p>🤖 קונסיירז' AI</p>
+    <p id="askHdr">🤖 קונסיירז' AI</p>
     <textarea id="askq" rows="2" placeholder="שאל על המסע… מקום, תאריך, מה עשינו"></textarea>
     <div id="askreply"></div>
     <a id="storylink" href="#" target="_blank" rel="noopener" style="display:none; text-align:center; color:var(--teal2); text-decoration:none; margin:4px 0">📂 פתח את הסיפור המלא</a>
@@ -208,20 +208,20 @@
 
   <!-- expense gate -->
   <div id="expensegate" class="gate" hidden><div class="card" style="text-align:right">
-    <p>💶 הוצאה חדשה</p>
+    <p id="exHdr">💶 הוצאה חדשה</p>
     <input id="exAmount" type="number" inputmode="decimal" placeholder="סכום">
     <select id="exCurrency"><option value="EUR">EUR €</option><option value="ILS">ILS ₪</option><option value="USD">USD $</option></select>
     <select id="exCategory">
-      <option>טיסות</option><option>השכרת רכב</option><option>לינה</option><option>אוכל ומסעדות</option>
-      <option>דלק/תחבורה</option><option>אטרקציות</option><option>קניות</option><option>אחר</option>
+      <option value="טיסות">טיסות</option><option value="השכרת רכב">השכרת רכב</option><option value="לינה">לינה</option><option value="אוכל ומסעדות">אוכל ומסעדות</option>
+      <option value="דלק/תחבורה">דלק/תחבורה</option><option value="אטרקציות">אטרקציות</option><option value="קניות">קניות</option><option value="אחר">אחר</option>
     </select>
     <input id="exDesc" type="text" placeholder="תיאור (לא חובה)">
-    <select id="exMethod"><option>Apple Pay</option><option>מזומן</option><option>כרטיס אשראי</option><option>אחר</option></select>
+    <select id="exMethod"><option value="Apple Pay">Apple Pay</option><option value="מזומן">מזומן</option><option value="כרטיס אשראי">כרטיס אשראי</option><option value="אחר">אחר</option></select>
     <label class="act receipt" for="exReceipt" id="exReceiptLabel" style="font-size:.95rem; padding:12px; margin-bottom:8px">📷 צרף קבלה (לא חובה)</label>
     <input id="exReceipt" type="file" accept="image/*">
     <button id="exPaste" class="ghost" style="margin-bottom:8px">📋 הדבק צילום מהלוח (Copy &amp; Delete)</button>
     <label style="display:flex; align-items:center; gap:8px; justify-content:flex-end; font-size:.88rem; color:#475569; margin:0 0 10px">
-      <input id="exKeepImg" type="checkbox" style="width:auto; margin:0"> שמור גם את צילום הקבלה (לקבלות אמיתיות)
+      <input id="exKeepImg" type="checkbox" style="width:auto; margin:0"> <span id="exKeepLbl">שמור גם את צילום הקבלה (לקבלות אמיתיות)</span>
     </label>
     <button id="exSave">💾 שמור הוצאה</button>
     <button id="exDelete" class="ghost" style="display:none; color:#b91c1c">🗑️ מחק הוצאה</button>
@@ -239,6 +239,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=22"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>

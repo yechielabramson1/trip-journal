@@ -19,27 +19,59 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
+const APP_VER='v23';
 const I18N = {
-  he:{ ph:'דבר אל המקלדת או הקלד מה קורה עכשיו…', save:'💾 שמור ליומן', photo:'📷 תמונה', doc:'📁 מסמך', receipt:'🧾 קבלה',
-       synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות', needcfg:'נדרשת הגדרה — פתח קישור ה-token',
-       saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', mytrips:'🏔️ המסעות שלי', newtrip:'➕ טיול חדש', drive:'📂 פתח בדרייב', switched:'➡️ עברת ל', ask:"🤖 שאל את הקונסיירז'", thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט' },
-  en:{ ph:'Speak or type what’s happening now…', save:'💾 Save to journal', photo:'📷 Photo', doc:'📁 Document', receipt:'🧾 Receipt',
-       synced:'All synced ✓', pending:n=>'Syncing · '+n+' pending', off:n=>'Offline · '+n+' pending', needcfg:'Setup needed — open the token link',
-       saved:'📝 Saved', compressing:'🗜️ Processing…', queued:'⬆️ Queued', toobig:'⚠️ File too large', mytrips:'🏔️ My Trips', newtrip:'➕ New trip', drive:'📂 Open in Drive', switched:'➡️ Switched to ', ask:'🤖 Ask the concierge', thinking:'🤖 Thinking…', neednet:'🤖 Internet connection needed' }
+  he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
+       needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
+       ph_journal:'דבר אל המקלדת או הקלד מה קורה עכשיו…', btn_save:'💾 שמור ליומן', btn_itin:'🗓️ תכנית הטיול', btn_photos:'📷 תמונות', btn_docs:'📁 מסמכים', btn_receipts:'🧾 קבלות', btn_expense:'💶 הוצאה', btn_ask:"🤖 שאל את הקונסיירז'",
+       my_trips:'🏔️ המסעות שלי', new_trip:'➕ טיול חדש', open_drive:'📂 פתח את הטיול בדרייב', hint_day:'הקש על *יום* לתצוגת שעות',
+       ph_itin_ai:'ספר ל-AI מה לשנות… העבר ליום 3, הוסף ארוחת ערב…', item_new:'פריט חדש', item_edit:'עריכת פריט',
+       ph_item_what:'מה? (למשל: אגם ברייס)', ph_place:'מקום / שם', ph_addr:'כתובת (יוצר לינק למפות + וייז)', ph_notes:'הערות / לינק הזמנה',
+       save:'💾 שמור', del:'🗑️ מחק', close:'סגור', upload_new:'➕ העלה / צלם חדש', ai_concierge:"🤖 קונסיירז' AI",
+       ph_ask:'שאל על המסע… מקום, תאריך, מה עשינו', open_story:'📂 פתח את הסיפור המלא', ask:'שאל', tell_story:'📖 ספר את הסיפור',
+       new_expense:'💶 הוצאה חדשה', ph_amount:'סכום', ph_desc:'תיאור (לא חובה)', attach_receipt:'📷 צרף קבלה / צילום מסך',
+       paste_clipboard:'📋 הדבק צילום מהלוח (Copy & Delete)', keep_receipt:'שמור גם את צילום הקבלה (לקבלות אמיתיות)', save_expense:'💾 שמור הוצאה',
+       del_expense:'🗑️ מחק הוצאה', edit_expense:'📋 ערוך הוצאה קיימת', peek_sheet:'📊 הצצה לגיליון ההוצאות',
+       types:{activity:'🥾 פעילות',sight:'📸 אתר',meal:'🍽️ אוכל',hotel:'🏨 מלון',travel:'🚗 נסיעה'},
+       cats:{'טיסות':'טיסות','השכרת רכב':'השכרת רכב','לינה':'לינה','אוכל ומסעדות':'אוכל ומסעדות','דלק/תחבורה':'דלק/תחבורה','אטרקציות':'אטרקציות','קניות':'קניות','אחר':'אחר'},
+       methods:{'Apple Pay':'Apple Pay','מזומן':'מזומן','כרטיס אשראי':'כרטיס אשראי','אחר':'אחר'} },
+  en:{ synced:'All synced ✓', pending:n=>'Syncing · '+n+' pending', off:n=>'Offline · '+n+' pending',
+       needcfg:'Setup needed — open the token link', saved:'📝 Saved', compressing:'🗜️ Processing…', queued:'⬆️ Queued', toobig:'⚠️ File too large', switched:'➡️ Switched to ', thinking:'🤖 Thinking…', neednet:'🤖 Internet connection needed',
+       ph_journal:'Speak or type what’s happening now…', btn_save:'💾 Save to journal', btn_itin:'🗓️ Trip plan', btn_photos:'📷 Photos', btn_docs:'📁 Documents', btn_receipts:'🧾 Receipts', btn_expense:'💶 Expense', btn_ask:'🤖 Ask the concierge',
+       my_trips:'🏔️ My trips', new_trip:'➕ New trip', open_drive:'📂 Open trip in Drive', hint_day:'tap a *day* for the hour view',
+       ph_itin_ai:'Tell the AI what to change… move to day 3, add dinner…', item_new:'New item', item_edit:'Edit item',
+       ph_item_what:'What? (e.g. Lake Braies)', ph_place:'Place / name', ph_addr:'Address (creates Maps + Waze link)', ph_notes:'Notes / booking link',
+       save:'💾 Save', del:'🗑️ Delete', close:'Close', upload_new:'➕ Upload / take new', ai_concierge:'🤖 AI concierge',
+       ph_ask:'Ask about the trip… place, date, what we did', open_story:'📂 Open full story', ask:'Ask', tell_story:'📖 Tell the story',
+       new_expense:'💶 New expense', ph_amount:'Amount', ph_desc:'Description (optional)', attach_receipt:'📷 Attach receipt / screenshot',
+       paste_clipboard:'📋 Paste screenshot (Copy & Delete)', keep_receipt:'Also keep the receipt image (for real receipts)', save_expense:'💾 Save expense',
+       del_expense:'🗑️ Delete expense', edit_expense:'📋 Edit an existing expense', peek_sheet:'📊 Open the expenses sheet',
+       types:{activity:'🥾 Activity',sight:'📸 Sight',meal:'🍽️ Food',hotel:'🏨 Hotel',travel:'🚗 Travel'},
+       cats:{'טיסות':'Flights','השכרת רכב':'Car rental','לינה':'Lodging','אוכל ומסעדות':'Food & dining','דלק/תחבורה':'Fuel / Transport','אטרקציות':'Attractions','קניות':'Shopping','אחר':'Other'},
+       methods:{'Apple Pay':'Apple Pay','מזומן':'Cash','כרטיס אשראי':'Credit card','אחר':'Other'} }
 };
 const uiLang = () => getAuthor()==='Sky' ? 'en' : 'he';
 const T = () => I18N[uiLang()];
+const L = (he,en) => uiLang()==='en' ? en : he;
 function applyLang(){
   const t=T(), en=uiLang()==='en';
-  document.documentElement.lang = en?'en':'he';
-  document.documentElement.dir  = en?'ltr':'rtl';
-  $('txt').placeholder=t.ph; $('save').textContent=t.save;
-  document.querySelector('.act.photo').textContent=t.photo;
-  document.querySelector('.act.doc').textContent=t.doc;
-  document.querySelector('.act.receipt').textContent=t.receipt;
-  $('drawer').querySelector('h2').textContent=t.mytrips;
-  $('newtrip').textContent=t.newtrip; $('drivelink').textContent=t.drive;
-  $('askbtn').textContent=t.ask;
+  document.documentElement.lang = en?'en':'he'; document.documentElement.dir = en?'ltr':'rtl';
+  const set=(id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+  const ph=(id,v)=>{ const el=$(id); if(el) el.placeholder=v; };
+  ph('txt',t.ph_journal);
+  set('save',t.btn_save); set('itinbtn',t.btn_itin); set('photobtn',t.btn_photos); set('docbtn',t.btn_docs); set('rcptbtn',t.btn_receipts); set('expensebtn',t.btn_expense); set('askbtn',t.btn_ask);
+  const h2=document.querySelector('#drawer h2'); if(h2) h2.textContent=t.my_trips;
+  set('newtrip',t.new_trip); set('drivelink',t.open_drive);
+  const ver=$('ver'); if(ver) ver.textContent=APP_VER+' · '+t.hint_day;
+  ph('itinAsk',t.ph_itin_ai);
+  ph('itTitleInp',t.ph_item_what); ph('itLoc',t.ph_place); ph('itAddr',t.ph_addr); ph('itNotes',t.ph_notes);
+  set('itSave',t.save); set('itDelete',t.del); set('itCancel',t.close);
+  set('filesUpload',t.upload_new); set('filesClose',t.close);
+  set('askHdr',t.ai_concierge); ph('askq',t.ph_ask); set('storylink',t.open_story); set('asksend',t.ask); set('storybtn',t.tell_story); set('askclose',t.close);
+  set('exHdr',t.new_expense); ph('exAmount',t.ph_amount); ph('exDesc',t.ph_desc); set('exReceiptLabel',t.attach_receipt); set('exPaste',t.paste_clipboard); set('exKeepLbl',t.keep_receipt);
+  set('exSave',t.save_expense); set('exDelete',t.del_expense); set('exEditBtn',t.edit_expense); set('exSheetLink',t.peek_sheet); set('exClose',t.close);
+  const opts=(id,map)=>{ const s=$(id); if(s)[...s.options].forEach(o=>{ if(map[o.value]) o.textContent=map[o.value]; }); };
+  opts('itType',t.types); opts('exCategory',t.cats); opts('exMethod',t.methods);
 }
 function setAuthor(n){ localStorage.setItem('author', n||''); $('who').textContent = n ? ('· '+n) : '?'; applyLang(); render(); }
 
@@ -48,11 +80,11 @@ const getTripId   = () => localStorage.getItem('tripId') || '';
 const getTripName = () => localStorage.getItem('tripName') || '';
 function setTrip(id, name){
   localStorage.setItem('tripId', id||''); localStorage.setItem('tripName', name||'');
-  $('tripname').textContent = name || 'יומן מסע';
+  $('tripname').textContent = name || L('יומן מסע','Travel journal');
   $('drivelink').href = id ? ('https://drive.google.com/drive/folders/'+id) : '#';
 }
 function cachedTrips(){ try{ return JSON.parse(localStorage.getItem('trips')||'[]'); }catch(e){ return []; } }
-function ensureTrip(){ if(!getTripId()){ alert('בחר טיול קודם דרך התפריט ☰'); openDrawer(); return false; } return true; }
+function ensureTrip(){ if(!getTripId()){ alert(L('בחר טיול קודם דרך התפריט ☰','Choose a trip first via the menu ☰')); openDrawer(); return false; } return true; }
 async function initTrips(){
   try{
     const r = await api({ action:'list_trips' });
@@ -199,8 +231,8 @@ $('newtripcreate').onclick=async()=>{
     if(r.ok && r.trip){
       const trips=cachedTrips(); trips.push(r.trip); localStorage.setItem('trips',JSON.stringify(trips));
       setTrip(r.trip.tripId,r.trip.name); renderDrawer(); $('newtripgate').hidden=true; logLine('🏔️ '+name);
-    } else { alert('שגיאה: '+(r.error||'')); }
-  }catch(e){ alert('אין חיבור — נסה שוב כשיש רשת'); }
+    } else { alert(L('שגיאה: ','Error: ')+(r.error||'')); }
+  }catch(e){ alert(L('אין חיבור — נסה שוב כשיש רשת','No connection — try again when online')); }
   finally{ $('newtripcreate').disabled=false; await render(); }
 };
 
@@ -220,7 +252,7 @@ $('asksend').onclick=async()=>{
 $('storybtn').onclick=async()=>{
   if(!navigator.onLine){ $('askreply').textContent=T().neednet; return; }
   $('storylink').style.display='none';
-  $('storybtn').disabled=true; $('askreply').textContent='📖 כותב את הסיפור…';
+  $('storybtn').disabled=true; $('askreply').textContent=L('📖 כותב את הסיפור…','📖 Writing the story…');
   try{ const r=await api({ action:'story', tripId:getTripId(), scope:'all' });
     if(r.ok){ $('askreply').textContent=r.text; if(r.storyUrl){ $('storylink').href=r.storyUrl; $('storylink').style.display='block'; } }
     else { $('askreply').textContent='⚠️ '+(r.error||'error'); }
@@ -232,7 +264,7 @@ $('storybtn').onclick=async()=>{
 let exFile=null, editingId=null;
 function resetExpenseForm(){
   editingId=null; exFile=null; $('exAmount').value=''; $('exDesc').value='';
-  $('exReceiptLabel').textContent='📷 צרף קבלה / צילום מסך'; $('exSave').textContent='💾 שמור הוצאה';
+  $('exReceiptLabel').textContent=L('📷 צרף קבלה / צילום מסך','📷 Attach receipt / screenshot'); $('exSave').textContent=L('💾 שמור הוצאה','💾 Save expense');
   $('exKeepImg').checked=false; $('exDelete').style.display='none';
   $('exList').style.display='none'; $('exList').innerHTML='';
 }
@@ -244,8 +276,8 @@ $('expensebtn').onclick=async()=>{
 // צירוף/הדבקת צילום → קריאה אוטומטית (Vision) והשלמת השדות
 async function useReceiptImage(file){
   exFile=file; if(!file) return;
-  if(!navigator.onLine){ $('exReceiptLabel').textContent='📷 צורף (אין רשת לקריאה אוטומטית)'; return; }
-  $('exReceiptLabel').textContent='🔍 קורא את הקבלה…';
+  if(!navigator.onLine){ $('exReceiptLabel').textContent=L('📷 צורף (אין רשת לקריאה אוטומטית)','📷 Attached (no network to auto-read)'); return; }
+  $('exReceiptLabel').textContent=L('🔍 קורא את הקבלה…','🔍 Reading the receipt…');
   try{
     const blob=await compressImage(file); const b64=await blobToB64(blob);
     const r=await api({ action:'parse_receipt', mime:'image/jpeg', dataB64:b64 });
@@ -254,24 +286,24 @@ async function useReceiptImage(file){
       if(d.currency && [...$('exCurrency').options].some(o=>o.value===d.currency)) $('exCurrency').value=d.currency;
       if(d.merchant) $('exDesc').value=d.merchant;
       if(d.category){ const o=[...$('exCategory').options].find(x=>x.value===d.category||x.text===d.category); if(o) $('exCategory').value=o.value; }
-      $('exReceiptLabel').textContent='✅ '+(d.merchant||'נקרא')+' · '+(d.amount||'')+' '+(d.currency||'');
-    } else $('exReceiptLabel').textContent='📷 צורף (מלא ידנית)';
-  }catch(e){ $('exReceiptLabel').textContent='📷 צורף'; }
+      $('exReceiptLabel').textContent='✅ '+(d.merchant||L('נקרא','read'))+' · '+(d.amount||'')+' '+(d.currency||'');
+    } else $('exReceiptLabel').textContent=L('📷 צורף (מלא ידנית)','📷 Attached (fill manually)');
+  }catch(e){ $('exReceiptLabel').textContent=L('📷 צורף','📷 Attached'); }
 }
 $('exReceipt').onchange=()=>{ const f=$('exReceipt').files[0]; if(f) useReceiptImage(f); };
 $('exPaste').onclick=async()=>{
-  if(!navigator.clipboard || !navigator.clipboard.read){ alert('הדפדפן לא תומך בהדבקה מהלוח — השתמש ב"צרף קבלה".'); return; }
+  if(!navigator.clipboard || !navigator.clipboard.read){ alert(L('הדפדפן לא תומך בהדבקה מהלוח — השתמש ב"צרף קבלה".','This browser can’t paste from clipboard — use “Attach receipt”.')); return; }
   try{
     const items=await navigator.clipboard.read();
     for(const it of items){
       const type=it.types.find(t=>t.startsWith('image/'));
       if(type){ const blob=await it.getType(type); useReceiptImage(new File([blob],'screenshot.'+(type.split('/')[1]||'png'),{type})); return; }
     }
-    alert('לא נמצאה תמונה בלוח. עשה "Copy and Delete" על צילום המסך באייפון ואז נסה שוב.');
-  }catch(e){ alert('לא ניתן לקרוא מהלוח. ודא שהענקת הרשאה, או השתמש ב"צרף קבלה".'); }
+    alert(L('לא נמצאה תמונה בלוח. עשה "Copy and Delete" על צילום המסך באייפון ואז נסה שוב.','No image found on the clipboard. Do “Copy and Delete” on the iPhone screenshot, then try again.'));
+  }catch(e){ alert(L('לא ניתן לקרוא מהלוח. ודא שהענקת הרשאה, או השתמש ב"צרף קבלה".','Can’t read the clipboard. Make sure you granted permission, or use “Attach receipt”.')); }
 };
 $('exEditBtn').onclick=async()=>{
-  if(!navigator.onLine){ alert('צריך חיבור כדי לטעון הוצאות לעריכה'); return; }
+  if(!navigator.onLine){ alert(L('צריך חיבור כדי לטעון הוצאות לעריכה','A connection is needed to load expenses for editing')); return; }
   const r=await api({ action:'list_expenses', tripId:getTripId() }); const list=$('exList'); list.innerHTML='';
   if(r.ok && r.expenses && r.expenses.length){
     r.expenses.forEach(e=>{ const d=document.createElement('div'); d.className='trip';
@@ -279,20 +311,20 @@ $('exEditBtn').onclick=async()=>{
       d.onclick=()=>{ editingId=e.id; $('exAmount').value=e.amount; $('exDesc').value=e.description||'';
         if([...$('exCurrency').options].some(o=>o.value===e.currency)) $('exCurrency').value=e.currency;
         const o=[...$('exCategory').options].find(x=>x.value===e.category); if(o) $('exCategory').value=e.category;
-        $('exMethod').value=e.method||'Apple Pay'; $('exSave').textContent='💾 עדכן הוצאה'; $('exDelete').style.display='block'; list.style.display='none'; $('exAmount').focus(); };
+        $('exMethod').value=e.method||'Apple Pay'; $('exSave').textContent=L('💾 עדכן הוצאה','💾 Update expense'); $('exDelete').style.display='block'; list.style.display='none'; $('exAmount').focus(); };
       list.appendChild(d); });
     list.style.display='block';
-  } else { list.innerHTML='<div style="padding:8px;color:#64748b">אין הוצאות עדיין</div>'; list.style.display='block'; }
+  } else { list.innerHTML='<div style="padding:8px;color:#64748b">'+L('אין הוצאות עדיין','No expenses yet')+'</div>'; list.style.display='block'; }
 };
 $('exClose').onclick=()=>{ $('expensegate').hidden=true; };
 $('exDelete').onclick=async()=>{
   if(!editingId) return;
-  if(!navigator.onLine){ alert('מחיקה דורשת חיבור'); return; }
-  if(!confirm('למחוק את ההוצאה הזו?')) return;
+  if(!navigator.onLine){ alert(L('מחיקה דורשת חיבור','Deleting requires a connection')); return; }
+  if(!confirm(L('למחוק את ההוצאה הזו?','Delete this expense?'))) return;
   $('exDelete').disabled=true;
   try{ const r=await api({ action:'delete_expense', tripId:getTripId(), expenseId:editingId });
-    if(r.ok){ logLine('🗑️ הוצאה נמחקה'); resetExpenseForm(); $('expensegate').hidden=true; } else alert('שגיאה: '+(r.error||''));
-  }catch(e){ alert('אין חיבור — נסה שוב'); }
+    if(r.ok){ logLine(L('🗑️ הוצאה נמחקה','🗑️ Expense deleted')); resetExpenseForm(); $('expensegate').hidden=true; } else alert(L('שגיאה: ','Error: ')+(r.error||''));
+  }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ $('exDelete').disabled=false; }
 };
 $('exSave').onclick=async()=>{
@@ -303,10 +335,10 @@ $('exSave').onclick=async()=>{
   let ok=true;
   const keepImg = $('exKeepImg').checked;       // התמונה נשמרת רק אם סומן (אחרת רק הנתונים)
   if(editingId){            // עריכה — דורש חיבור (update ישיר)
-    if(!navigator.onLine){ alert('עריכת הוצאה דורשת חיבור'); $('exSave').disabled=false; return; }
+    if(!navigator.onLine){ alert(L('עריכת הוצאה דורשת חיבור','Editing an expense requires a connection')); $('exSave').disabled=false; return; }
     try{ const payload={ action:'update_expense', tripId:getTripId(), expenseId:editingId, ...fields };
       if(exFile && keepImg){ const blob=/^image\//.test(exFile.type)?await compressImage(exFile):exFile; payload.mime='image/jpeg'; payload.name='receipt.jpg'; payload.dataB64=await blobToB64(blob); }
-      const r=await api(payload); ok=r.ok; if(ok) logLine('✏️ עודכן: '+fields.category+' · '+amount);
+      const r=await api(payload); ok=r.ok; if(ok) logLine(L('✏️ עודכן: ','✏️ Updated: ')+fields.category+' · '+amount);
     }catch(e){ ok=false; }
   } else {                  // חדש — דרך התור (עובד offline)
     ok=await enqueueExpense(fields, keepImg ? exFile : null);
@@ -322,7 +354,7 @@ function toMin(t){ if(!t) return null; const p=String(t).split(':'); if(p.length
 const TYPE_ICON={activity:'🥾',sight:'📸',meal:'🍽️',hotel:'🏨',travel:'🚗'};
 function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function parseYmd(s){ const p=String(s).split('-'); return new Date(+p[0], (+p[1]||1)-1, (+p[2]||1)); }
-function dayLabel(s){ try{ return parseYmd(s).toLocaleDateString('he-IL',{weekday:'long',day:'2-digit',month:'2-digit'}); }catch(e){ return s; } }
+function dayLabel(s){ try{ return parseYmd(s).toLocaleDateString(uiLang()==='en'?'en-GB':'he-IL',{weekday:'long',day:'2-digit',month:'2-digit'}); }catch(e){ return s; } }
 function dayList(){
   let days=[];
   if(itinStart && itinDays){ const st=parseYmd(itinStart); for(let i=0;i<itinDays;i++){ const d=new Date(st); d.setDate(st.getDate()+i); days.push(ymd(d)); } }
@@ -333,15 +365,15 @@ function dayList(){
 async function openItin(){
   if(!ensureTrip()) return;
   itinDayView=null;
-  $('itin').hidden=false; $('itinTitle').textContent='🗓️ '+(getTripName()||'תכנית');
-  $('itinBody').innerHTML='<div class="emptyday">טוען…</div>';
+  $('itin').hidden=false; $('itinTitle').textContent='🗓️ '+(getTripName()||L('תכנית','Plan'));
+  $('itinBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>';
   await reloadItin();
 }
 async function reloadItin(){
   try{ const r=await api({action:'list_itinerary', tripId:getTripId()});
     if(r.ok){ itinItems=r.items||[]; itinStart=r.startDate||itinStart; itinDays=Number(r.days)||itinDays; renderItin(); }
-    else $('itinBody').innerHTML='<div class="emptyday">שגיאה: '+escapeHtml(r.error||'')+'</div>';
-  }catch(e){ $('itinBody').innerHTML='<div class="emptyday">אין חיבור</div>'; }
+    else $('itinBody').innerHTML='<div class="emptyday">'+L('שגיאה: ','Error: ')+escapeHtml(r.error||'')+'</div>';
+  }catch(e){ $('itinBody').innerHTML='<div class="emptyday">'+L('אין חיבור','No connection')+'</div>'; }
 }
 function renderItin(){ if(itinDayView) renderDayGrid(itinDayView); else renderOverview(); }
 function itemCard(it, withLinks){
@@ -350,7 +382,7 @@ function itemCard(it, withLinks){
   let links='';
   const q=(it.address||it.location||'').trim();
   if(withLinks && q){ const eq=encodeURIComponent(q);
-    links+='<a class="lnk" href="https://www.google.com/maps/search/?api=1&query='+eq+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺️ מפות</a>';
+    links+='<a class="lnk" href="https://www.google.com/maps/search/?api=1&query='+eq+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺️ '+L('מפות','Maps')+'</a>';
     links+='<a class="lnk" href="waze://?q='+eq+'&navigate=yes" onclick="event.stopPropagation()">🚗 Waze</a>'; }
   const sub=[it.location, it.notes].filter(Boolean).map(escapeHtml).join(' · ');
   c.innerHTML='<div class="t">'+escapeHtml(tm||'—')+'</div><div class="bd"><div class="ttl">'+(TYPE_ICON[it.type]||'•')+' '+escapeHtml(it.title||'')+'</div>'+(sub?('<div class="sub">'+sub+'</div>'):'')+(links?('<div class="sub">'+links+'</div>'):'')+'</div>';
@@ -360,21 +392,21 @@ function renderOverview(){
   const body=$('itinBody'); body.innerHTML='';
   dayList().forEach((day,idx)=>{
     const hdr=document.createElement('div'); hdr.className='dayhdr tap';
-    const lbl=document.createElement('span'); lbl.style.flex='1'; lbl.textContent='יום '+(idx+1)+' · '+dayLabel(day);
+    const lbl=document.createElement('span'); lbl.style.flex='1'; lbl.textContent=L('יום ','Day ')+(idx+1)+' · '+dayLabel(day);
     hdr.appendChild(lbl);
     const add=document.createElement('button'); add.textContent='＋'; add.onclick=(e)=>{ e.stopPropagation(); openItem(null, day); }; hdr.appendChild(add);
     hdr.onclick=()=>{ itinDayView=day; renderItin(); $('itinBody').scrollTop=0; };
     body.appendChild(hdr);
     const items=itinItems.filter(i=>i.day===day).sort((a,b)=>(a.order-b.order)||String(a.time).localeCompare(String(b.time)));
-    if(!items.length){ const e=document.createElement('div'); e.className='emptyday'; e.textContent='— ריק (הקש על היום לתצוגת שעות) —'; body.appendChild(e); return; }
+    if(!items.length){ const e=document.createElement('div'); e.className='emptyday'; e.textContent=L('— ריק (הקש על היום לתצוגת שעות) —','— empty (tap the day for the hour view) —'); body.appendChild(e); return; }
     items.forEach(it=> body.appendChild(itemCard(it, true)));
   });
 }
 function renderDayGrid(day){
   const body=$('itinBody'); body.innerHTML='';
-  const back=document.createElement('button'); back.className='iback'; back.textContent='← כל הימים'; back.onclick=()=>{ itinDayView=null; renderItin(); }; body.appendChild(back);
+  const back=document.createElement('button'); back.className='iback'; back.textContent=L('← כל הימים','← All days'); back.onclick=()=>{ itinDayView=null; renderItin(); }; body.appendChild(back);
   const idx=dayList().indexOf(day);
-  const ttl=document.createElement('div'); ttl.className='dayhdr'; ttl.innerHTML='<span>יום '+(idx+1)+' · '+escapeHtml(dayLabel(day))+'</span>'; body.appendChild(ttl);
+  const ttl=document.createElement('div'); ttl.className='dayhdr'; ttl.innerHTML='<span>'+L('יום ','Day ')+(idx+1)+' · '+escapeHtml(dayLabel(day))+'</span>'; body.appendChild(ttl);
   // פריטים ללא שעה — למעלה
   const dayItems=itinItems.filter(i=>i.day===day);
   dayItems.filter(i=>toMin(i.time)==null).forEach(it=> body.appendChild(itemCard(it, true)));
@@ -395,7 +427,7 @@ function renderDayGrid(day){
   $('itinBody').scrollTop = 8*HH;   // התחל ממוקד על 08:00 (בוקר), גלילה ידנית לפני/אחרי
 }
 function fmtMin(m){ m=((Math.round(m)%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
-async function saveItemQuick(it){ try{ const r=await api({action:'save_item', tripId:getTripId(), item:it}); if(r.ok) await reloadItin(); else alert('שגיאה'); }catch(e){ alert('אין חיבור — נסה שוב'); } }
+async function saveItemQuick(it){ try{ const r=await api({action:'save_item', tripId:getTripId(), item:it}); if(r.ok) await reloadItin(); else alert(L('שגיאה','Error')); }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } }
 // גרירה (הזזת שעה) + מתיחת הקצה (משך) על רשת השעות, באצבע
 function makeBlockInteractive(b, it, HH){
   const handle=document.createElement('div'); handle.className='ghandle'; b.appendChild(handle);
@@ -423,7 +455,7 @@ function makeBlockInteractive(b, it, HH){
 }
 function fillDaySelect(){
   const sel=$('itDay'); sel.innerHTML='';
-  dayList().forEach((day,idx)=>{ const o=document.createElement('option'); o.value=day; o.textContent='יום '+(idx+1)+' · '+dayLabel(day); sel.appendChild(o); });
+  dayList().forEach((day,idx)=>{ const o=document.createElement('option'); o.value=day; o.textContent=L('יום ','Day ')+(idx+1)+' · '+dayLabel(day); sel.appendChild(o); });
 }
 function openItem(it, day, presetTime){
   editItem=it; fillDaySelect();
@@ -431,7 +463,7 @@ function openItem(it, day, presetTime){
   $('itTime').value=it?(it.time||''):(presetTime||''); $('itEnd').value=it?(it.endTime||''):'';
   $('itTitleInp').value=it?(it.title||''):''; $('itType').value=it?(it.type||'activity'):'activity';
   $('itLoc').value=it?(it.location||''):''; $('itAddr').value=it?(it.address||''):''; $('itNotes').value=it?(it.notes||''):'';
-  $('itDelete').style.display=it?'block':'none'; $('itemHdr').textContent=it?'עריכת פריט':'פריט חדש';
+  $('itDelete').style.display=it?'block':'none'; $('itemHdr').textContent=it?T().item_edit:T().item_new;
   $('itemgate').hidden=false;   // בלי focus אוטומטי (מנע את קפיצת ה-autofill של iOS)
 }
 $('itinbtn').onclick=openItin;
@@ -440,48 +472,48 @@ $('itinAddTop').onclick=()=>{ if(ensureTrip()) openItem(null, dayList()[0]); };
 $('itCancel').onclick=()=>{ $('itemgate').hidden=true; };
 $('itSave').onclick=async()=>{
   const title=$('itTitleInp').value.trim(); if(!title){ $('itTitleInp').focus(); return; }
-  if(!navigator.onLine){ alert('עריכת תכנית דורשת חיבור'); return; }
+  if(!navigator.onLine){ alert(L('עריכת תכנית דורשת חיבור','Editing the plan requires a connection')); return; }
   $('itSave').disabled=true;
   const item={ day:$('itDay').value, time:$('itTime').value, endTime:$('itEnd').value, title, type:$('itType').value, location:$('itLoc').value.trim(), address:$('itAddr').value.trim(), notes:$('itNotes').value.trim() };
   if(editItem){ item.id=editItem.id; item.order=editItem.order; }
-  try{ const r=await api({action:'save_item', tripId:getTripId(), item}); if(r.ok){ $('itemgate').hidden=true; await reloadItin(); } else alert('שגיאה: '+(r.error||'')); }
-  catch(e){ alert('אין חיבור'); } finally{ $('itSave').disabled=false; }
+  try{ const r=await api({action:'save_item', tripId:getTripId(), item}); if(r.ok){ $('itemgate').hidden=true; await reloadItin(); } else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
+  catch(e){ alert(L('אין חיבור','No connection')); } finally{ $('itSave').disabled=false; }
 };
 $('itDelete').onclick=async()=>{
-  if(!editItem || !confirm('למחוק את הפריט הזה?')) return;
+  if(!editItem || !confirm(L('למחוק את הפריט הזה?','Delete this item?'))) return;
   try{ const r=await api({action:'delete_item', tripId:getTripId(), itemId:editItem.id}); if(r.ok){ $('itemgate').hidden=true; await reloadItin(); } }
-  catch(e){ alert('אין חיבור'); }
+  catch(e){ alert(L('אין חיבור','No connection')); }
 };
 $('itinUndo').onclick=async()=>{
-  if(!navigator.onLine){ alert('שחזור דורש חיבור'); return; }
-  if(!confirm('לשחזר את התכנית מהגיבוי האחרון (לפני שינוי ה-AI האחרון)?')) return;
-  try{ const r=await api({ action:'restore_itinerary', tripId:getTripId() }); if(r.ok){ itinItems=r.items||[]; renderItin(); } else alert(r.error||'אין גיבוי'); }catch(e){ alert('אין חיבור'); }
+  if(!navigator.onLine){ alert(L('שחזור דורש חיבור','Restore requires a connection')); return; }
+  if(!confirm(L('לשחזר את התכנית מהגיבוי האחרון (לפני שינוי ה-AI האחרון)?','Restore the plan from the last backup (before the most recent AI change)?'))) return;
+  try{ const r=await api({ action:'restore_itinerary', tripId:getTripId() }); if(r.ok){ itinItems=r.items||[]; renderItin(); } else alert(r.error||L('אין גיבוי','No backup')); }catch(e){ alert(L('אין חיבור','No connection')); }
 };
 $('itinAskBtn').onclick=async()=>{
   const q=$('itinAsk').value.trim(); if(!q) return;
-  if(!navigator.onLine){ alert('צריך חיבור ל-AI'); return; }
-  if(/ייבא|מה?מייל|מה?אימייל|מה?דוא|from .*e-?mail|import|gmail/i.test(q) && !confirm('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail ותשלח תקציר ל-AI. להמשיך?')) return;
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  if(/ייבא|מה?מייל|מה?אימייל|מה?דוא|from .*e-?mail|import|gmail/i.test(q) && !confirm(L('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail ותשלח תקציר ל-AI. להמשיך?','This will read up to 6 recent booking emails from Gmail and send a summary to the AI. Continue?'))) return;
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
   try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
-    if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin(); } else alert('שגיאה: '+(r.error||''));
-  }catch(e){ alert('אין חיבור — נסה שוב'); } finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
+    if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin(); } else alert(L('שגיאה: ','Error: ')+(r.error||''));
+  }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
 };
 
 /* ---------- files gallery (photos / documents / receipts) ---------- */
 let filesCategory='document';
-const FILES_TITLE={ photo:'📷 תמונות', document:'📁 מסמכים', receipt:'🧾 קבלות' };
+const filesTitle=(cat)=>({ photo:T().btn_photos, document:T().btn_docs, receipt:T().btn_receipts }[cat]);
 const FILES_INPUT={ photo:'cam', document:'docfile', receipt:'rcptfile' };
 async function refreshFiles(){
   try{ const r=await api({ action:'list_files', tripId:getTripId(), category:filesCategory });
     const el=$('filesList'); el.innerHTML=''; const files=(r.ok&&r.files)||[];
-    if(!files.length){ el.innerHTML='<div class="emptyday">— ריק. הקש "העלה / צלם חדש" —</div>'; return; }
+    if(!files.length){ el.innerHTML='<div class="emptyday">'+L('— ריק. הקש "העלה / צלם חדש" —','— empty. Tap “Upload / take new” —')+'</div>'; return; }
     files.forEach(f=>{ const a=document.createElement('a'); a.className='fitem'; a.href=f.url; a.target='_blank'; a.rel='noopener';
       if(/^image\//.test(f.mime)) a.innerHTML='<img loading="lazy" src="https://drive.google.com/thumbnail?id='+f.id+'&sz=w400">';
       else a.innerHTML='<div class="fdoc">'+(/pdf/i.test(f.mime)?'📄':'📎')+'</div>';
       a.innerHTML+='<div class="fn">'+escapeHtml(f.name)+'</div>'; el.appendChild(a); });
-  }catch(e){ $('filesList').innerHTML='<div class="emptyday">אין חיבור</div>'; }
+  }catch(e){ $('filesList').innerHTML='<div class="emptyday">'+L('אין חיבור','No connection')+'</div>'; }
 }
-async function openFiles(cat){ if(!ensureTrip()) return; filesCategory=cat; $('filesHdr').textContent=FILES_TITLE[cat]; $('filesList').innerHTML='<div class="emptyday">טוען…</div>'; $('filesgate').hidden=false; await refreshFiles(); }
+async function openFiles(cat){ if(!ensureTrip()) return; filesCategory=cat; $('filesHdr').textContent=filesTitle(cat); $('filesList').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>'; $('filesgate').hidden=false; await refreshFiles(); }
 $('photobtn').onclick=()=>openFiles('photo');
 $('docbtn').onclick=()=>openFiles('document');
 $('rcptbtn').onclick=()=>openFiles('receipt');
