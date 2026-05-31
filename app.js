@@ -124,6 +124,16 @@ async function enqueueFile(file, category){
   await dbAdd({ kind:'file', payload:p, blob }); return true;
 }
 
+async function enqueueExpense(data, file){
+  const p={ action:'add_expense', clientId:clientId(), author:getAuthor(), tripId:getTripId(), expenseId:uuid(), ts:new Date().toISOString(), ...data };
+  if(file){ let blob=file, mime=file.type||'image/jpeg', name=file.name||'';
+    if(/^image\//.test(mime)){ blob=await compressImage(file); mime='image/jpeg'; name=(name||'receipt')+'.jpg'; }
+    if(blob.size>MAX_BYTES){ logLine(T().toobig); return false; }
+    p.mime=mime; p.name=name; await dbAdd({ kind:'file', payload:p, blob });
+  } else { await dbAdd({ kind:'json', payload:p }); }
+  return true;
+}
+
 /* ---------- send + flush ---------- */
 async function sendItem(item){
   const body={ ...item.payload, v:SCHEMA_V, token:token() };
@@ -213,6 +223,24 @@ $('storybtn').onclick=async()=>{
     else { $('askreply').textContent='⚠️ '+(r.error||'error'); }
   }catch(e){ $('askreply').textContent=T().neednet; }
   finally{ $('storybtn').disabled=false; }
+};
+
+// expenses
+let exFile=null;
+$('expensebtn').onclick=async()=>{
+  $('exAmount').value=''; $('exDesc').value=''; exFile=null;
+  $('exReceiptLabel').textContent='📷 צרף קבלה (לא חובה)'; $('exSheetLink').style.display='none';
+  $('expensegate').hidden=false; $('exAmount').focus();
+  if(navigator.onLine){ try{ const r=await api({ action:'expense_url', tripId:getTripId() }); if(r.ok && r.url){ $('exSheetLink').href=r.url; $('exSheetLink').style.display='block'; } }catch(e){} }
+};
+$('exReceipt').onchange=()=>{ exFile=$('exReceipt').files[0]||null; if(exFile) $('exReceiptLabel').textContent='📷 '+(exFile.name||'קבלה מצורפת'); };
+$('exClose').onclick=()=>{ $('expensegate').hidden=true; };
+$('exSave').onclick=async()=>{
+  const amount=parseFloat($('exAmount').value); if(!(amount>0)){ $('exAmount').focus(); return; }
+  $('exSave').disabled=true;
+  const ok=await enqueueExpense({ amount:amount, currency:$('exCurrency').value, category:$('exCategory').value, description:$('exDesc').value.trim(), method:$('exMethod').value }, exFile);
+  if(ok){ logLine('💶 '+$('exCategory').value+' · '+amount+' '+$('exCurrency').value); $('expensegate').hidden=true; }
+  await render(); flush(); $('exSave').disabled=false;
 };
 
 addEventListener('online', flush); addEventListener('offline', render);

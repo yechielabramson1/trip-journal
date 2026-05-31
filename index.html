@@ -28,7 +28,8 @@
   button.act,label.act{ display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:16px; font-size:1.05rem; font-weight:600; padding:16px; color:#fff; background:var(--teal) }
   button.act:active,label.act:active{ background:var(--teal2) }
   .act.save{ grid-column:1 / -1; font-size:1.2rem; padding:18px }
-  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 } .act.ask{ background:#6d28d9 }
+  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 } .act.ask{ background:#6d28d9 } .act.expense{ background:#15803d }
+  .gate .card select{ width:100%; margin:6px 0 12px; padding:13px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; background:#fff }
   button:disabled{ opacity:.5 }
   input[type=file]{ display:none }
   #log{ font-size:.8rem; color:var(--muted); max-height:14vh; overflow:auto }
@@ -76,6 +77,7 @@
       <label class="act photo" for="cam">📷 תמונה</label>
       <label class="act doc" for="docfile">📁 מסמך</label>
       <label class="act receipt" for="rcptfile">🧾 קבלה</label>
+      <button class="act expense" id="expensebtn">💶 הוצאה</button>
       <button class="act ask" id="askbtn" style="grid-column:1 / -1">🤖 שאל את הקונסיירז'</button>
     </div>
     <input id="cam" type="file" accept="image/*" capture="environment">
@@ -119,6 +121,24 @@
     <button id="asksend">שאל</button>
     <button id="storybtn" class="ghost">📖 ספר את הסיפור</button>
     <button id="askclose" class="ghost">סגור</button>
+  </div></div>
+
+  <!-- expense gate -->
+  <div id="expensegate" class="gate" hidden><div class="card" style="text-align:right">
+    <p>💶 הוצאה חדשה</p>
+    <input id="exAmount" type="number" inputmode="decimal" placeholder="סכום">
+    <select id="exCurrency"><option value="EUR">EUR €</option><option value="ILS">ILS ₪</option><option value="USD">USD $</option></select>
+    <select id="exCategory">
+      <option>טיסות</option><option>השכרת רכב</option><option>לינה</option><option>אוכל ומסעדות</option>
+      <option>דלק/תחבורה</option><option>אטרקציות</option><option>קניות</option><option>אחר</option>
+    </select>
+    <input id="exDesc" type="text" placeholder="תיאור (לא חובה)">
+    <select id="exMethod"><option>Apple Pay</option><option>מזומן</option><option>כרטיס אשראי</option><option>אחר</option></select>
+    <label class="act receipt" for="exReceipt" id="exReceiptLabel" style="font-size:.95rem; padding:12px; margin-bottom:8px">📷 צרף קבלה (לא חובה)</label>
+    <input id="exReceipt" type="file" accept="image/*">
+    <button id="exSave">💾 שמור הוצאה</button>
+    <a id="exSheetLink" href="#" target="_blank" rel="noopener" style="display:none; text-align:center; color:var(--teal2); text-decoration:none; margin:8px 0">📊 הצצה לגיליון ההוצאות</a>
+    <button id="exClose" class="ghost">סגור</button>
   </div></div>
 
   <!-- new trip gate -->

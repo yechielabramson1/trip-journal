@@ -3,7 +3,7 @@
  * שים לב: בכל שינוי קוד — העלה את CACHE (v1→v2) כדי לדחוף עדכון.
  * הערה ל-iOS: אין Background Sync; ה-flush של התור נעשה ב-app.js בפתיחה/online.
  */
-const CACHE = 'fieldcapture-v6';
+const CACHE = 'fieldcapture-v7';
 const SHELL = ['./','./index.html','./app.js','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 
 self.addEventListener('install', e=>{
