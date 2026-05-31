@@ -205,12 +205,19 @@ $('asksend').onclick=async()=>{
 };
 
 addEventListener('online', flush); addEventListener('offline', render);
-document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ flush(); initTrips(); } });
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ flush(); initTrips();
+  if('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r=>{ if(r) r.update(); }).catch(()=>{}); } });
 
 /* ---------- boot ---------- */
 (async()=>{
   if(navigator.storage && navigator.storage.persist) await navigator.storage.persist();
-  if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  // עדכון עצמי חלק: בכל פתיחה בודק גרסה חדשה; כשמגיעה — מתחלף ומרענן אוטומטית פעם אחת.
+  if('serviceWorker' in navigator){
+    const hadController = !!navigator.serviceWorker.controller;
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', ()=>{ if(refreshing || !hadController) return; refreshing=true; location.reload(); });
+    navigator.serviceWorker.register('sw.js').then(function(reg){ reg.update(); }).catch(()=>{});
+  }
   setAuthor(getAuthor());
   setTrip(getTripId(), getTripName());
   renderDrawer();
