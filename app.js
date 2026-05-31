@@ -352,8 +352,10 @@ function renderItin(){
       const c=document.createElement('div'); c.className='icard'; c.onclick=()=>openItem(it, it.day);
       const tm=(it.time||'')+(it.endTime?('–'+it.endTime):'');
       let links='';
-      if(it.mapUrl) links+='<a class="lnk" href="'+it.mapUrl+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺️ מפות</a>';
-      if(it.wazeUrl) links+='<a class="lnk" href="'+it.wazeUrl+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚗 Waze</a>';
+      const q=(it.address||it.location||'').trim();
+      if(q){ const eq=encodeURIComponent(q);
+        links+='<a class="lnk" href="https://www.google.com/maps/search/?api=1&query='+eq+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺️ מפות</a>';
+        links+='<a class="lnk" href="waze://?q='+eq+'&navigate=yes" onclick="event.stopPropagation()">🚗 Waze</a>'; }
       const sub=[it.location, it.notes].filter(Boolean).map(escapeHtml).join(' · ');
       c.innerHTML='<div class="t">'+escapeHtml(tm)+'</div><div class="bd"><div class="ttl">'+(TYPE_ICON[it.type]||'•')+' '+escapeHtml(it.title||'')+'</div>'+(sub?('<div class="sub">'+sub+'</div>'):'')+(links?('<div class="sub">'+links+'</div>'):'')+'</div>';
       body.appendChild(c);
