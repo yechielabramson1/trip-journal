@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v24';
+const APP_VER='v25';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -34,6 +34,9 @@ const I18N = {
        del_expense:'🗑️ מחק הוצאה', edit_expense:'📋 ערוך הוצאה קיימת', peek_sheet:'📊 הצצה לגיליון ההוצאות',
        btn_brain:'🧠 המוח (רשימות וידע)', brain_hub:'🧠 המוח', lv_search:'חיפוש…', lv_add:'הוסף פריט…', kv_search:'חיפוש בידע…', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
        paste_hdr:'📋 הדבק רשימה — ה-AI יפצל לפריטים', paste_ph:'הדבק כאן טקסט חופשי / רשימה…', paste_split:'✨ פצל והוסף', paste_cancel:'ביטול', open_sheet:'📊 פתח את הגיליון',
+       btn_food:'🍽️ יומן אוכל', food_hdr:'🍽️ יומן אוכל', food_ph:'מה אכלתם / מה קניתם לאכול היום?', food_save:'💾 שמור', food_saved:'🍽️ נשמר', food_sheet:'📊 פתח את גיליון האוכל',
+       food_kinds:{'מסעדה':'🍴 מסעדה','קפה':'☕ קפה','סופרמרקט':'🛒 סופרמרקט','בישול':'🍳 בישלנו','אחר':'אחר'},
+       group_country:'קבץ לפי מדינה', no_country:'— ללא מדינה —', organize_confirm:'לארגן מחדש את כל המסמך? (ממזג כפילויות ומסדר לפי נושאים)', organizing_all:'🤖 מסדר…',
        types:{activity:'🥾 פעילות',sight:'📸 אתר',meal:'🍽️ אוכל',hotel:'🏨 מלון',travel:'🚗 נסיעה'},
        cats:{'טיסות':'טיסות','השכרת רכב':'השכרת רכב','לינה':'לינה','אוכל ומסעדות':'אוכל ומסעדות','דלק/תחבורה':'דלק/תחבורה','אטרקציות':'אטרקציות','קניות':'קניות','אחר':'אחר'},
        methods:{'Apple Pay':'Apple Pay','מזומן':'מזומן','כרטיס אשראי':'כרטיס אשראי','אחר':'אחר'} },
@@ -50,6 +53,9 @@ const I18N = {
        del_expense:'🗑️ Delete expense', edit_expense:'📋 Edit an existing expense', peek_sheet:'📊 Open the expenses sheet',
        btn_brain:'🧠 The Brain (lists & knowledge)', brain_hub:'🧠 The Brain', lv_search:'Search…', lv_add:'Add an item…', kv_search:'Search the knowledge…', kv_add:'Add a lesson / how-to… the AI will organize it',
        paste_hdr:'📋 Paste a list — the AI will split it into items', paste_ph:'Paste free text / a list here…', paste_split:'✨ Split & add', paste_cancel:'Cancel', open_sheet:'📊 Open the sheet',
+       btn_food:'🍽️ Food log', food_hdr:'🍽️ Food log', food_ph:'What did you eat / buy to eat today?', food_save:'💾 Save', food_saved:'🍽️ Saved', food_sheet:'📊 Open the food sheet',
+       food_kinds:{'מסעדה':'🍴 Restaurant','קפה':'☕ Café','סופרמרקט':'🛒 Supermarket','בישול':'🍳 Cooked','אחר':'Other'},
+       group_country:'Group by country', no_country:'— no country —', organize_confirm:'Reorganize the whole document? (merges duplicates, sorts by topic)', organizing_all:'🤖 Organizing…',
        types:{activity:'🥾 Activity',sight:'📸 Sight',meal:'🍽️ Food',hotel:'🏨 Hotel',travel:'🚗 Travel'},
        cats:{'טיסות':'Flights','השכרת רכב':'Car rental','לינה':'Lodging','אוכל ומסעדות':'Food & dining','דלק/תחבורה':'Fuel / Transport','אטרקציות':'Attractions','קניות':'Shopping','אחר':'Other'},
        methods:{'Apple Pay':'Apple Pay','מזומן':'Cash','כרטיס אשראי':'Credit card','אחר':'Other'} }
@@ -81,6 +87,9 @@ function applyLang(){
   ph('lvSearch',t.lv_search); ph('lvAdd',t.lv_add); ph('kvSearch',t.kv_search); ph('kvAdd',t.kv_add);
   set('pasteHdr',t.paste_hdr); ph('pasteText',t.paste_ph); set('pasteSplit',t.paste_split); set('pasteCancel',t.paste_cancel);
   set('lvSheet',t.open_sheet);
+  // food log
+  set('foodbtn',t.btn_food); set('foodHdr',t.food_hdr); ph('foodText',t.food_ph); set('foodSave',t.food_save); set('foodSheet',t.food_sheet); set('foodClose',t.close);
+  opts('foodKind',t.food_kinds);
 }
 function setAuthor(n){ localStorage.setItem('author', n||''); $('who').textContent = n ? ('· '+n) : '?'; applyLang(); render(); }
 
@@ -550,9 +559,11 @@ $('brainbtn').onclick=()=>{ renderBrainTiles(); $('brain').hidden=false; };
 $('brainClose').onclick=()=>{ $('brain').hidden=true; };
 
 /* --- generic list (packing / pre-departure / kosher / favorites) --- */
-let lvKey=null, lvArchived=false, lvItems=[], lvSearchTimer=null;
+let lvKey=null, lvArchived=false, lvItems=[], lvSearchTimer=null, lvGroupByTag=false;
 async function openList(tile){
-  lvKey=tile.key; lvArchived=false; $('lvSearch').value=''; $('lvArchiveToggle').textContent='🗄️';
+  lvKey=tile.key; lvArchived=false; lvGroupByTag=false; $('lvSearch').value=''; $('lvArchiveToggle').textContent='🗄️';
+  $('lvGroupToggle').style.display = (tile.key==='kosher') ? '' : 'none';   // מדינה = תגית משנית; קיבוץ אופציונלי לכשרות
+  $('lvGroupToggle').style.opacity = '1';
   $('lvTitle').textContent=tile.emoji+' '+tileLabel(tile);
   $('listview').hidden=false; $('lvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>';
   await reloadList();
@@ -563,28 +574,33 @@ async function reloadList(){
     else $('lvBody').innerHTML='<div class="emptyday">'+L('שגיאה','Error')+'</div>';
   }catch(e){ $('lvBody').innerHTML='<div class="emptyday">'+L('אין חיבור','No connection')+'</div>'; }
 }
+function lvRow(it){
+  const row=document.createElement('div'); row.className='litem'+(it.done?' done':'');
+  if(lvArchived){
+    const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.text; row.appendChild(tx);
+    if(it.tag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
+    const rest=document.createElement('button'); rest.className='lbtn'; rest.textContent='♻️'; rest.onclick=()=>itemUpdate(it.id,{archived:false}); row.appendChild(rest);
+    const del=document.createElement('button'); del.className='lbtn'; del.style.color='#b91c1c'; del.textContent='🗑️';
+    del.onclick=()=>{ if(confirm(L('למחוק לצמיתות?','Delete permanently?'))) itemDelete(it.id); }; row.appendChild(del);
+  } else {
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.className='lcheck'; cb.checked=it.done;
+    cb.onchange=()=>itemUpdate(it.id,{done:cb.checked}); row.appendChild(cb);
+    const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.text;
+    tx.onclick=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); }; row.appendChild(tx);
+    if(it.tag && !lvGroupByTag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
+    const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
+  }
+  return row;
+}
 function renderList(){
   const body=$('lvBody'); body.innerHTML='';
   const items = lvArchived ? lvItems.filter(x=>x.archived) : lvItems;
   if(!items.length){ body.innerHTML='<div class="emptyday">'+(lvArchived?L('— הארכיון ריק —','— archive is empty —'):L('— ריק. הוסף פריט —','— empty. Add an item —'))+'</div>'; return; }
-  items.forEach(it=>{
-    const row=document.createElement('div'); row.className='litem'+(it.done?' done':'');
-    if(lvArchived){
-      const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.text; row.appendChild(tx);
-      if(it.tag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
-      const rest=document.createElement('button'); rest.className='lbtn'; rest.textContent='♻️'; rest.onclick=()=>itemUpdate(it.id,{archived:false}); row.appendChild(rest);
-      const del=document.createElement('button'); del.className='lbtn'; del.style.color='#b91c1c'; del.textContent='🗑️';
-      del.onclick=()=>{ if(confirm(L('למחוק לצמיתות?','Delete permanently?'))) itemDelete(it.id); }; row.appendChild(del);
-    } else {
-      const cb=document.createElement('input'); cb.type='checkbox'; cb.className='lcheck'; cb.checked=it.done;
-      cb.onchange=()=>itemUpdate(it.id,{done:cb.checked}); row.appendChild(cb);
-      const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.text;
-      tx.onclick=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); }; row.appendChild(tx);
-      if(it.tag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
-      const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
-    }
-    body.appendChild(row);
-  });
+  if(lvGroupByTag && !lvArchived){
+    const groups={}; items.forEach(it=>{ const k=(it.tag||'').trim()||L('— ללא מדינה —','— no country —'); (groups[k]=groups[k]||[]).push(it); });
+    Object.keys(groups).sort().forEach(g=>{ const h=document.createElement('div'); h.className='dayhdr'; h.textContent='🌍 '+g; body.appendChild(h);
+      groups[g].forEach(it=> body.appendChild(lvRow(it))); });
+  } else { items.forEach(it=> body.appendChild(lvRow(it))); }
 }
 async function itemUpdate(id, patch){
   if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
@@ -604,6 +620,7 @@ $('lvAdd').addEventListener('keydown', e=>{ if(e.key==='Enter') listAddOne(); })
 $('lvArchiveToggle').onclick=()=>{ lvArchived=!lvArchived; $('lvArchiveToggle').textContent=lvArchived?'📋':'🗄️'; reloadList(); };
 $('lvSearch').addEventListener('input', ()=>{ clearTimeout(lvSearchTimer); lvSearchTimer=setTimeout(reloadList, 350); });
 $('lvSearchClear').onclick=()=>{ $('lvSearch').value=''; reloadList(); };
+$('lvGroupToggle').onclick=()=>{ lvGroupByTag=!lvGroupByTag; $('lvGroupToggle').style.opacity=lvGroupByTag?'.5':'1'; renderList(); };
 $('lvAddManyBtn').onclick=()=>{ $('pasteText').value=''; $('pastegate').hidden=false; $('pasteText').focus(); };
 $('pasteCancel').onclick=()=>{ $('pastegate').hidden=true; };
 $('pasteSplit').onclick=async()=>{
@@ -652,6 +669,44 @@ $('kvAddBtn').onclick=knowAdd;
 $('kvAdd').addEventListener('keydown', e=>{ if(e.key==='Enter') knowAdd(); });
 $('kvSearch').addEventListener('input', ()=>{ clearTimeout(kvSearchTimer); kvSearchTimer=setTimeout(renderKnow, 200); });
 $('kvSearchClear').onclick=()=>{ $('kvSearch').value=''; renderKnow(); };
+$('kvOrganize').onclick=async()=>{   // סדר כולל (מדי פעם) — AI מארגן מחדש את כל המסמך
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  if(!confirm(T().organize_confirm)) return;
+  const old=$('kvOrganize').textContent; $('kvOrganize').textContent='⏳';
+  $('kvBody').innerHTML='<div class="emptyday">'+T().organizing_all+'</div>';
+  try{ const r=await api({ action:'organize_knowledge', docKey:kvKey });
+    if(r.ok){ kvText=r.text||kvText; kvUrl=r.url||kvUrl; renderKnow(); } else { alert(L('שגיאה','Error')); renderKnow(); } }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); renderKnow(); }
+  finally{ $('kvOrganize').textContent=old; }
+};
+
+/* --- 🍽️ יומן אוכל לכל טיול (offline-queued) --- */
+async function enqueueFood(data){
+  const p={ action:'add_food', clientId:clientId(), author:getAuthor(), tripId:getTripId(), foodId:uuid(), ts:new Date().toISOString(), ...data };
+  await dbAdd({ kind:'json', payload:p });
+}
+async function openFood(){
+  if(!ensureTrip()) return;
+  $('foodgate').hidden=false; $('foodText').value=''; $('foodText').focus(); refreshFood();
+  if(navigator.onLine){ try{ const r=await api({ action:'food_url', tripId:getTripId() }); if(r.ok&&r.url){ $('foodSheet').href=r.url; $('foodSheet').style.display='block'; } }catch(e){} }
+}
+async function refreshFood(){
+  if(!navigator.onLine) return;
+  try{ const r=await api({ action:'list_food', tripId:getTripId() }); const el=$('foodList'); el.innerHTML='';
+    (r.food||[]).slice(0,25).forEach(f=>{ const d=document.createElement('div'); d.className='litem'; d.style.display='block';
+      d.innerHTML='<b>'+escapeHtml(f.date)+(f.kind?(' · '+escapeHtml(f.kind)):'')+(f.author?(' · '+escapeHtml(f.author)):'')+'</b><br>'+escapeHtml(f.text); el.appendChild(d); });
+  }catch(e){}
+}
+$('foodbtn').onclick=openFood;
+$('foodClose').onclick=()=>{ $('foodgate').hidden=true; };
+$('foodSave').onclick=async()=>{
+  const text=$('foodText').value.trim(); if(!text) return; if(!ensureTrip()) return;
+  $('foodSave').disabled=true;
+  await enqueueFood({ kind:$('foodKind').value, text });
+  $('foodText').value=''; logLine(T().food_saved); await render(); flush();
+  setTimeout(refreshFood, 1800);
+  $('foodSave').disabled=false;
+};
 
 addEventListener('online', flush); addEventListener('offline', render);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ flush(); initTrips();

@@ -28,7 +28,7 @@
   button.act,label.act{ display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:16px; font-size:1.05rem; font-weight:600; padding:16px; color:#fff; background:var(--teal) }
   button.act:active,label.act:active{ background:var(--teal2) }
   .act.save{ grid-column:1 / -1; font-size:1.2rem; padding:18px }
-  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 } .act.ask{ background:#6d28d9 } .act.expense{ background:#15803d }
+  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 } .act.ask{ background:#6d28d9 } .act.expense{ background:#15803d } .act.food{ background:#c2410c }
   .gate .card select{ width:100%; margin:6px 0 12px; padding:13px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; background:#fff }
   button:disabled{ opacity:.5 }
   input[type=file]{ display:none }
@@ -136,6 +136,7 @@
       <button class="act doc" id="docbtn">📁 מסמכים</button>
       <button class="act receipt" id="rcptbtn">🧾 קבלות</button>
       <button class="act expense" id="expensebtn">💶 הוצאה</button>
+      <button class="act food" id="foodbtn" style="grid-column:1 / -1">🍽️ יומן אוכל</button>
       <button class="act ask" id="askbtn" style="grid-column:1 / -1">🤖 שאל את הקונסיירז'</button>
       <button class="act brain" id="brainbtn" style="grid-column:1 / -1">🧠 המוח (רשימות וידע)</button>
     </div>
@@ -154,7 +155,7 @@
     <div class="foot">
       <button id="newtrip">➕ טיול חדש</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v24 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v25 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -188,6 +189,7 @@
     <header class="ihead">
       <button class="icon" id="lvClose" aria-label="סגור">✕</button>
       <span id="lvTitle" style="flex:1;text-align:center;font-weight:700">רשימה</span>
+      <button class="icon" id="lvGroupToggle" aria-label="קבץ לפי מדינה" style="display:none">🌍</button>
       <button class="icon" id="lvArchiveToggle" aria-label="ארכיון">🗄️</button>
     </header>
     <div class="iai" style="background:#ecfeff; border-color:#cffafe">
@@ -208,6 +210,7 @@
     <header class="ihead">
       <button class="icon" id="kvClose" aria-label="סגור">✕</button>
       <span id="kvTitle" style="flex:1;text-align:center;font-weight:700">ידע</span>
+      <button class="icon" id="kvOrganize" aria-label="סדר הכל">🧹</button>
       <button class="icon" id="kvDoc" aria-label="מסמך">📂</button>
     </header>
     <div class="iai" style="background:#fef3c7; border-color:#fde68a">
@@ -227,6 +230,20 @@
     <textarea id="pasteText" rows="6" placeholder="הדבק כאן טקסט חופשי / רשימה…"></textarea>
     <button id="pasteSplit">✨ פצל והוסף</button>
     <button id="pasteCancel" class="ghost">ביטול</button>
+  </div></div>
+
+  <!-- food log gate -->
+  <div id="foodgate" class="gate" hidden><div class="card" style="text-align:right">
+    <p id="foodHdr">🍽️ יומן אוכל</p>
+    <select id="foodKind">
+      <option value="מסעדה">🍴 מסעדה</option><option value="קפה">☕ קפה</option>
+      <option value="סופרמרקט">🛒 סופרמרקט</option><option value="בישול">🍳 בישלנו</option><option value="אחר">אחר</option>
+    </select>
+    <textarea id="foodText" rows="3" placeholder="מה אכלתם / מה קניתם לאכול היום?"></textarea>
+    <button id="foodSave">💾 שמור</button>
+    <div id="foodList" style="max-height:30vh; overflow:auto; text-align:right; margin:6px 0"></div>
+    <a id="foodSheet" href="#" target="_blank" rel="noopener" style="display:none; text-align:center; color:var(--teal2); text-decoration:none; margin:6px 0">📊 פתח את גיליון האוכל</a>
+    <button id="foodClose" class="ghost">סגור</button>
   </div></div>
 
   <!-- itinerary item editor -->
@@ -315,6 +332,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=24"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>
