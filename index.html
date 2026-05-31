@@ -86,7 +86,10 @@
   .hour{ position:absolute; left:0; right:0; height:54px; border-top:1px solid #e8edf3 }
   .hour .hl{ position:absolute; right:2px; top:-8px; font-size:.7rem; color:#94a3b8; background:var(--bg); padding:0 3px }
   .hour:active{ background:#f0fdfa }
-  .gblock{ position:absolute; right:46px; left:6px; background:#ccfbf1; border:1px solid #5eead4; border-radius:8px; padding:3px 7px; font-size:.82rem; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.06) }
+  .gblock{ position:absolute; right:46px; left:6px; background:#ccfbf1; border:1px solid #5eead4; border-radius:8px; padding:3px 7px; font-size:.82rem; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.06); touch-action:none; user-select:none }
+  .gblock.drag{ opacity:.9; box-shadow:0 6px 16px rgba(0,0,0,.22); z-index:6 }
+  .ghandle{ position:absolute; left:0; right:0; bottom:0; height:16px; touch-action:none }
+  .ghandle::after{ content:''; position:absolute; left:50%; bottom:3px; width:26px; height:3px; transform:translateX(-50%); background:rgba(15,118,110,.45); border-radius:3px }
   .gblock.hotel{ background:#fae8ff; border-color:#e9d5ff } .gblock.travel{ background:#dbeafe; border-color:#bfdbfe } .gblock.meal{ background:#fef9c3; border-color:#fde68a }
   .gblock .gt{ font-weight:700; font-size:.72rem; color:#475569 }
   .gate .card button{ width:100%; margin:6px 0; padding:16px; font-size:1.1rem; border:0; border-radius:14px; background:var(--teal); color:#fff; font-weight:600 }
@@ -150,14 +153,14 @@
     <div style="display:flex; gap:8px">
       <input id="itTime" type="time" style="flex:1"><input id="itEnd" type="time" style="flex:1">
     </div>
-    <input id="itTitleInp" type="text" placeholder="מה? (למשל: אגם ברייס)">
+    <input id="itTitleInp" type="text" autocomplete="off" autocorrect="off" placeholder="מה? (למשל: אגם ברייס)">
     <select id="itType">
       <option value="activity">🥾 פעילות</option><option value="sight">📸 אתר</option>
       <option value="meal">🍽️ אוכל</option><option value="hotel">🏨 מלון</option><option value="travel">🚗 נסיעה</option>
     </select>
-    <input id="itLoc" type="text" placeholder="מקום / שם">
-    <input id="itAddr" type="text" placeholder="כתובת (יוצר לינק למפות + וייז)">
-    <textarea id="itNotes" rows="2" placeholder="הערות / לינק הזמנה"></textarea>
+    <input id="itLoc" type="text" autocomplete="off" autocorrect="off" placeholder="מקום / שם">
+    <input id="itAddr" type="text" autocomplete="off" autocorrect="off" placeholder="כתובת (יוצר לינק למפות + וייז)">
+    <textarea id="itNotes" rows="2" autocomplete="off" placeholder="הערות / לינק הזמנה"></textarea>
     <button id="itSave">💾 שמור</button>
     <button id="itDelete" class="ghost" style="display:none; color:#b91c1c">🗑️ מחק</button>
     <button id="itCancel" class="ghost">סגור</button>

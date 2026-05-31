@@ -387,10 +387,33 @@ function renderDayGrid(day){
     const b=document.createElement('div'); b.className='gblock '+(it.type||'');
     b.style.top=(((sm/60)-H0)*HH)+'px'; b.style.height=Math.max(26,((em-sm)/60)*HH-2)+'px';
     b.innerHTML='<div class="gt">'+escapeHtml(it.time||'')+(it.endTime?('–'+escapeHtml(it.endTime)):'')+'</div>'+(TYPE_ICON[it.type]||'')+' '+escapeHtml(it.title||'');
-    b.onclick=(e)=>{ e.stopPropagation(); openItem(it, day); }; grid.appendChild(b);
+    makeBlockInteractive(b, it, HH); grid.appendChild(b);
   });
   body.appendChild(grid);
   $('itinBody').scrollTop = 7*HH;   // התחל סביב 07:00
+}
+function fmtMin(m){ m=((Math.round(m)%1440)+1440)%1440; return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0'); }
+async function saveItemQuick(it){ try{ const r=await api({action:'save_item', tripId:getTripId(), item:it}); if(r.ok) await reloadItin(); else alert('שגיאה'); }catch(e){ alert('אין חיבור — נסה שוב'); } }
+// גרירה (הזזת שעה) + מתיחת הקצה (משך) על רשת השעות, באצבע
+function makeBlockInteractive(b, it, HH){
+  const handle=document.createElement('div'); handle.className='ghandle'; b.appendChild(handle);
+  let mode=null, startY=0, origTop=0, origH=0, moved=false;
+  const sm=toMin(it.time); let em=toMin(it.endTime); if(em==null||em<=sm) em=sm+60; const dur=em-sm;
+  const snap=(min)=>Math.round(min/15)*15;
+  function down(e, m){ mode=m; moved=false; startY=e.clientY; origTop=parseFloat(b.style.top)||0; origH=parseFloat(b.style.height)||HH;
+    b.classList.add('drag'); try{ b.setPointerCapture(e.pointerId); }catch(_){}
+    window.addEventListener('pointermove', move); window.addEventListener('pointerup', up); e.preventDefault(); e.stopPropagation(); }
+  function move(e){ const d=e.clientY-startY; if(Math.abs(d)>5) moved=true;
+    if(mode==='move') b.style.top=Math.max(0, origTop+d)+'px';
+    else b.style.height=Math.max(20, origH+d)+'px'; }
+  function up(){ window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); b.classList.remove('drag');
+    if(!moved){ openItem(it, it.day); return; }
+    if(mode==='move'){ let ns=snap(parseFloat(b.style.top)/HH*60); ns=Math.max(0, Math.min(1440-dur, ns)); it.time=fmtMin(ns); it.endTime=fmtMin(ns+dur); }
+    else { let ne=snap(sm + parseFloat(b.style.height)/HH*60); ne=Math.max(sm+15, Math.min(1440, ne)); it.endTime=fmtMin(ne); }
+    saveItemQuick(it);
+  }
+  handle.addEventListener('pointerdown', e=>down(e,'resize'));
+  b.addEventListener('pointerdown', e=>{ if(e.target===handle) return; down(e,'move'); });
 }
 function fillDaySelect(){
   const sel=$('itDay'); sel.innerHTML='';
@@ -403,7 +426,7 @@ function openItem(it, day, presetTime){
   $('itTitleInp').value=it?(it.title||''):''; $('itType').value=it?(it.type||'activity'):'activity';
   $('itLoc').value=it?(it.location||''):''; $('itAddr').value=it?(it.address||''):''; $('itNotes').value=it?(it.notes||''):'';
   $('itDelete').style.display=it?'block':'none'; $('itemHdr').textContent=it?'עריכת פריט':'פריט חדש';
-  $('itemgate').hidden=false; $('itTitleInp').focus();
+  $('itemgate').hidden=false;   // בלי focus אוטומטי (מנע את קפיצת ה-autofill של iOS)
 }
 $('itinbtn').onclick=openItin;
 $('itinClose').onclick=()=>{ $('itin').hidden=true; };
