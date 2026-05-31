@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v23';
+const APP_VER='v24';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -32,6 +32,8 @@ const I18N = {
        new_expense:'💶 הוצאה חדשה', ph_amount:'סכום', ph_desc:'תיאור (לא חובה)', attach_receipt:'📷 צרף קבלה / צילום מסך',
        paste_clipboard:'📋 הדבק צילום מהלוח (Copy & Delete)', keep_receipt:'שמור גם את צילום הקבלה (לקבלות אמיתיות)', save_expense:'💾 שמור הוצאה',
        del_expense:'🗑️ מחק הוצאה', edit_expense:'📋 ערוך הוצאה קיימת', peek_sheet:'📊 הצצה לגיליון ההוצאות',
+       btn_brain:'🧠 המוח (רשימות וידע)', brain_hub:'🧠 המוח', lv_search:'חיפוש…', lv_add:'הוסף פריט…', kv_search:'חיפוש בידע…', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
+       paste_hdr:'📋 הדבק רשימה — ה-AI יפצל לפריטים', paste_ph:'הדבק כאן טקסט חופשי / רשימה…', paste_split:'✨ פצל והוסף', paste_cancel:'ביטול', open_sheet:'📊 פתח את הגיליון',
        types:{activity:'🥾 פעילות',sight:'📸 אתר',meal:'🍽️ אוכל',hotel:'🏨 מלון',travel:'🚗 נסיעה'},
        cats:{'טיסות':'טיסות','השכרת רכב':'השכרת רכב','לינה':'לינה','אוכל ומסעדות':'אוכל ומסעדות','דלק/תחבורה':'דלק/תחבורה','אטרקציות':'אטרקציות','קניות':'קניות','אחר':'אחר'},
        methods:{'Apple Pay':'Apple Pay','מזומן':'מזומן','כרטיס אשראי':'כרטיס אשראי','אחר':'אחר'} },
@@ -46,6 +48,8 @@ const I18N = {
        new_expense:'💶 New expense', ph_amount:'Amount', ph_desc:'Description (optional)', attach_receipt:'📷 Attach receipt / screenshot',
        paste_clipboard:'📋 Paste screenshot (Copy & Delete)', keep_receipt:'Also keep the receipt image (for real receipts)', save_expense:'💾 Save expense',
        del_expense:'🗑️ Delete expense', edit_expense:'📋 Edit an existing expense', peek_sheet:'📊 Open the expenses sheet',
+       btn_brain:'🧠 The Brain (lists & knowledge)', brain_hub:'🧠 The Brain', lv_search:'Search…', lv_add:'Add an item…', kv_search:'Search the knowledge…', kv_add:'Add a lesson / how-to… the AI will organize it',
+       paste_hdr:'📋 Paste a list — the AI will split it into items', paste_ph:'Paste free text / a list here…', paste_split:'✨ Split & add', paste_cancel:'Cancel', open_sheet:'📊 Open the sheet',
        types:{activity:'🥾 Activity',sight:'📸 Sight',meal:'🍽️ Food',hotel:'🏨 Hotel',travel:'🚗 Travel'},
        cats:{'טיסות':'Flights','השכרת רכב':'Car rental','לינה':'Lodging','אוכל ומסעדות':'Food & dining','דלק/תחבורה':'Fuel / Transport','אטרקציות':'Attractions','קניות':'Shopping','אחר':'Other'},
        methods:{'Apple Pay':'Apple Pay','מזומן':'Cash','כרטיס אשראי':'Credit card','אחר':'Other'} }
@@ -72,6 +76,11 @@ function applyLang(){
   set('exSave',t.save_expense); set('exDelete',t.del_expense); set('exEditBtn',t.edit_expense); set('exSheetLink',t.peek_sheet); set('exClose',t.close);
   const opts=(id,map)=>{ const s=$(id); if(s)[...s.options].forEach(o=>{ if(map[o.value]) o.textContent=map[o.value]; }); };
   opts('itType',t.types); opts('exCategory',t.cats); opts('exMethod',t.methods);
+  // brain (lists + knowledge)
+  set('brainbtn',t.btn_brain); set('brainTitle',t.brain_hub);
+  ph('lvSearch',t.lv_search); ph('lvAdd',t.lv_add); ph('kvSearch',t.kv_search); ph('kvAdd',t.kv_add);
+  set('pasteHdr',t.paste_hdr); ph('pasteText',t.paste_ph); set('pasteSplit',t.paste_split); set('pasteCancel',t.paste_cancel);
+  set('lvSheet',t.open_sheet);
 }
 function setAuthor(n){ localStorage.setItem('author', n||''); $('who').textContent = n ? ('· '+n) : '?'; applyLang(); render(); }
 
@@ -519,6 +528,130 @@ $('docbtn').onclick=()=>openFiles('document');
 $('rcptbtn').onclick=()=>openFiles('receipt');
 $('filesUpload').onclick=()=>$(FILES_INPUT[filesCategory]).click();
 $('filesClose').onclick=()=>{ $('filesgate').hidden=true; };
+
+/* ---------- "מוח" (Brain) — רשימות + ידע גלובליים (חוצי-טיולים) ---------- */
+const BRAIN_TILES = [
+  { key:'packing',      kind:'list', emoji:'🎒', he:'אריזה',          en:'Packing' },
+  { key:'predeparture', kind:'list', emoji:'✅', he:'לפני יציאה',     en:'Pre-departure' },
+  { key:'kosher',       kind:'list', emoji:'🥗', he:'כשרות / טבעוני', en:'Kosher / Vegan' },
+  { key:'favorites',    kind:'list', emoji:'⭐', he:'מועדפים של Sky', en:"Sky's favorites" },
+  { key:'lessons',      kind:'know', emoji:'💡', he:'לקחים והעדפות',  en:'Lessons & prefs' },
+  { key:'howto',        kind:'know', emoji:'🛠️', he:'הוראות פעולה',   en:'How-to' }
+];
+const tileLabel = (t) => uiLang()==='en' ? t.en : t.he;
+function renderBrainTiles(){
+  const wrap=$('brainTiles'); wrap.innerHTML='';
+  BRAIN_TILES.forEach(t=>{ const d=document.createElement('div'); d.className='btile';
+    d.innerHTML='<div class="bemoji">'+t.emoji+'</div><div>'+escapeHtml(tileLabel(t))+'</div>';
+    d.onclick=()=> (t.kind==='list' ? openList(t) : openKnow(t));
+    wrap.appendChild(d); });
+}
+$('brainbtn').onclick=()=>{ renderBrainTiles(); $('brain').hidden=false; };
+$('brainClose').onclick=()=>{ $('brain').hidden=true; };
+
+/* --- generic list (packing / pre-departure / kosher / favorites) --- */
+let lvKey=null, lvArchived=false, lvItems=[], lvSearchTimer=null;
+async function openList(tile){
+  lvKey=tile.key; lvArchived=false; $('lvSearch').value=''; $('lvArchiveToggle').textContent='🗄️';
+  $('lvTitle').textContent=tile.emoji+' '+tileLabel(tile);
+  $('listview').hidden=false; $('lvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>';
+  await reloadList();
+}
+async function reloadList(){
+  try{ const r=await api({ action:'get_list', listKey:lvKey, includeArchived:lvArchived, query:$('lvSearch').value.trim() });
+    if(r.ok){ lvItems=r.items||[]; if(r.url) $('lvSheet').href=r.url; renderList(); }
+    else $('lvBody').innerHTML='<div class="emptyday">'+L('שגיאה','Error')+'</div>';
+  }catch(e){ $('lvBody').innerHTML='<div class="emptyday">'+L('אין חיבור','No connection')+'</div>'; }
+}
+function renderList(){
+  const body=$('lvBody'); body.innerHTML='';
+  const items = lvArchived ? lvItems.filter(x=>x.archived) : lvItems;
+  if(!items.length){ body.innerHTML='<div class="emptyday">'+(lvArchived?L('— הארכיון ריק —','— archive is empty —'):L('— ריק. הוסף פריט —','— empty. Add an item —'))+'</div>'; return; }
+  items.forEach(it=>{
+    const row=document.createElement('div'); row.className='litem'+(it.done?' done':'');
+    if(lvArchived){
+      const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.text; row.appendChild(tx);
+      if(it.tag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
+      const rest=document.createElement('button'); rest.className='lbtn'; rest.textContent='♻️'; rest.onclick=()=>itemUpdate(it.id,{archived:false}); row.appendChild(rest);
+      const del=document.createElement('button'); del.className='lbtn'; del.style.color='#b91c1c'; del.textContent='🗑️';
+      del.onclick=()=>{ if(confirm(L('למחוק לצמיתות?','Delete permanently?'))) itemDelete(it.id); }; row.appendChild(del);
+    } else {
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.className='lcheck'; cb.checked=it.done;
+      cb.onchange=()=>itemUpdate(it.id,{done:cb.checked}); row.appendChild(cb);
+      const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.text;
+      tx.onclick=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); }; row.appendChild(tx);
+      if(it.tag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
+      const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
+    }
+    body.appendChild(row);
+  });
+}
+async function itemUpdate(id, patch){
+  if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
+  try{ const r=await api(Object.assign({ action:'update_list_item', listKey:lvKey, id:id }, patch)); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
+}
+async function itemDelete(id){
+  try{ const r=await api({ action:'delete_list_item', listKey:lvKey, id:id }); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
+}
+async function listAddOne(){
+  const v=$('lvAdd').value.trim(); if(!v) return;
+  if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
+  $('lvAdd').value=''; try{ const r=await api({ action:'add_list_item', listKey:lvKey, text:v }); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
+}
+$('lvClose').onclick=()=>{ $('listview').hidden=true; };
+$('lvAddBtn').onclick=listAddOne;
+$('lvAdd').addEventListener('keydown', e=>{ if(e.key==='Enter') listAddOne(); });
+$('lvArchiveToggle').onclick=()=>{ lvArchived=!lvArchived; $('lvArchiveToggle').textContent=lvArchived?'📋':'🗄️'; reloadList(); };
+$('lvSearch').addEventListener('input', ()=>{ clearTimeout(lvSearchTimer); lvSearchTimer=setTimeout(reloadList, 350); });
+$('lvSearchClear').onclick=()=>{ $('lvSearch').value=''; reloadList(); };
+$('lvAddManyBtn').onclick=()=>{ $('pasteText').value=''; $('pastegate').hidden=false; $('pasteText').focus(); };
+$('pasteCancel').onclick=()=>{ $('pastegate').hidden=true; };
+$('pasteSplit').onclick=async()=>{
+  const v=$('pasteText').value.trim(); if(!v) return;
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  $('pasteSplit').disabled=true; const old=$('pasteSplit').textContent; $('pasteSplit').textContent=L('✨ מפצל…','✨ Splitting…');
+  try{ const r=await api({ action:'add_list_items', listKey:lvKey, text:v });
+    if(r.ok){ $('pastegate').hidden=true; logLine(L('➕ נוספו ','➕ Added ')+(r.count||0)); await reloadList(); } else alert(L('שגיאה','Error')); }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
+  finally{ $('pasteSplit').disabled=false; $('pasteSplit').textContent=old; }
+};
+
+/* --- knowledge (lessons / how-to), AI-organized doc --- */
+let kvKey=null, kvText='', kvUrl='#', kvSearchTimer=null;
+async function openKnow(tile){
+  kvKey=tile.key; $('kvSearch').value='';
+  $('kvTitle').textContent=tile.emoji+' '+tileLabel(tile);
+  $('knowview').hidden=false; $('kvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>';
+  try{ const r=await api({ action:'get_knowledge', docKey:kvKey });
+    if(r.ok){ kvText=r.text||''; kvUrl=r.url||'#'; renderKnow(); } else $('kvBody').innerHTML='<div class="emptyday">'+L('שגיאה','Error')+'</div>';
+  }catch(e){ $('kvBody').innerHTML='<div class="emptyday">'+L('אין חיבור','No connection')+'</div>'; }
+}
+function renderKnow(){
+  const body=$('kvBody'); const q=$('kvSearch').value.trim();
+  // הסר את כותרת המסמך (שורה ראשונה) שכבר מופיעה בכותרת המסך
+  let txt=String(kvText||'').replace(/^.*\n/, m=> (m.trim()===($('kvTitle').textContent||'').trim()? '' : m)).trim();
+  if(!txt) txt=String(kvText||'').trim();
+  if(!txt){ body.innerHTML='<div class="emptyday">'+L('— עדיין ריק. הוסף לקח/הוראה —','— still empty. Add a lesson / how-to —')+'</div>'; return; }
+  let html=escapeHtml(txt);
+  if(q){ const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'); html=html.replace(re,'<mark>$1</mark>'); }
+  body.innerHTML='<div class="kvtext">'+html+'</div>';
+}
+async function knowAdd(){
+  const v=$('kvAdd').value.trim(); if(!v) return;
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  $('kvAddBtn').disabled=true; const old=$('kvAddBtn').textContent; $('kvAddBtn').textContent='⏳';
+  $('kvBody').innerHTML='<div class="emptyday">'+L('🤖 מארגן…','🤖 Organizing…')+'</div>';
+  try{ const r=await api({ action:'add_knowledge', docKey:kvKey, text:v });
+    if(r.ok){ kvText=r.text||kvText; kvUrl=r.url||kvUrl; $('kvAdd').value=''; renderKnow(); } else { alert(L('שגיאה','Error')); renderKnow(); } }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); renderKnow(); }
+  finally{ $('kvAddBtn').disabled=false; $('kvAddBtn').textContent=old; }
+}
+$('kvClose').onclick=()=>{ $('knowview').hidden=true; };
+$('kvDoc').onclick=()=>{ if(kvUrl && kvUrl!=='#') window.open(kvUrl,'_blank','noopener'); };
+$('kvAddBtn').onclick=knowAdd;
+$('kvAdd').addEventListener('keydown', e=>{ if(e.key==='Enter') knowAdd(); });
+$('kvSearch').addEventListener('input', ()=>{ clearTimeout(kvSearchTimer); kvSearchTimer=setTimeout(renderKnow, 200); });
+$('kvSearchClear').onclick=()=>{ $('kvSearch').value=''; renderKnow(); };
 
 addEventListener('online', flush); addEventListener('offline', render);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ flush(); initTrips();

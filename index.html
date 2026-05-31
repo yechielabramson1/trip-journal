@@ -99,6 +99,25 @@
   .gblock .gt{ font-weight:700; font-size:.72rem; color:#475569 }
   .gate .card button{ width:100%; margin:6px 0; padding:16px; font-size:1.1rem; border:0; border-radius:14px; background:var(--teal); color:#fff; font-weight:600 }
   .gate .card .ghost{ background:#e2e8f0; color:var(--ink) }
+  /* brain (lists + knowledge) */
+  .act.brain{ background:#0891b2 }
+  .braintiles{ flex:1; overflow:auto; padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:12px; align-content:start }
+  .btile{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px 12px; text-align:center; font-weight:600; color:var(--ink); display:flex; flex-direction:column; gap:8px; align-items:center }
+  .btile:active{ background:#f1f5f9 }
+  .btile .bemoji{ font-size:2.1rem }
+  .lvadd{ display:flex; gap:6px; padding:8px 12px; background:#fff; border-bottom:1px solid var(--line) }
+  .lvadd input{ flex:1; padding:11px; border:1px solid #cbd5e1; border-radius:10px; font-size:1rem }
+  .lvadd button{ border:0; background:var(--teal); color:#fff; border-radius:10px; padding:0 14px; font-size:1.05rem }
+  #lvBody,#kvBody{ flex:1; overflow:auto; padding:8px 12px }
+  .litem{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin:6px 0 }
+  .litem.done .ltext{ text-decoration:line-through; color:var(--muted) }
+  .litem .lcheck{ width:24px; height:24px; flex:none }
+  .litem .ltext{ flex:1; font-size:1rem; min-width:0; word-break:break-word }
+  .litem .ltag{ font-size:.72rem; background:#e0f2fe; color:#0369a1; border-radius:999px; padding:2px 8px; white-space:nowrap }
+  .litem .lbtn{ border:0; background:transparent; font-size:1.05rem; color:#94a3b8; padding:4px 5px }
+  .lvfoot{ display:block; text-align:center; color:var(--teal2); text-decoration:none; padding:10px; font-size:.9rem; border-top:1px solid var(--line) }
+  .kvtext{ white-space:pre-wrap; line-height:1.6; font-size:1rem; background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px }
+  .kvtext mark{ background:#fde68a; padding:0 1px }
 </style>
 </head>
 <body>
@@ -118,6 +137,7 @@
       <button class="act receipt" id="rcptbtn">🧾 קבלות</button>
       <button class="act expense" id="expensebtn">💶 הוצאה</button>
       <button class="act ask" id="askbtn" style="grid-column:1 / -1">🤖 שאל את הקונסיירז'</button>
+      <button class="act brain" id="brainbtn" style="grid-column:1 / -1">🧠 המוח (רשימות וידע)</button>
     </div>
     <input id="cam" type="file" accept="image/*" capture="environment">
     <input id="docfile" type="file">
@@ -134,7 +154,7 @@
     <div class="foot">
       <button id="newtrip">➕ טיול חדש</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v23 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v24 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -152,6 +172,62 @@
     </div>
     <div id="itinBody"></div>
   </div>
+
+  <!-- brain hub -->
+  <div id="brain" class="screen" hidden>
+    <header class="ihead">
+      <button class="icon" id="brainClose" aria-label="סגור">✕</button>
+      <span id="itinTitle" style="flex:1;text-align:center;font-weight:700"><span id="brainTitle">🧠 המוח</span></span>
+      <span style="width:36px"></span>
+    </header>
+    <div id="brainTiles" class="braintiles"></div>
+  </div>
+
+  <!-- generic list view (packing / pre-departure / kosher / favorites) -->
+  <div id="listview" class="screen" hidden>
+    <header class="ihead">
+      <button class="icon" id="lvClose" aria-label="סגור">✕</button>
+      <span id="lvTitle" style="flex:1;text-align:center;font-weight:700">רשימה</span>
+      <button class="icon" id="lvArchiveToggle" aria-label="ארכיון">🗄️</button>
+    </header>
+    <div class="iai" style="background:#ecfeff; border-color:#cffafe">
+      <input id="lvSearch" placeholder="חיפוש…">
+      <button id="lvSearchClear" aria-label="נקה">✕</button>
+    </div>
+    <div class="lvadd">
+      <input id="lvAdd" placeholder="הוסף פריט…" autocomplete="off">
+      <button id="lvAddBtn" aria-label="הוסף">＋</button>
+      <button id="lvAddManyBtn" aria-label="הדבק רבים">📋</button>
+    </div>
+    <div id="lvBody"></div>
+    <a id="lvSheet" class="lvfoot" href="#" target="_blank" rel="noopener">📊 פתח את הגיליון</a>
+  </div>
+
+  <!-- knowledge view (lessons / how-to) -->
+  <div id="knowview" class="screen" hidden>
+    <header class="ihead">
+      <button class="icon" id="kvClose" aria-label="סגור">✕</button>
+      <span id="kvTitle" style="flex:1;text-align:center;font-weight:700">ידע</span>
+      <button class="icon" id="kvDoc" aria-label="מסמך">📂</button>
+    </header>
+    <div class="iai" style="background:#fef3c7; border-color:#fde68a">
+      <input id="kvSearch" placeholder="חיפוש בידע…">
+      <button id="kvSearchClear" aria-label="נקה">✕</button>
+    </div>
+    <div class="lvadd">
+      <input id="kvAdd" placeholder="הוסף לקח / הוראה… ה-AI יארגן" autocomplete="off">
+      <button id="kvAddBtn" aria-label="הוסף">＋</button>
+    </div>
+    <div id="kvBody"></div>
+  </div>
+
+  <!-- paste-many gate (AI splits pasted text into items) -->
+  <div id="pastegate" class="gate" hidden><div class="card" style="text-align:right">
+    <p id="pasteHdr">📋 הדבק רשימה — ה-AI יפצל לפריטים</p>
+    <textarea id="pasteText" rows="6" placeholder="הדבק כאן טקסט חופשי / רשימה…"></textarea>
+    <button id="pasteSplit">✨ פצל והוסף</button>
+    <button id="pasteCancel" class="ghost">ביטול</button>
+  </div></div>
 
   <!-- itinerary item editor -->
   <div id="itemgate" class="gate" hidden><div class="card" style="text-align:right">
@@ -239,6 +315,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=23"></script>
+<script src="app.js?v=24"></script>
 </body>
 </html>
