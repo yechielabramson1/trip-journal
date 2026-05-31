@@ -22,10 +22,10 @@ const getAuthor = () => localStorage.getItem('author') || '';
 const I18N = {
   he:{ ph:'דבר אל המקלדת או הקלד מה קורה עכשיו…', save:'💾 שמור ליומן', photo:'📷 תמונה', doc:'📁 מסמך', receipt:'🧾 קבלה',
        synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות', needcfg:'נדרשת הגדרה — פתח קישור ה-token',
-       saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', mytrips:'🏔️ המסעות שלי', newtrip:'➕ טיול חדש', drive:'📂 פתח בדרייב', switched:'➡️ עברת ל' },
+       saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', mytrips:'🏔️ המסעות שלי', newtrip:'➕ טיול חדש', drive:'📂 פתח בדרייב', switched:'➡️ עברת ל', ask:"🤖 שאל את הקונסיירז'", thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט' },
   en:{ ph:'Speak or type what’s happening now…', save:'💾 Save to journal', photo:'📷 Photo', doc:'📁 Document', receipt:'🧾 Receipt',
        synced:'All synced ✓', pending:n=>'Syncing · '+n+' pending', off:n=>'Offline · '+n+' pending', needcfg:'Setup needed — open the token link',
-       saved:'📝 Saved', compressing:'🗜️ Processing…', queued:'⬆️ Queued', toobig:'⚠️ File too large', mytrips:'🏔️ My Trips', newtrip:'➕ New trip', drive:'📂 Open in Drive', switched:'➡️ Switched to ' }
+       saved:'📝 Saved', compressing:'🗜️ Processing…', queued:'⬆️ Queued', toobig:'⚠️ File too large', mytrips:'🏔️ My Trips', newtrip:'➕ New trip', drive:'📂 Open in Drive', switched:'➡️ Switched to ', ask:'🤖 Ask the concierge', thinking:'🤖 Thinking…', neednet:'🤖 Internet connection needed' }
 };
 const uiLang = () => getAuthor()==='Sky' ? 'en' : 'he';
 const T = () => I18N[uiLang()];
@@ -39,6 +39,7 @@ function applyLang(){
   document.querySelector('.act.receipt').textContent=t.receipt;
   $('drawer').querySelector('h2').textContent=t.mytrips;
   $('newtrip').textContent=t.newtrip; $('drivelink').textContent=t.drive;
+  $('askbtn').textContent=t.ask;
 }
 function setAuthor(n){ localStorage.setItem('author', n||''); $('who').textContent = n ? ('· '+n) : '?'; applyLang(); render(); }
 
@@ -188,6 +189,19 @@ $('newtripcreate').onclick=async()=>{
     } else { alert('שגיאה: '+(r.error||'')); }
   }catch(e){ alert('אין חיבור — נסה שוב כשיש רשת'); }
   finally{ $('newtripcreate').disabled=false; await render(); }
+};
+
+// AI concierge
+$('askbtn').onclick=()=>{ $('askreply').textContent=''; $('askq').value=''; $('askgate').hidden=false; $('askq').focus(); };
+$('askclose').onclick=()=>{ $('askgate').hidden=true; };
+$('asksend').onclick=async()=>{
+  const q=$('askq').value.trim(); if(!q) return;
+  if(!navigator.onLine){ $('askreply').textContent=T().neednet; return; }
+  $('asksend').disabled=true; $('askreply').textContent=T().thinking;
+  try{ const r=await api({ action:'ask', tripId:getTripId(), text:q });
+    $('askreply').textContent = r.ok ? r.reply : ('⚠️ '+(r.error||'error'));
+  }catch(e){ $('askreply').textContent=T().neednet; }
+  finally{ $('asksend').disabled=false; }
 };
 
 addEventListener('online', flush); addEventListener('offline', render);

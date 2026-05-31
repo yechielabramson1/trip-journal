@@ -28,7 +28,7 @@
   button.act,label.act{ display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:16px; font-size:1.05rem; font-weight:600; padding:16px; color:#fff; background:var(--teal) }
   button.act:active,label.act:active{ background:var(--teal2) }
   .act.save{ grid-column:1 / -1; font-size:1.2rem; padding:18px }
-  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 }
+  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 } .act.ask{ background:#6d28d9 }
   button:disabled{ opacity:.5 }
   input[type=file]{ display:none }
   #log{ font-size:.8rem; color:var(--muted); max-height:14vh; overflow:auto }
@@ -55,6 +55,9 @@
   .gate .card{ background:#fff; border-radius:18px; padding:22px; width:min(90vw,380px); text-align:center }
   .gate .card p{ font-size:1.15rem; margin:0 0 14px }
   .gate .card input{ width:100%; margin:6px 0 12px; padding:14px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; text-align:center }
+  .gate .card textarea{ width:100%; margin:6px 0 10px; padding:12px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; resize:none }
+  #askreply{ text-align:right; white-space:pre-wrap; font-size:.95rem; line-height:1.5; max-height:42vh; overflow:auto; background:#f8fafc; border-radius:12px; padding:10px; margin:6px 0 }
+  #askreply:empty{ display:none }
   .gate .card button{ width:100%; margin:6px 0; padding:16px; font-size:1.1rem; border:0; border-radius:14px; background:var(--teal); color:#fff; font-weight:600 }
   .gate .card .ghost{ background:#e2e8f0; color:var(--ink) }
 </style>
@@ -72,7 +75,8 @@
       <button class="act save" id="save">💾 שמור ליומן</button>
       <label class="act photo" for="cam">📷 תמונה</label>
       <label class="act doc" for="docfile">📁 מסמך</label>
-      <label class="act receipt" for="rcptfile" style="grid-column:1 / -1">🧾 קבלה</label>
+      <label class="act receipt" for="rcptfile">🧾 קבלה</label>
+      <button class="act ask" id="askbtn" style="grid-column:1 / -1">🤖 שאל את הקונסיירז'</button>
     </div>
     <input id="cam" type="file" accept="image/*" capture="environment">
     <input id="docfile" type="file">
@@ -104,6 +108,15 @@
     <p>מי כותב? · Who's writing?</p>
     <button data-name="יחיאל">יחיאל</button>
     <button data-name="Sky">Sky</button>
+  </div></div>
+
+  <!-- AI concierge -->
+  <div id="askgate" class="gate" hidden><div class="card" style="text-align:right">
+    <p>🤖 קונסיירז' AI</p>
+    <textarea id="askq" rows="2" placeholder="שאל משהו… מקום, אוכל, תכנון היום"></textarea>
+    <div id="askreply"></div>
+    <button id="asksend">שאל</button>
+    <button id="askclose" class="ghost">סגור</button>
   </div></div>
 
   <!-- new trip gate -->
