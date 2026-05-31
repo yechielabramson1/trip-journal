@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v25';
+const APP_VER='v26';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -37,6 +37,8 @@ const I18N = {
        btn_food:'🍽️ יומן אוכל', food_hdr:'🍽️ יומן אוכל', food_ph:'מה אכלתם / מה קניתם לאכול היום?', food_save:'💾 שמור', food_saved:'🍽️ נשמר', food_sheet:'📊 פתח את גיליון האוכל',
        food_kinds:{'מסעדה':'🍴 מסעדה','קפה':'☕ קפה','סופרמרקט':'🛒 סופרמרקט','בישול':'🍳 בישלנו','אחר':'אחר'},
        group_country:'קבץ לפי מדינה', no_country:'— ללא מדינה —', organize_confirm:'לארגן מחדש את כל המסמך? (ממזג כפילויות ומסדר לפי נושאים)', organizing_all:'🤖 מסדר…',
+       btn_wrap:'🏁 סיום מסע — סיכום ולקחים', wrap_title:'🏁 סיכום המסע', wrap_gen:'✨ הפק סיכום ולקחים', wrap_chat_ph:'מה היה טוב? מה לשפר לפעם הבאה?', wrap_save_lessons:'📥 שמור את הלקחים למוח',
+       wrap_summarizing:'🤖 מארגן ומסכם את כל המסע…', wrap_thinking:'🤖 חושב…', wrap_saved_lessons:'✅ הלקחים נשמרו במוח (לקחים)', wrap_nolessons:'אין עדיין לקחים לשמור — הפק סיכום או שוחח קודם', wrap_hint:'הפק סיכום, ואז שוחחו כדי לחלץ לקחים לטיולים הבאים 🛫',
        types:{activity:'🥾 פעילות',sight:'📸 אתר',meal:'🍽️ אוכל',hotel:'🏨 מלון',travel:'🚗 נסיעה'},
        cats:{'טיסות':'טיסות','השכרת רכב':'השכרת רכב','לינה':'לינה','אוכל ומסעדות':'אוכל ומסעדות','דלק/תחבורה':'דלק/תחבורה','אטרקציות':'אטרקציות','קניות':'קניות','אחר':'אחר'},
        methods:{'Apple Pay':'Apple Pay','מזומן':'מזומן','כרטיס אשראי':'כרטיס אשראי','אחר':'אחר'} },
@@ -56,6 +58,8 @@ const I18N = {
        btn_food:'🍽️ Food log', food_hdr:'🍽️ Food log', food_ph:'What did you eat / buy to eat today?', food_save:'💾 Save', food_saved:'🍽️ Saved', food_sheet:'📊 Open the food sheet',
        food_kinds:{'מסעדה':'🍴 Restaurant','קפה':'☕ Café','סופרמרקט':'🛒 Supermarket','בישול':'🍳 Cooked','אחר':'Other'},
        group_country:'Group by country', no_country:'— no country —', organize_confirm:'Reorganize the whole document? (merges duplicates, sorts by topic)', organizing_all:'🤖 Organizing…',
+       btn_wrap:'🏁 Wrap up trip — summary & lessons', wrap_title:'🏁 Trip wrap-up', wrap_gen:'✨ Generate summary & lessons', wrap_chat_ph:'What went well? What to improve next time?', wrap_save_lessons:'📥 Save the lessons to the Brain',
+       wrap_summarizing:'🤖 Organizing & summarizing the whole trip…', wrap_thinking:'🤖 Thinking…', wrap_saved_lessons:'✅ Lessons saved to the Brain (Lessons)', wrap_nolessons:'No lessons to save yet — generate a summary or chat first', wrap_hint:'Generate a summary, then chat to extract lessons for future trips 🛫',
        types:{activity:'🥾 Activity',sight:'📸 Sight',meal:'🍽️ Food',hotel:'🏨 Hotel',travel:'🚗 Travel'},
        cats:{'טיסות':'Flights','השכרת רכב':'Car rental','לינה':'Lodging','אוכל ומסעדות':'Food & dining','דלק/תחבורה':'Fuel / Transport','אטרקציות':'Attractions','קניות':'Shopping','אחר':'Other'},
        methods:{'Apple Pay':'Apple Pay','מזומן':'Cash','כרטיס אשראי':'Credit card','אחר':'Other'} }
@@ -90,6 +94,8 @@ function applyLang(){
   // food log
   set('foodbtn',t.btn_food); set('foodHdr',t.food_hdr); ph('foodText',t.food_ph); set('foodSave',t.food_save); set('foodSheet',t.food_sheet); set('foodClose',t.close);
   opts('foodKind',t.food_kinds);
+  // trip wrap-up
+  set('wrapbtn',t.btn_wrap); set('wrapTitle',t.wrap_title); set('wrapGen',t.wrap_gen); ph('wrapChat',t.wrap_chat_ph); set('wrapSaveLessons',t.wrap_save_lessons);
 }
 function setAuthor(n){ localStorage.setItem('author', n||''); $('who').textContent = n ? ('· '+n) : '?'; applyLang(); render(); }
 
@@ -706,6 +712,47 @@ $('foodSave').onclick=async()=>{
   $('foodText').value=''; logLine(T().food_saved); await render(); flush();
   setTimeout(refreshFood, 1800);
   $('foodSave').disabled=false;
+};
+
+/* --- 🏁 סיום מסע — סיכום + שיחת הפקת-לקחים --- */
+let wrapUrl='#', wrapLastLessons='';
+function wrapMsg(role, text){ const d=document.createElement('div'); d.className='wmsg '+(role==='me'?'me':'ai'); d.textContent=text; $('wrapBody').appendChild(d); $('wrapBody').scrollTop=$('wrapBody').scrollHeight; return d; }
+function openWrap(){ if(!ensureTrip()) return; $('wrap').hidden=false; $('wrapBody').innerHTML=''; wrapLastLessons=''; wrapUrl='#'; wrapMsg('ai', T().wrap_hint); }
+$('wrapbtn').onclick=openWrap;
+$('wrapClose').onclick=()=>{ $('wrap').hidden=true; };
+$('wrapDoc').onclick=()=>{ if(wrapUrl && wrapUrl!=='#') window.open(wrapUrl,'_blank','noopener'); };
+$('wrapGen').onclick=async()=>{
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  $('wrapGen').disabled=true; const pend=wrapMsg('ai', T().wrap_summarizing);
+  try{ const r=await api({ action:'trip_wrapup', tripId:getTripId() });
+    pend.remove();
+    if(r.ok){ wrapUrl=r.url||'#'; wrapLastLessons=r.text||''; wrapMsg('ai', r.text); }
+    else wrapMsg('ai','⚠️ '+(r.error||'error'));
+  }catch(e){ pend.remove(); wrapMsg('ai', L('אין חיבור — נסה שוב','No connection — try again')); }
+  finally{ $('wrapGen').disabled=false; }
+};
+async function wrapSendChat(){
+  const q=$('wrapChat').value.trim(); if(!q) return;
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  $('wrapChat').value=''; wrapMsg('me', q);
+  $('wrapSend').disabled=true; const pend=wrapMsg('ai', T().wrap_thinking);
+  try{ const r=await api({ action:'wrapup_chat', tripId:getTripId(), text:q });
+    pend.remove();
+    if(r.ok){ wrapLastLessons=r.reply||wrapLastLessons; wrapMsg('ai', r.reply); }
+    else wrapMsg('ai','⚠️ '+(r.error||'error'));
+  }catch(e){ pend.remove(); wrapMsg('ai', L('אין חיבור — נסה שוב','No connection — try again')); }
+  finally{ $('wrapSend').disabled=false; }
+}
+$('wrapSend').onclick=wrapSendChat;
+$('wrapChat').addEventListener('keydown', e=>{ if(e.key==='Enter') wrapSendChat(); });
+$('wrapSaveLessons').onclick=async()=>{
+  if(!wrapLastLessons.trim()){ alert(T().wrap_nolessons); return; }
+  if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
+  $('wrapSaveLessons').disabled=true;
+  try{ const r=await api({ action:'add_knowledge', docKey:'lessons', text:wrapLastLessons });
+    if(r.ok){ logLine(T().wrap_saved_lessons); wrapMsg('ai', T().wrap_saved_lessons); } else alert(L('שגיאה','Error')); }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
+  finally{ $('wrapSaveLessons').disabled=false; }
 };
 
 addEventListener('online', flush); addEventListener('offline', render);
