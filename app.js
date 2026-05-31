@@ -314,6 +314,92 @@ $('exSave').onclick=async()=>{
   await render(); flush(); $('exSave').disabled=false;
 };
 
+/* ---------- Itinerary (תכנית יומית) ---------- */
+let itinItems=[], itinStart='', itinDays=0, editItem=null;
+const TYPE_ICON={activity:'🥾',sight:'📸',meal:'🍽️',hotel:'🏨',travel:'🚗'};
+function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function parseYmd(s){ const p=String(s).split('-'); return new Date(+p[0], (+p[1]||1)-1, (+p[2]||1)); }
+function dayLabel(s){ try{ return parseYmd(s).toLocaleDateString('he-IL',{weekday:'long',day:'2-digit',month:'2-digit'}); }catch(e){ return s; } }
+function dayList(){
+  let days=[];
+  if(itinStart && itinDays){ const st=parseYmd(itinStart); for(let i=0;i<itinDays;i++){ const d=new Date(st); d.setDate(st.getDate()+i); days.push(ymd(d)); } }
+  itinItems.forEach(i=>{ if(i.day && days.indexOf(i.day)<0) days.push(i.day); });
+  if(!days.length) days=[ymd(new Date())];
+  return days;
+}
+async function openItin(){
+  if(!ensureTrip()) return;
+  $('itin').hidden=false; $('itinTitle').textContent='🗓️ '+(getTripName()||'תכנית');
+  $('itinBody').innerHTML='<div class="emptyday">טוען…</div>';
+  await reloadItin();
+}
+async function reloadItin(){
+  try{ const r=await api({action:'list_itinerary', tripId:getTripId()});
+    if(r.ok){ itinItems=r.items||[]; itinStart=r.startDate||itinStart; itinDays=Number(r.days)||itinDays; renderItin(); }
+    else $('itinBody').innerHTML='<div class="emptyday">שגיאה: '+escapeHtml(r.error||'')+'</div>';
+  }catch(e){ $('itinBody').innerHTML='<div class="emptyday">אין חיבור</div>'; }
+}
+function renderItin(){
+  const body=$('itinBody'); body.innerHTML='';
+  dayList().forEach((day,idx)=>{
+    const hdr=document.createElement('div'); hdr.className='dayhdr';
+    const lbl=document.createElement('span'); lbl.textContent='יום '+(idx+1)+' · '+dayLabel(day); hdr.appendChild(lbl);
+    const add=document.createElement('button'); add.textContent='＋'; add.onclick=()=>openItem(null, day); hdr.appendChild(add);
+    body.appendChild(hdr);
+    const items=itinItems.filter(i=>i.day===day).sort((a,b)=>(a.order-b.order)||String(a.time).localeCompare(String(b.time)));
+    if(!items.length){ const e=document.createElement('div'); e.className='emptyday'; e.textContent='— אין פריטים —'; body.appendChild(e); return; }
+    items.forEach(it=>{
+      const c=document.createElement('div'); c.className='icard'; c.onclick=()=>openItem(it, it.day);
+      const tm=(it.time||'')+(it.endTime?('–'+it.endTime):'');
+      let links='';
+      if(it.mapUrl) links+='<a class="lnk" href="'+it.mapUrl+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🗺️ מפות</a>';
+      if(it.wazeUrl) links+='<a class="lnk" href="'+it.wazeUrl+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">🚗 Waze</a>';
+      const sub=[it.location, it.notes].filter(Boolean).map(escapeHtml).join(' · ');
+      c.innerHTML='<div class="t">'+escapeHtml(tm)+'</div><div class="bd"><div class="ttl">'+(TYPE_ICON[it.type]||'•')+' '+escapeHtml(it.title||'')+'</div>'+(sub?('<div class="sub">'+sub+'</div>'):'')+(links?('<div class="sub">'+links+'</div>'):'')+'</div>';
+      body.appendChild(c);
+    });
+  });
+}
+function fillDaySelect(){
+  const sel=$('itDay'); sel.innerHTML='';
+  dayList().forEach((day,idx)=>{ const o=document.createElement('option'); o.value=day; o.textContent='יום '+(idx+1)+' · '+dayLabel(day); sel.appendChild(o); });
+}
+function openItem(it, day){
+  editItem=it; fillDaySelect();
+  $('itDay').value=(it?it.day:day)||dayList()[0];
+  $('itTime').value=it?(it.time||''):''; $('itEnd').value=it?(it.endTime||''):'';
+  $('itTitleInp').value=it?(it.title||''):''; $('itType').value=it?(it.type||'activity'):'activity';
+  $('itLoc').value=it?(it.location||''):''; $('itAddr').value=it?(it.address||''):''; $('itNotes').value=it?(it.notes||''):'';
+  $('itDelete').style.display=it?'block':'none'; $('itemHdr').textContent=it?'עריכת פריט':'פריט חדש';
+  $('itemgate').hidden=false; $('itTitleInp').focus();
+}
+$('itinbtn').onclick=openItin;
+$('itinClose').onclick=()=>{ $('itin').hidden=true; };
+$('itinAddTop').onclick=()=>{ if(ensureTrip()) openItem(null, dayList()[0]); };
+$('itCancel').onclick=()=>{ $('itemgate').hidden=true; };
+$('itSave').onclick=async()=>{
+  const title=$('itTitleInp').value.trim(); if(!title){ $('itTitleInp').focus(); return; }
+  if(!navigator.onLine){ alert('עריכת תכנית דורשת חיבור'); return; }
+  $('itSave').disabled=true;
+  const item={ day:$('itDay').value, time:$('itTime').value, endTime:$('itEnd').value, title, type:$('itType').value, location:$('itLoc').value.trim(), address:$('itAddr').value.trim(), notes:$('itNotes').value.trim() };
+  if(editItem){ item.id=editItem.id; item.order=editItem.order; }
+  try{ const r=await api({action:'save_item', tripId:getTripId(), item}); if(r.ok){ $('itemgate').hidden=true; await reloadItin(); } else alert('שגיאה: '+(r.error||'')); }
+  catch(e){ alert('אין חיבור'); } finally{ $('itSave').disabled=false; }
+};
+$('itDelete').onclick=async()=>{
+  if(!editItem || !confirm('למחוק את הפריט הזה?')) return;
+  try{ const r=await api({action:'delete_item', tripId:getTripId(), itemId:editItem.id}); if(r.ok){ $('itemgate').hidden=true; await reloadItin(); } }
+  catch(e){ alert('אין חיבור'); }
+};
+$('itinAskBtn').onclick=async()=>{
+  const q=$('itinAsk').value.trim(); if(!q) return;
+  if(!navigator.onLine){ alert('צריך חיבור ל-AI'); return; }
+  $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
+  try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
+    if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin(); } else alert('שגיאה: '+(r.error||''));
+  }catch(e){ alert('אין חיבור — נסה שוב'); } finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
+};
+
 addEventListener('online', flush); addEventListener('offline', render);
 document.addEventListener('visibilitychange', ()=>{ if(!document.hidden){ flush(); initTrips();
   if('serviceWorker' in navigator) navigator.serviceWorker.getRegistration().then(r=>{ if(r) r.update(); }).catch(()=>{}); } });
