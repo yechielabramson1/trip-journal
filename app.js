@@ -192,16 +192,27 @@ $('newtripcreate').onclick=async()=>{
 };
 
 // AI concierge
-$('askbtn').onclick=()=>{ $('askreply').textContent=''; $('askq').value=''; $('askgate').hidden=false; $('askq').focus(); };
+$('askbtn').onclick=()=>{ $('askreply').textContent=''; $('askq').value=''; $('storylink').style.display='none'; $('askgate').hidden=false; $('askq').focus(); };
 $('askclose').onclick=()=>{ $('askgate').hidden=true; };
 $('asksend').onclick=async()=>{
   const q=$('askq').value.trim(); if(!q) return;
   if(!navigator.onLine){ $('askreply').textContent=T().neednet; return; }
+  $('storylink').style.display='none';
   $('asksend').disabled=true; $('askreply').textContent=T().thinking;
   try{ const r=await api({ action:'ask', tripId:getTripId(), text:q });
     $('askreply').textContent = r.ok ? r.reply : ('⚠️ '+(r.error||'error'));
   }catch(e){ $('askreply').textContent=T().neednet; }
   finally{ $('asksend').disabled=false; }
+};
+$('storybtn').onclick=async()=>{
+  if(!navigator.onLine){ $('askreply').textContent=T().neednet; return; }
+  $('storylink').style.display='none';
+  $('storybtn').disabled=true; $('askreply').textContent='📖 כותב את הסיפור…';
+  try{ const r=await api({ action:'story', tripId:getTripId(), scope:'all' });
+    if(r.ok){ $('askreply').textContent=r.text; if(r.storyUrl){ $('storylink').href=r.storyUrl; $('storylink').style.display='block'; } }
+    else { $('askreply').textContent='⚠️ '+(r.error||'error'); }
+  }catch(e){ $('askreply').textContent=T().neednet; }
+  finally{ $('storybtn').disabled=false; }
 };
 
 addEventListener('online', flush); addEventListener('offline', render);
