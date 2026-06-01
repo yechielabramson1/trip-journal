@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v29';
+const APP_VER='v30';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -34,6 +34,7 @@ const I18N = {
        del_expense:'🗑️ מחק הוצאה', edit_expense:'📋 ערוך הוצאה קיימת', peek_sheet:'📊 הצצה לגיליון ההוצאות',
        btn_brain:'🧠 המוח (רשימות וידע)', brain_hub:'🧠 המוח', lv_search:'חיפוש…', lv_add:'הוסף פריט…', kv_search:'חיפוש בידע…', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
        paste_hdr:'📋 הדבק רשימה — ה-AI יפצל לפריטים', paste_ph:'הדבק כאן טקסט חופשי / רשימה…', paste_split:'✨ פצל והוסף', paste_cancel:'ביטול', open_sheet:'📊 פתח את הגיליון',
+       btn_analyze_doc:'🔎 נתח מסמך נסיעה (AI)', doc_hdr:'🔎 ניתוח מסמך נסיעה', doc_to_itin:'➕ הוסף לתכנית', doc_to_expense:'💶 הוסף הוצאה', doc_to_note:'📝 שמור כהערת יומן',
        btn_food:'🍽️ יומן אוכל', food_hdr:'🍽️ יומן אוכל', food_ph:'מה אכלתם / מה קניתם לאכול היום?', food_save:'💾 שמור', food_saved:'🍽️ נשמר', food_sheet:'📊 פתח את גיליון האוכל',
        food_kinds:{'מסעדה':'🍴 מסעדה','קפה':'☕ קפה','סופרמרקט':'🛒 סופרמרקט','בישול':'🍳 בישלנו','אחר':'אחר'},
        group_country:'קבץ לפי מדינה', no_country:'— ללא מדינה —', organize_confirm:'לארגן מחדש את כל המסמך? (ממזג כפילויות ומסדר לפי נושאים)', organizing_all:'🤖 מסדר…', restore_confirm:'לשחזר את המסמך מהגיבוי שלפני הסידור האחרון?', restored_ok:'↩️ שוחזר מהגיבוי',
@@ -55,6 +56,7 @@ const I18N = {
        del_expense:'🗑️ Delete expense', edit_expense:'📋 Edit an existing expense', peek_sheet:'📊 Open the expenses sheet',
        btn_brain:'🧠 The Brain (lists & knowledge)', brain_hub:'🧠 The Brain', lv_search:'Search…', lv_add:'Add an item…', kv_search:'Search the knowledge…', kv_add:'Add a lesson / how-to… the AI will organize it',
        paste_hdr:'📋 Paste a list — the AI will split it into items', paste_ph:'Paste free text / a list here…', paste_split:'✨ Split & add', paste_cancel:'Cancel', open_sheet:'📊 Open the sheet',
+       btn_analyze_doc:'🔎 Analyze travel doc (AI)', doc_hdr:'🔎 Travel document analysis', doc_to_itin:'➕ Add to itinerary', doc_to_expense:'💶 Add expense', doc_to_note:'📝 Save as journal note',
        btn_food:'🍽️ Food log', food_hdr:'🍽️ Food log', food_ph:'What did you eat / buy to eat today?', food_save:'💾 Save', food_saved:'🍽️ Saved', food_sheet:'📊 Open the food sheet',
        food_kinds:{'מסעדה':'🍴 Restaurant','קפה':'☕ Café','סופרמרקט':'🛒 Supermarket','בישול':'🍳 Cooked','אחר':'Other'},
        group_country:'Group by country', no_country:'— no country —', organize_confirm:'Reorganize the whole document? (merges duplicates, sorts by topic)', organizing_all:'🤖 Organizing…', restore_confirm:'Restore the document from the backup before the last reorganize?', restored_ok:'↩️ Restored from backup',
@@ -94,6 +96,8 @@ function applyLang(){
   // food log
   set('foodbtn',t.btn_food); set('foodHdr',t.food_hdr); ph('foodText',t.food_ph); set('foodSave',t.food_save); set('foodSheet',t.food_sheet); set('foodClose',t.close);
   opts('foodKind',t.food_kinds);
+  // travel-doc analyze
+  set('docAnalyzeBtn',t.btn_analyze_doc); set('docHdr',t.doc_hdr); set('docToItin',t.doc_to_itin); set('docToExpense',t.doc_to_expense); set('docToNote',t.doc_to_note); set('docClose',t.close);
   // trip wrap-up
   set('wrapbtn',t.btn_wrap); set('wrapTitle',t.wrap_title); set('wrapGen',t.wrap_gen); ph('wrapChat',t.wrap_chat_ph); set('wrapSaveLessons',t.wrap_save_lessons);
 }
@@ -543,6 +547,71 @@ $('docbtn').onclick=()=>openFiles('document');
 $('rcptbtn').onclick=()=>openFiles('receipt');
 $('filesUpload').onclick=()=>$(FILES_INPUT[filesCategory]).click();
 $('filesClose').onclick=()=>{ $('filesgate').hidden=true; };
+
+/* ---------- 🔎 ניתוח מסמך-נסיעה (P1) → PREVIEW + פעולות באישור ידני (אין auto-apply) ---------- */
+let lastDoc=null;
+const DOC_TYPE_EMOJI={ flight:'✈️', hotel:'🏨', car:'🚗', insurance:'🛡️', ticket:'🎫', restaurant:'🍽️', other:'📄' };
+function renderDocPreview(d){
+  const row=(lbl,val)=> val ? ('<div class="drow"><span class="dl">'+escapeHtml(lbl)+'</span><span class="dv">'+escapeHtml(String(val))+'</span></div>') : '';
+  const dates=[d.dateStart,d.timeStart].filter(Boolean).join(' ') + (d.dateEnd?(' → '+[d.dateEnd,d.timeEnd].filter(Boolean).join(' ')):'');
+  let h='<div class="dtitle">'+(DOC_TYPE_EMOJI[d.type]||'📄')+' '+escapeHtml(d.title||d.type||'')+'</div>';
+  h+=row(L('ספק','Provider'), d.provider);
+  h+=row(L('תאריך','Date'), dates);
+  h+=row(L('מקום','Location'), d.location);
+  h+=row(L('כתובת','Address'), d.address);
+  h+=row(L('אישור','Confirmation'), d.confirmationCode);
+  h+=row(L('מחיר','Price'), d.priceAmount!=null ? (d.priceAmount+' '+(d.priceCurrency||'')) : '');
+  h+=row(L('הערות','Notes'), d.notes);
+  if(d.confidence!=null) h+='<div class="dconf">'+L('ביטחון','Confidence')+': '+Math.round(d.confidence*100)+'%</div>';
+  $('docResult').innerHTML=h;
+}
+async function analyzeDoc(file){
+  if(!file) return;
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  lastDoc=null; $('docActions').style.display='none';
+  $('docgate').hidden=false; $('docResult').innerHTML='<div class="emptyday">'+L('🔎 קורא את המסמך…','🔎 Reading the document…')+'</div>';
+  try{
+    let blob=file, mime=file.type||'image/jpeg';
+    if(/^image\//.test(mime)){ blob=await compressImage(file); mime='image/jpeg'; }
+    if(blob.size>MAX_BYTES){ $('docResult').innerHTML='<div class="emptyday">'+L('⚠️ הקובץ גדול מדי','⚠️ File too large')+'</div>'; return; }
+    const b64=await blobToB64(blob);
+    const r=await api({ action:'parse_travel_doc', mime:mime, dataB64:b64 });
+    if(r.ok && r.data){ lastDoc=r.data; renderDocPreview(r.data); $('docActions').style.display='block'; }
+    else if(r && r.service){ $('docResult').innerHTML='<div class="emptyday">'+L('⏳ ארך מעט — נסה שוב','⏳ Took a moment — try again')+'</div>'; }
+    else $('docResult').innerHTML='<div class="emptyday">⚠️ '+escapeHtml(r.error||'error')+'</div>';
+  }catch(e){ $('docResult').innerHTML='<div class="emptyday">'+L('אין חיבור — נסה שוב','No connection — try again')+'</div>'; }
+}
+$('docAnalyzeBtn').onclick=()=>{ if(ensureTrip()) $('docAnalyzeFile').click(); };
+$('docAnalyzeFile').onchange=()=>{ const f=$('docAnalyzeFile').files[0]; $('docAnalyzeFile').value=''; if(f) analyzeDoc(f); };
+$('docClose').onclick=()=>{ $('docgate').hidden=true; };
+// פעולות — כל אחת פותחת טופס קיים מלא-מראש; הכתיבה בפועל רק כשהמשתמש לוחץ "שמור" (אין auto-apply)
+$('docToItin').onclick=()=>{ const d=lastDoc; if(!d) return; $('docgate').hidden=true; if(!ensureTrip()) return;
+  const typeMap={ flight:'travel', car:'travel', hotel:'hotel', restaurant:'meal', ticket:'activity', insurance:'activity', other:'activity' };
+  const day=(d.dateStart && dayList().indexOf(d.dateStart)>=0) ? d.dateStart : dayList()[0];
+  openItem(null, day, d.timeStart||'');   // editItem=null → פריט חדש
+  $('itEnd').value=d.timeEnd||''; $('itTitleInp').value=d.title||d.provider||''; $('itType').value=typeMap[d.type]||'activity';
+  $('itLoc').value=d.location||d.provider||''; $('itAddr').value=d.address||'';
+  $('itNotes').value=[d.confirmationCode?(L('אישור','Conf')+': '+d.confirmationCode):'', d.notes||''].filter(Boolean).join(' · ');
+};
+$('docToExpense').onclick=()=>{ const d=lastDoc; if(!d) return; $('docgate').hidden=true; if(!ensureTrip()) return;
+  resetExpenseForm(); $('expensegate').hidden=false;
+  if(d.priceAmount!=null) $('exAmount').value=d.priceAmount;
+  if(d.priceCurrency && [...$('exCurrency').options].some(o=>o.value===d.priceCurrency)) $('exCurrency').value=d.priceCurrency;
+  const catMap={ flight:'טיסות', car:'השכרת רכב', hotel:'לינה', restaurant:'אוכל ומסעדות', ticket:'אטרקציות', insurance:'אחר', other:'אחר' };
+  const c=catMap[d.type]||'אחר'; if([...$('exCategory').options].some(o=>o.value===c)) $('exCategory').value=c;
+  $('exDesc').value=d.title||d.provider||'';
+};
+$('docToNote').onclick=()=>{ const d=lastDoc; if(!d) return; $('docgate').hidden=true;
+  const lines=['📄 '+(d.title||d.type||'')+(d.provider?(' · '+d.provider):'')];
+  const dates=[d.dateStart,d.timeStart].filter(Boolean).join(' ')+(d.dateEnd?(' → '+[d.dateEnd,d.timeEnd].filter(Boolean).join(' ')):'');
+  if(dates.trim()) lines.push(L('תאריך','Date')+': '+dates);
+  if(d.location||d.address) lines.push(L('מקום','Location')+': '+[d.location,d.address].filter(Boolean).join(', '));
+  if(d.confirmationCode) lines.push(L('אישור','Conf')+': '+d.confirmationCode);
+  if(d.priceAmount!=null) lines.push(L('מחיר','Price')+': '+d.priceAmount+' '+(d.priceCurrency||''));
+  if(d.notes) lines.push(d.notes);
+  $('txt').value=lines.join('\n');
+  logLine(L('📄 מולא ביומן — לחץ "שמור ליומן"','📄 Filled the journal — tap "Save to journal"'));
+};
 
 /* ---------- "מוח" (Brain) — רשימות + ידע גלובליים (חוצי-טיולים) ---------- */
 const BRAIN_TILES = [
