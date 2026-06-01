@@ -168,7 +168,7 @@
     <div class="foot">
       <button id="newtrip">➕ טיול חדש</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v31 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v32 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -255,6 +255,8 @@
     </select>
     <textarea id="foodText" rows="3" placeholder="מה אכלתם / מה קניתם לאכול היום?"></textarea>
     <button id="foodSave">💾 שמור</button>
+    <button id="mealPhotoBtn" class="ghost" style="margin-top:6px">📸 צלם ארוחה (זיהוי פריטים)</button>
+    <input id="mealPhotoFile" type="file" accept="image/*" capture="environment">
     <button id="foodPhotoBtn" class="ghost" style="margin-top:6px">📷 נתח תפריט / שלט (כשר+טבעוני)</button>
     <input id="foodPhotoFile" type="file" accept="image/*">
     <div id="foodAnalysis" style="display:none; text-align:right; margin:6px 0"></div>
@@ -381,6 +383,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=31"></script>
+<script src="app.js?v=32"></script>
 </body>
 </html>
