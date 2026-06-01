@@ -51,6 +51,7 @@
   .trip .dot{ width:8px; height:8px; border-radius:50%; background:#cbd5e1 } .trip.active .dot{ background:var(--teal) }
   #drawer .foot{ padding:12px 16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px }
   #drawer .foot button{ width:100%; padding:14px; border:0; border-radius:14px; font-size:1.05rem; font-weight:600; background:var(--teal); color:#fff }
+  #drawer .foot #bookvoice .vbtn{ flex:1; min-width:0; padding:10px 6px; font-size:.92rem; background:#0e7490 }
   #drawer .foot a{ text-align:center; color:var(--teal2); font-size:.9rem; text-decoration:none }
   /* gates / modals */
   .gate{ position:fixed; inset:0; background:rgba(11,18,32,.55); display:flex; align-items:center; justify-content:center; z-index:20; padding:18px }
@@ -168,8 +169,13 @@
     <div class="foot">
       <button id="newtrip">➕ טיול חדש</button>
       <button id="makebook">📖 צור ספר מסע</button>
+      <div id="bookvoice" hidden style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">
+        <button class="vbtn" data-voice="authentic">✍️ אותנטי</button>
+        <button class="vbtn" data-voice="literary">📜 ספרותי</button>
+        <button class="vbtn" data-voice="combined">📖 משולב</button>
+      </div>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v33 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v34 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -384,6 +390,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=33"></script>
+<script src="app.js?v=34"></script>
 </body>
 </html>

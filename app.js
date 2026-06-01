@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v33';
+const APP_VER='v34';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -269,18 +269,30 @@ $('newtripcreate').onclick=async()=>{
 };
 
 // 📖 ספר המסע — בונה HTML פרטי ב-Drive ופותח אותו (ללא auto-share)
-$('makebook').onclick=async()=>{
+// ספר המסע — בחירת קול (authentic|literary|combined) ואז בנייה
+$('makebook').onclick=()=>{
+  if(!ensureTrip()) return;
+  const v=$('bookvoice'); v.hidden=!v.hidden;
+};
+async function buildBook(voice){
   if(!ensureTrip()) return;
   if(!navigator.onLine){ alert(L('צריך חיבור כדי לבנות ספר','A connection is needed to build the book')); return; }
-  const b=$('makebook'); const old=b.textContent; b.disabled=true; b.textContent=T().book_building;
+  const btns=document.querySelectorAll('#bookvoice .vbtn'); btns.forEach(x=>x.disabled=true);
+  const b=$('makebook'); const old=b.textContent; b.textContent=T().book_building;
   try{
-    const r=await api({ action:'build_story_book', tripId:getTripId() });
-    if(r.ok && r.url){ logLine(T().book_done+' · '+(r.stats?(r.stats.entries+' '+L('רשומות','entries')+', '+r.stats.photos+' '+L('תמונות','photos')+', '+Math.round((r.stats.bytes||0)/1024)+'KB'):'')); window.open(r.url,'_blank','noopener'); closeDrawer(); }
+    const r=await api({ action:'build_story_book', tripId:getTripId(), voice:voice });
+    if(r.ok && r.url){
+      const s=r.stats||{};
+      const ai = s.voiceFallback ? L(' · נכתב אותנטי (AI לא זמין)',' · authentic (AI unavailable)') : (s.aiUsed ? L(' · עם נרטיב AI',' · with AI narrative') : '');
+      logLine(T().book_done+' · '+(s.entries||0)+' '+L('רשומות','entries')+', '+(s.photos||0)+' '+L('תמונות','photos')+', '+Math.round((s.bytes||0)/1024)+'KB'+ai);
+      window.open(r.url,'_blank','noopener'); $('bookvoice').hidden=true; closeDrawer();
+    }
     else if(r && r.service){ alert(L('⏳ הבנייה ארכה — נסה שוב, או צמצם תמונות','⏳ Took too long — try again, or fewer photos')); }
     else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
-  finally{ b.disabled=false; b.textContent=old; }
-};
+  finally{ btns.forEach(x=>x.disabled=false); b.textContent=old; }
+}
+document.querySelectorAll('#bookvoice .vbtn').forEach(function(btn){ btn.onclick=()=>buildBook(btn.dataset.voice); });
 
 // AI concierge
 $('askbtn').onclick=()=>{ $('askreply').textContent=''; $('askq').value=''; $('storylink').style.display='none'; $('askgate').hidden=false; $('askq').focus(); };
