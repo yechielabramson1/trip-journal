@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v30';
+const APP_VER='v31';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -34,6 +34,7 @@ const I18N = {
        del_expense:'🗑️ מחק הוצאה', edit_expense:'📋 ערוך הוצאה קיימת', peek_sheet:'📊 הצצה לגיליון ההוצאות',
        btn_brain:'🧠 המוח (רשימות וידע)', brain_hub:'🧠 המוח', lv_search:'חיפוש…', lv_add:'הוסף פריט…', kv_search:'חיפוש בידע…', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
        paste_hdr:'📋 הדבק רשימה — ה-AI יפצל לפריטים', paste_ph:'הדבק כאן טקסט חופשי / רשימה…', paste_split:'✨ פצל והוסף', paste_cancel:'ביטול', open_sheet:'📊 פתח את הגיליון',
+       btn_food_photo:'📷 נתח תפריט / שלט (כשר+טבעוני)',
        btn_analyze_doc:'🔎 נתח מסמך נסיעה (AI)', doc_hdr:'🔎 ניתוח מסמך נסיעה', doc_to_itin:'➕ הוסף לתכנית', doc_to_expense:'💶 הוסף הוצאה', doc_to_note:'📝 שמור כהערת יומן',
        btn_food:'🍽️ יומן אוכל', food_hdr:'🍽️ יומן אוכל', food_ph:'מה אכלתם / מה קניתם לאכול היום?', food_save:'💾 שמור', food_saved:'🍽️ נשמר', food_sheet:'📊 פתח את גיליון האוכל',
        food_kinds:{'מסעדה':'🍴 מסעדה','קפה':'☕ קפה','סופרמרקט':'🛒 סופרמרקט','בישול':'🍳 בישלנו','אחר':'אחר'},
@@ -56,6 +57,7 @@ const I18N = {
        del_expense:'🗑️ Delete expense', edit_expense:'📋 Edit an existing expense', peek_sheet:'📊 Open the expenses sheet',
        btn_brain:'🧠 The Brain (lists & knowledge)', brain_hub:'🧠 The Brain', lv_search:'Search…', lv_add:'Add an item…', kv_search:'Search the knowledge…', kv_add:'Add a lesson / how-to… the AI will organize it',
        paste_hdr:'📋 Paste a list — the AI will split it into items', paste_ph:'Paste free text / a list here…', paste_split:'✨ Split & add', paste_cancel:'Cancel', open_sheet:'📊 Open the sheet',
+       btn_food_photo:'📷 Analyze menu / sign (kosher+vegan)',
        btn_analyze_doc:'🔎 Analyze travel doc (AI)', doc_hdr:'🔎 Travel document analysis', doc_to_itin:'➕ Add to itinerary', doc_to_expense:'💶 Add expense', doc_to_note:'📝 Save as journal note',
        btn_food:'🍽️ Food log', food_hdr:'🍽️ Food log', food_ph:'What did you eat / buy to eat today?', food_save:'💾 Save', food_saved:'🍽️ Saved', food_sheet:'📊 Open the food sheet',
        food_kinds:{'מסעדה':'🍴 Restaurant','קפה':'☕ Café','סופרמרקט':'🛒 Supermarket','בישול':'🍳 Cooked','אחר':'Other'},
@@ -94,7 +96,7 @@ function applyLang(){
   set('pasteHdr',t.paste_hdr); ph('pasteText',t.paste_ph); set('pasteSplit',t.paste_split); set('pasteCancel',t.paste_cancel);
   set('lvSheet',t.open_sheet);
   // food log
-  set('foodbtn',t.btn_food); set('foodHdr',t.food_hdr); ph('foodText',t.food_ph); set('foodSave',t.food_save); set('foodSheet',t.food_sheet); set('foodClose',t.close);
+  set('foodbtn',t.btn_food); set('foodHdr',t.food_hdr); ph('foodText',t.food_ph); set('foodSave',t.food_save); set('foodSheet',t.food_sheet); set('foodClose',t.close); set('foodPhotoBtn',t.btn_food_photo);
   opts('foodKind',t.food_kinds);
   // travel-doc analyze
   set('docAnalyzeBtn',t.btn_analyze_doc); set('docHdr',t.doc_hdr); set('docToItin',t.doc_to_itin); set('docToExpense',t.doc_to_expense); set('docToNote',t.doc_to_note); set('docClose',t.close);
@@ -314,6 +316,12 @@ async function useReceiptImage(file){
       if(d.currency && [...$('exCurrency').options].some(o=>o.value===d.currency)) $('exCurrency').value=d.currency;
       if(d.merchant) $('exDesc').value=d.merchant;
       if(d.category){ const o=[...$('exCategory').options].find(x=>x.value===d.category||x.text===d.category); if(o) $('exCategory').value=o.value; }
+      if(d.paymentMethod){ const pm=[...$('exMethod').options].find(x=>x.value===d.paymentMethod||x.text===d.paymentMethod); if(pm) $('exMethod').value=pm.value; }
+      const extra=[];  // שדות אופציונליים חדשים (P2#3) — נספחים לתיאור רק אם קיימים
+      if(d.taxAmount!=null) extra.push(L('מע״מ','Tax')+' '+d.taxAmount);
+      if(d.tipAmount!=null) extra.push(L('טיפ','Tip')+' '+d.tipAmount);
+      if(Array.isArray(d.lineItems) && d.lineItems.length) extra.push(d.lineItems.map(li=>String(li.name||'')+(li.amount!=null?(' '+li.amount):'')).filter(Boolean).join(', '));
+      if(extra.length){ const cur=$('exDesc').value; $('exDesc').value=(cur?cur+' · ':'')+extra.filter(Boolean).join(' · '); }
       $('exReceiptLabel').textContent='✅ '+(d.merchant||L('נקרא','read'))+' · '+(d.amount||'')+' '+(d.currency||'');
     } else $('exReceiptLabel').textContent=L('📷 צורף (מלא ידנית)','📷 Attached (fill manually)');
   }catch(e){ $('exReceiptLabel').textContent=L('📷 צורף','📷 Attached'); }
@@ -772,7 +780,7 @@ async function enqueueFood(data){
 }
 async function openFood(){
   if(!ensureTrip()) return;
-  $('foodgate').hidden=false; $('foodText').value=''; $('foodText').focus(); refreshFood();
+  $('foodgate').hidden=false; $('foodText').value=''; $('foodAnalysis').style.display='none'; $('foodAnalysis').innerHTML=''; $('foodText').focus(); refreshFood();
   if(navigator.onLine){ try{ const r=await api({ action:'food_url', tripId:getTripId() }); if(r.ok&&r.url){ $('foodSheet').href=r.url; $('foodSheet').style.display='block'; } }catch(e){} }
 }
 async function refreshFood(){
@@ -792,6 +800,34 @@ $('foodSave').onclick=async()=>{
   setTimeout(refreshFood, 1800);
   $('foodSave').disabled=false;
 };
+/* --- P2: ניתוח צילום תפריט/שלט (כשר+טבעוני) → הצעה ליומן-אוכל (אישור ידני) --- */
+function renderFoodAnalysis(d){
+  const el=$('foodAnalysis'); el.style.display='block';
+  const ul=(arr)=> (Array.isArray(arr)&&arr.length)?('<ul>'+arr.map(s=>'<li>'+escapeHtml(String(s))+'</li>').join('')+'</ul>'):'';
+  let h='<div class="fa-veg">'+(d.veganFriendly?('✅ '+L('ידידותי לטבעונים','Vegan-friendly')):('⚠️ '+L('לא בהכרח טבעוני','Not necessarily vegan')))+'</div>';
+  if(d.dishes&&d.dishes.length) h+='<div>'+L('מנות אפשריות','Possible dishes')+':'+ul(d.dishes)+'</div>';
+  if(d.kosherSignals&&d.kosherSignals.length) h+='<div>'+L('כשרות','Kashrut')+':'+ul(d.kosherSignals)+'</div>';
+  if(d.warnings&&d.warnings.length) h+='<div class="fa-warn">'+L('אזהרות','Warnings')+':'+ul(d.warnings)+'</div>';
+  h+='<button id="foodSuggestBtn" class="ghost" style="margin-top:8px">📥 '+L('הכנס הצעה ליומן','Put suggestion in log')+'</button>';
+  el.innerHTML=h;
+  const sb=$('foodSuggestBtn'); if(sb) sb.onclick=()=>{ if(d.suggestedFoodLogText){ $('foodText').value=d.suggestedFoodLogText; $('foodText').focus(); } };
+}
+async function analyzeFoodPhoto(file){
+  if(!file) return; if(!ensureTrip()) return;
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  $('foodAnalysis').style.display='block'; $('foodAnalysis').innerHTML='<div class="emptyday">'+L('🔎 מנתח…','🔎 Analyzing…')+'</div>';
+  try{
+    let blob=file, mime=file.type||'image/jpeg';
+    if(/^image\//.test(mime)){ blob=await compressImage(file); mime='image/jpeg'; }
+    if(blob.size>MAX_BYTES){ $('foodAnalysis').innerHTML='<div class="emptyday">'+L('⚠️ הקובץ גדול מדי','⚠️ File too large')+'</div>'; return; }
+    const r=await api({ action:'parse_food_photo', mime:mime, dataB64:(await blobToB64(blob)) });
+    if(r.ok && r.data) renderFoodAnalysis(r.data);
+    else if(r && r.service) $('foodAnalysis').innerHTML='<div class="emptyday">'+L('⏳ ארך מעט — נסה שוב','⏳ Took a moment — try again')+'</div>';
+    else $('foodAnalysis').innerHTML='<div class="emptyday">⚠️ '+escapeHtml(r.error||'error')+'</div>';
+  }catch(e){ $('foodAnalysis').innerHTML='<div class="emptyday">'+L('אין חיבור — נסה שוב','No connection — try again')+'</div>'; }
+}
+$('foodPhotoBtn').onclick=()=>{ if(ensureTrip()) $('foodPhotoFile').click(); };
+$('foodPhotoFile').onchange=()=>{ const f=$('foodPhotoFile').files[0]; $('foodPhotoFile').value=''; if(f) analyzeFoodPhoto(f); };
 
 /* --- 🏁 סיום מסע — סיכום + שיחת הפקת-לקחים --- */
 let wrapUrl='#', wrapLastLessons='', wrapCtxReady=false;

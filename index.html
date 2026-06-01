@@ -126,6 +126,10 @@
   #docResult .drow{ display:flex; gap:8px; padding:3px 0; font-size:.92rem; border-bottom:1px dashed var(--line) }
   #docResult .dl{ color:var(--muted); min-width:74px } #docResult .dv{ flex:1; word-break:break-word }
   #docResult .dconf{ font-size:.78rem; color:var(--muted); margin-top:8px }
+  /* food photo analysis */
+  #foodAnalysis{ background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:12px; font-size:.92rem; line-height:1.5 }
+  #foodAnalysis .fa-veg{ font-weight:700; margin-bottom:6px }
+  #foodAnalysis .fa-warn{ color:#b91c1c } #foodAnalysis ul{ margin:4px 0; padding-inline-start:18px }
 </style>
 </head>
 <body>
@@ -164,7 +168,7 @@
     <div class="foot">
       <button id="newtrip">➕ טיול חדש</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v30 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v31 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -251,6 +255,9 @@
     </select>
     <textarea id="foodText" rows="3" placeholder="מה אכלתם / מה קניתם לאכול היום?"></textarea>
     <button id="foodSave">💾 שמור</button>
+    <button id="foodPhotoBtn" class="ghost" style="margin-top:6px">📷 נתח תפריט / שלט (כשר+טבעוני)</button>
+    <input id="foodPhotoFile" type="file" accept="image/*">
+    <div id="foodAnalysis" style="display:none; text-align:right; margin:6px 0"></div>
     <div id="foodList" style="max-height:30vh; overflow:auto; text-align:right; margin:6px 0"></div>
     <a id="foodSheet" href="#" target="_blank" rel="noopener" style="display:none; text-align:center; color:var(--teal2); text-decoration:none; margin:6px 0">📊 פתח את גיליון האוכל</a>
     <button id="foodClose" class="ghost">סגור</button>
@@ -374,6 +381,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=30"></script>
+<script src="app.js?v=31"></script>
 </body>
 </html>
