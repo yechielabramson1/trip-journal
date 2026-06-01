@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v34';
+const APP_VER='v35';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -274,6 +274,14 @@ $('makebook').onclick=()=>{
   if(!ensureTrip()) return;
   const v=$('bookvoice'); v.hidden=!v.hidden;
 };
+// פענוח base64 (של בייטים ב-UTF-8) חזרה למחרוזת
+function b64ToUtf8(b64){ const bin=atob(b64); const bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i); return new TextDecoder('utf-8').decode(bytes); }
+function openBookView(html, driveUrl){
+  $('bookframe').srcdoc = html;                 // רינדור מלא בתוך האפליקציה (לא Drive source)
+  const dl=$('bookdrive'); dl.href = driveUrl||'#'; dl.style.display = driveUrl?'inline':'none';
+  $('bookview').hidden=false; document.body.style.overflow='hidden';
+}
+$('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; document.body.style.overflow=''; };
 async function buildBook(voice){
   if(!ensureTrip()) return;
   if(!navigator.onLine){ alert(L('צריך חיבור כדי לבנות ספר','A connection is needed to build the book')); return; }
@@ -281,12 +289,14 @@ async function buildBook(voice){
   const b=$('makebook'); const old=b.textContent; b.textContent=T().book_building;
   try{
     const r=await api({ action:'build_story_book', tripId:getTripId(), voice:voice });
-    if(r.ok && r.url){
+    if(r.ok && r.htmlB64){
       const s=r.stats||{};
       const ai = s.voiceFallback ? L(' · נכתב אותנטי (AI לא זמין)',' · authentic (AI unavailable)') : (s.aiUsed ? L(' · עם נרטיב AI',' · with AI narrative') : '');
       logLine(T().book_done+' · '+(s.entries||0)+' '+L('רשומות','entries')+', '+(s.photos||0)+' '+L('תמונות','photos')+', '+Math.round((s.bytes||0)/1024)+'KB'+ai);
-      window.open(r.url,'_blank','noopener'); $('bookvoice').hidden=true; closeDrawer();
+      $('bookvoice').hidden=true; closeDrawer();
+      openBookView(b64ToUtf8(r.htmlB64), r.url);
     }
+    else if(r.ok && r.tooBig){ alert(L('📖 הספר גדול מדי לתצוגה ישירה — צמצם תמונות (maxPhotos). הקובץ נשמר בדרייב.','📖 The book is too large to display here — reduce photos. It was saved to Drive.')); }
     else if(r && r.service){ alert(L('⏳ הבנייה ארכה — נסה שוב, או צמצם תמונות','⏳ Took too long — try again, or fewer photos')); }
     else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
