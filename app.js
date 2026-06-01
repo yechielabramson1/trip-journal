@@ -19,12 +19,13 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v32';
+const APP_VER='v33';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
        ph_journal:'דבר אל המקלדת או הקלד מה קורה עכשיו…', btn_save:'💾 שמור ליומן', btn_itin:'🗓️ תכנית הטיול', btn_photos:'📷 תמונות', btn_docs:'📁 מסמכים', btn_receipts:'🧾 קבלות', btn_expense:'💶 הוצאה', btn_ask:"🤖 שאל את הקונסיירז'",
        my_trips:'🏔️ המסעות שלי', new_trip:'➕ טיול חדש', open_drive:'📂 פתח את הטיול בדרייב', hint_day:'הקש על *יום* לתצוגת שעות',
+       btn_make_book:'📖 צור ספר מסע', book_building:'📖 בונה ספר…', book_done:'📖 הספר נוצר',
        ph_itin_ai:'ספר ל-AI מה לשנות… העבר ליום 3, הוסף ארוחת ערב…', item_new:'פריט חדש', item_edit:'עריכת פריט',
        ph_item_what:'מה? (למשל: אגם ברייס)', ph_place:'מקום / שם', ph_addr:'כתובת (יוצר לינק למפות + וייז)', ph_notes:'הערות / לינק הזמנה',
        save:'💾 שמור', del:'🗑️ מחק', close:'סגור', upload_new:'➕ העלה / צלם חדש', ai_concierge:"🤖 קונסיירז' AI",
@@ -48,6 +49,7 @@ const I18N = {
        needcfg:'Setup needed — open the token link', saved:'📝 Saved', compressing:'🗜️ Processing…', queued:'⬆️ Queued', toobig:'⚠️ File too large', switched:'➡️ Switched to ', thinking:'🤖 Thinking…', neednet:'🤖 Internet connection needed',
        ph_journal:'Speak or type what’s happening now…', btn_save:'💾 Save to journal', btn_itin:'🗓️ Trip plan', btn_photos:'📷 Photos', btn_docs:'📁 Documents', btn_receipts:'🧾 Receipts', btn_expense:'💶 Expense', btn_ask:'🤖 Ask the concierge',
        my_trips:'🏔️ My trips', new_trip:'➕ New trip', open_drive:'📂 Open trip in Drive', hint_day:'tap a *day* for the hour view',
+       btn_make_book:'📖 Create trip book', book_building:'📖 Building book…', book_done:'📖 Book created',
        ph_itin_ai:'Tell the AI what to change… move to day 3, add dinner…', item_new:'New item', item_edit:'Edit item',
        ph_item_what:'What? (e.g. Lake Braies)', ph_place:'Place / name', ph_addr:'Address (creates Maps + Waze link)', ph_notes:'Notes / booking link',
        save:'💾 Save', del:'🗑️ Delete', close:'Close', upload_new:'➕ Upload / take new', ai_concierge:'🤖 AI concierge',
@@ -79,7 +81,7 @@ function applyLang(){
   ph('txt',t.ph_journal);
   set('save',t.btn_save); set('itinbtn',t.btn_itin); set('photobtn',t.btn_photos); set('docbtn',t.btn_docs); set('rcptbtn',t.btn_receipts); set('expensebtn',t.btn_expense); set('askbtn',t.btn_ask);
   const h2=document.querySelector('#drawer h2'); if(h2) h2.textContent=t.my_trips;
-  set('newtrip',t.new_trip); set('drivelink',t.open_drive);
+  set('newtrip',t.new_trip); set('drivelink',t.open_drive); set('makebook',t.btn_make_book);
   const ver=$('ver'); if(ver) ver.textContent=APP_VER+' · '+t.hint_day;
   ph('itinAsk',t.ph_itin_ai);
   ph('itTitleInp',t.ph_item_what); ph('itLoc',t.ph_place); ph('itAddr',t.ph_addr); ph('itNotes',t.ph_notes);
@@ -264,6 +266,20 @@ $('newtripcreate').onclick=async()=>{
     } else { alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   }catch(e){ alert(L('אין חיבור — נסה שוב כשיש רשת','No connection — try again when online')); }
   finally{ $('newtripcreate').disabled=false; await render(); }
+};
+
+// 📖 ספר המסע — בונה HTML פרטי ב-Drive ופותח אותו (ללא auto-share)
+$('makebook').onclick=async()=>{
+  if(!ensureTrip()) return;
+  if(!navigator.onLine){ alert(L('צריך חיבור כדי לבנות ספר','A connection is needed to build the book')); return; }
+  const b=$('makebook'); const old=b.textContent; b.disabled=true; b.textContent=T().book_building;
+  try{
+    const r=await api({ action:'build_story_book', tripId:getTripId() });
+    if(r.ok && r.url){ logLine(T().book_done+' · '+(r.stats?(r.stats.entries+' '+L('רשומות','entries')+', '+r.stats.photos+' '+L('תמונות','photos')+', '+Math.round((r.stats.bytes||0)/1024)+'KB'):'')); window.open(r.url,'_blank','noopener'); closeDrawer(); }
+    else if(r && r.service){ alert(L('⏳ הבנייה ארכה — נסה שוב, או צמצם תמונות','⏳ Took too long — try again, or fewer photos')); }
+    else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
+  finally{ b.disabled=false; b.textContent=old; }
 };
 
 // AI concierge
