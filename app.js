@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v36';
+const APP_VER='v37';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -269,40 +269,108 @@ $('newtripcreate').onclick=async()=>{
 };
 
 // 📖 ספר המסע — בונה HTML פרטי ב-Drive ופותח אותו (ללא auto-share)
-// ספר המסע — בחירת קול (authentic|literary|combined) ואז בנייה
-$('makebook').onclick=()=>{
-  if(!ensureTrip()) return;
-  const v=$('bookvoice'); v.hidden=!v.hidden;
-};
-// פענוח base64 (של בייטים ב-UTF-8) חזרה למחרוזת
+// 📖 ספר המסע v2.1 — שער (היקף + קול), ספר-יחיד או chaptered (לולאת ימים)
 function b64ToUtf8(b64){ const bin=atob(b64); const bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i); return new TextDecoder('utf-8').decode(bytes); }
+let storyDaysCache=null, bookChapters=[], bookBuildId='';
+function bkBusy(on, msg){ ['bkBuild','bkCancel','bkVoice','bkScope'].forEach(id=>{ $(id).disabled=on; }); const p=$('bkProgress'); if(on){ p.hidden=false; if(msg) p.textContent=msg; } else { p.hidden=true; } }
+function bkProgress(msg){ const p=$('bkProgress'); p.hidden=false; p.textContent=msg; }
+function logBookStats(s){ const ai = s.voiceFallback ? L(' · נכתב אותנטי (AI לא זמין)',' · authentic (AI unavailable)') : (s.aiUsed ? L(' · עם נרטיב AI',' · with AI narrative') : ''); logLine(T().book_done+' · '+(s.entries||0)+' '+L('רשומות','entries')+', '+(s.photos||0)+' '+L('תמונות','photos')+', '+Math.round((s.bytes||0)/1024)+'KB'+ai); }
+
+$('makebook').onclick=async()=>{
+  if(!ensureTrip()) return;
+  closeDrawer(); bkBusy(false); $('bkProgress').hidden=true;
+  $('bookmeta').textContent=L('טוען…','Loading…'); $('bookgate').hidden=false;
+  try{
+    const r=await api({ action:'story_days', tripId:getTripId() });
+    storyDaysCache = (r.ok && r.days) ? r.days : [];
+    const nd=storyDaysCache.length, np=(r&&r.totalPhotos)||0, long = nd>5 || np>50;
+    $('bookmeta').textContent = nd+' '+L('ימים עם תוכן','days')+' · '+np+' '+L('תמונות','photos')+(long?(' · '+L('מומלץ: לפי פרקים','recommended: chapters')):'');
+    $('bkScope').value = long ? 'chapters' : 'all'; onScopeChange();
+  }catch(e){ storyDaysCache=[]; $('bookmeta').textContent=''; }
+};
+function onScopeChange(){
+  const sc=$('bkScope').value; $('bkRange').hidden = (sc!=='range');
+  if(sc==='range' && storyDaysCache && storyDaysCache.length){
+    if(!$('bkFrom').value) $('bkFrom').value=storyDaysCache[0].day;
+    if(!$('bkTo').value)   $('bkTo').value=storyDaysCache[storyDaysCache.length-1].day;
+  }
+}
+$('bkScope').onchange=onScopeChange;
+$('bkCancel').onclick=()=>{ $('bookgate').hidden=true; };
+$('bkBuild').onclick=async()=>{
+  if(!navigator.onLine){ alert(L('צריך חיבור כדי לבנות ספר','A connection is needed to build the book')); return; }
+  const voice=$('bkVoice').value, sc=$('bkScope').value;
+  if(sc==='chapters') return buildChaptered(voice);
+  if(sc==='range'){ const f=$('bkFrom').value, t=$('bkTo').value; if(!f||!t){ alert(L('בחר טווח תאריכים','Pick a date range')); return; } return buildSingle({voice, scope:'range', fromDay:f, toDay:t}); }
+  return buildSingle({voice, scope:'all'});
+};
+
+// ----- ספר-יחיד (כל הטיול / טווח) -----
+async function buildSingle(params){
+  bkBusy(true, L('בונה ספר…','Building…'));
+  try{
+    const r=await api(Object.assign({ action:'build_story_book', tripId:getTripId() }, params));
+    if(r.ok && r.htmlB64){ logBookStats(r.stats||{}); $('bookgate').hidden=true; openBookView(b64ToUtf8(r.htmlB64), r.url); }
+    else if(r.ok && r.tooBig){ alert(L('📖 הספר גדול מדי לתצוגה — בחר "לפי פרקים". הקובץ נשמר בדרייב.','📖 Too large to display — choose "chapters". Saved to Drive.')); }
+    else if(r && r.service){ alert(L('⏳ הבנייה ארכה — נסה "לפי פרקים"','⏳ Took too long — try "chapters"')); }
+    else alert(L('שגיאה: ','Error: ')+(r.error||''));
+  }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
+  finally{ bkBusy(false); }
+}
+
+// ----- chaptered: לולאת בקשות-יום ב-PWA (פרק=בקשה אחת, קריאת-AI אחת לכל היותר) -----
+async function buildDayChapter_(d, voice){
+  const r=await api({ action:'build_story_book', tripId:getTripId(), voice, scope:'chapter', day:d.day, dayIndex:d.index, buildId:bookBuildId, maxPhotos:8 });
+  if(r.ok && r.htmlB64){ bookChapters.push({ index:d.index, label:L('יום ','Day ')+d.index, day:d.day, htmlB64:r.htmlB64, aiUsed:(r.stats&&r.stats.aiUsed) }); return true; }
+  return false;
+}
+async function buildChaptered(voice){
+  const days=(storyDaysCache||[]).slice();
+  if(!days.length){ alert(L('אין עדיין רשומות לספר','No entries yet')); return; }
+  bookBuildId=String(Date.now()); bookChapters=[]; const failed=[];
+  bkBusy(true);
+  for(let i=0;i<days.length;i++){
+    bkProgress(L('בונה יום ','Building day ')+(i+1)+'/'+days.length+'…');
+    try{ if(!await buildDayChapter_(days[i], voice)) failed.push(days[i]); }
+    catch(e){ failed.push(days[i]); }   // כשל-יום לא מוחק פרקים קודמים
+  }
+  bkBusy(false);
+  if(!bookChapters.length){ alert(L('הבנייה נכשלה — נסה שוב','Build failed — try again')); return; }
+  bookChapters.sort((a,b)=>a.index-b.index);
+  const aiN=bookChapters.filter(c=>c.aiUsed).length;
+  logLine('📚 '+bookChapters.length+' '+L('פרקים','chapters')+(aiN?(' · '+aiN+' '+L('עם נרטיב','with narrative')):'')+(failed.length?(' · '+failed.length+' '+L('נכשלו','failed')):''));
+  $('bookgate').hidden=true; openChapteredView(failed, voice);
+}
+async function retryFailed(failed, voice){
+  if(!navigator.onLine){ alert(L('צריך חיבור','Connection needed')); return; }
+  const still=[];
+  for(let i=0;i<failed.length;i++){ bkProgress(L('בונה מחדש ','Rebuilding ')+(i+1)+'/'+failed.length+'…');
+    try{ if(!await buildDayChapter_(failed[i], voice)) still.push(failed[i]); }catch(e){ still.push(failed[i]); } }
+  bookChapters.sort((a,b)=>a.index-b.index);
+  openChapteredView(still, voice);
+}
+
+// ----- viewer: פרק אחד בזיכרון בכל רגע (lazy) -----
 function openBookView(html, driveUrl){
-  $('bookframe').srcdoc = html;                 // רינדור מלא בתוך האפליקציה (לא Drive source)
-  const dl=$('bookdrive'); dl.href = driveUrl||'#'; dl.style.display = driveUrl?'inline':'none';
+  $('bookchips').hidden=true; $('bookchips').innerHTML='';
+  $('bookframe').srcdoc=html;
+  const dl=$('bookdrive'); dl.href=driveUrl||'#'; dl.style.display=driveUrl?'inline':'none';
   $('bookview').hidden=false; document.body.style.overflow='hidden';
 }
-$('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; document.body.style.overflow=''; };
-async function buildBook(voice){
-  if(!ensureTrip()) return;
-  if(!navigator.onLine){ alert(L('צריך חיבור כדי לבנות ספר','A connection is needed to build the book')); return; }
-  const btns=document.querySelectorAll('#bookvoice .vbtn'); btns.forEach(x=>x.disabled=true);
-  const b=$('makebook'); const old=b.textContent; b.textContent=T().book_building;
-  try{
-    const r=await api({ action:'build_story_book', tripId:getTripId(), voice:voice });
-    if(r.ok && r.htmlB64){
-      const s=r.stats||{};
-      const ai = s.voiceFallback ? L(' · נכתב אותנטי (AI לא זמין)',' · authentic (AI unavailable)') : (s.aiUsed ? L(' · עם נרטיב AI',' · with AI narrative') : '');
-      logLine(T().book_done+' · '+(s.entries||0)+' '+L('רשומות','entries')+', '+(s.photos||0)+' '+L('תמונות','photos')+', '+Math.round((s.bytes||0)/1024)+'KB'+ai);
-      $('bookvoice').hidden=true; closeDrawer();
-      openBookView(b64ToUtf8(r.htmlB64), r.url);
-    }
-    else if(r.ok && r.tooBig){ alert(L('📖 הספר גדול מדי לתצוגה ישירה — צמצם תמונות (maxPhotos). הקובץ נשמר בדרייב.','📖 The book is too large to display here — reduce photos. It was saved to Drive.')); }
-    else if(r && r.service){ alert(L('⏳ הבנייה ארכה — נסה שוב, או צמצם תמונות','⏳ Took too long — try again, or fewer photos')); }
-    else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
-  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
-  finally{ btns.forEach(x=>x.disabled=false); b.textContent=old; }
+function openChapteredView(failed, voice){
+  const chips=$('bookchips'); chips.innerHTML=''; chips.hidden=false;
+  bookChapters.forEach((c,idx)=>{ const b=document.createElement('button'); b.className='chip'; b.textContent=c.label; b.onclick=()=>showChapter(idx); chips.appendChild(b); });
+  if(failed && failed.length){ const rb=document.createElement('button'); rb.className='chip fail'; rb.textContent='↻ '+failed.length+' '+L('נכשלו','failed'); rb.onclick=()=>retryFailed(failed, voice); chips.appendChild(rb); }
+  $('bookdrive').style.display='none';
+  $('bookview').hidden=false; document.body.style.overflow='hidden';
+  showChapter(0);
 }
-document.querySelectorAll('#bookvoice .vbtn').forEach(function(btn){ btn.onclick=()=>buildBook(btn.dataset.voice); });
+function showChapter(idx){
+  const c=bookChapters[idx]; if(!c) return;
+  $('bookframe').srcdoc=b64ToUtf8(c.htmlB64);   // רק הפרק הנבחר ב-iframe (זיכרון נמוך)
+  Array.prototype.forEach.call($('bookchips').querySelectorAll('.chip:not(.fail)'), (el,i)=>el.classList.toggle('on', i===idx));
+}
+$('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; $('bookchips').hidden=true; $('bookchips').innerHTML=''; bookChapters=[]; document.body.style.overflow=''; };
 
 // AI concierge
 $('askbtn').onclick=()=>{ $('askreply').textContent=''; $('askq').value=''; $('storylink').style.display='none'; $('askgate').hidden=false; $('askq').focus(); };

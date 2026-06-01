@@ -51,15 +51,23 @@
   .trip .dot{ width:8px; height:8px; border-radius:50%; background:#cbd5e1 } .trip.active .dot{ background:var(--teal) }
   #drawer .foot{ padding:12px 16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px }
   #drawer .foot button{ width:100%; padding:14px; border:0; border-radius:14px; font-size:1.05rem; font-weight:600; background:var(--teal); color:#fff }
-  #bookvoice{ display:flex; gap:6px; flex-wrap:wrap; margin-top:4px }
-  #bookvoice[hidden]{ display:none }
-  #drawer .foot #bookvoice .vbtn{ flex:1; min-width:0; padding:10px 6px; font-size:.92rem; background:#0e7490 }
   #bookview{ position:fixed; inset:0; z-index:60; background:#faf6ee; display:flex; flex-direction:column }
   #bookview[hidden]{ display:none }
   #bookbar{ display:flex; align-items:center; gap:10px; padding:10px 14px; background:#0e7490; color:#fff; flex:0 0 auto }
   #bookbar #booktitle{ flex:1; font-weight:600; font-size:1rem }
   #bookbar button, #bookbar a{ background:transparent; border:0; color:#fff; font-size:1.2rem; cursor:pointer; text-decoration:none }
+  #bookchips{ display:flex; gap:6px; overflow-x:auto; padding:8px 12px; background:#fff7ed; border-bottom:1px solid #fed7aa; flex:0 0 auto }
+  #bookchips[hidden]{ display:none }
+  #bookchips .chip{ flex:0 0 auto; border:1px solid #fdba74; background:#fff; color:#9a3412; border-radius:999px; padding:6px 14px; font-size:.9rem; white-space:nowrap }
+  #bookchips .chip.on{ background:#0e7490; color:#fff; border-color:#0e7490 }
+  #bookchips .chip.fail{ border-color:#ef4444; color:#b91c1c }
   #bookframe{ flex:1 1 auto; width:100%; border:0; background:#faf6ee }
+  #bookmeta{ font-size:.85rem; color:#64748b; margin:-4px 0 12px }
+  #bkProgress{ font-size:.95rem; color:#0e7490; font-weight:600; margin:4px 0 8px }
+  #bkProgress[hidden]{ display:none }
+  #bkRange[hidden]{ display:none !important }
+  #bkRange input{ flex:1; min-width:0 }
+  #bookgate .card select{ text-align:right }
   #drawer .foot a{ text-align:center; color:var(--teal2); font-size:.9rem; text-decoration:none }
   /* gates / modals */
   .gate{ position:fixed; inset:0; background:rgba(11,18,32,.55); display:flex; align-items:center; justify-content:center; z-index:20; padding:18px }
@@ -177,13 +185,8 @@
     <div class="foot">
       <button id="newtrip">➕ טיול חדש</button>
       <button id="makebook">📖 צור ספר מסע</button>
-      <div id="bookvoice" hidden>
-        <button class="vbtn" data-voice="authentic">✍️ אותנטי</button>
-        <button class="vbtn" data-voice="literary">📜 ספרותי</button>
-        <button class="vbtn" data-voice="combined">📖 משולב</button>
-      </div>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v36 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v37 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -194,7 +197,33 @@
       <span id="booktitle">📖 ספר המסע</span>
       <a id="bookdrive" href="#" target="_blank" rel="noopener" title="הקובץ נשמר בדרייב">💾</a>
     </div>
+    <div id="bookchips" hidden></div>
     <iframe id="bookframe" title="ספר המסע"></iframe>
+  </div>
+
+  <!-- book gate (scope + voice) -->
+  <div id="bookgate" class="gate" hidden>
+    <div class="card">
+      <p>📖 צור ספר מסע</p>
+      <div id="bookmeta"></div>
+      <select id="bkVoice">
+        <option value="authentic">✍️ אותנטי — המילים שלך + תמונות</option>
+        <option value="literary">📜 ספרותי — נרטיב AI + תמונות</option>
+        <option value="combined">📖 משולב — נרטיב + הרשומות</option>
+      </select>
+      <select id="bkScope">
+        <option value="all">📕 כל הטיול — ספר אחד</option>
+        <option value="chapters">📚 לפי פרקים (יום-יום)</option>
+        <option value="range">📅 טווח ימים</option>
+      </select>
+      <div id="bkRange" hidden style="display:flex; gap:6px">
+        <input type="date" id="bkFrom" aria-label="מתאריך">
+        <input type="date" id="bkTo" aria-label="עד תאריך">
+      </div>
+      <div id="bkProgress" hidden></div>
+      <button id="bkBuild" class="act save" style="margin-top:6px">בנה ספר</button>
+      <button id="bkCancel" style="background:#94a3b8; margin-top:8px">סגור</button>
+    </div>
   </div>
 
   <!-- itinerary screen -->
@@ -408,6 +437,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=36"></script>
+<script src="app.js?v=37"></script>
 </body>
 </html>
