@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v38';
+const APP_VER='v39';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -397,6 +397,43 @@ async function morePhotos(){
   location.href=url;   // הקיצור לא מותקן → iOS יציג שגיאה; אי-אפשר לזהות מראש
 }
 $('bookmore').onclick=morePhotos;
+
+// 📓 NotebookLM "research brain" bridge — open the right notebook + ready prompts.
+// Frontend-only: notebookUrl in localStorage per trip; no backend, no scopes, no NotebookLM API/scraping.
+const NB_HOME='https://notebooklm.google.com';
+function nbKey(){ return 'nb:'+getTripId(); }
+function nbValidUrl(v){ return /^https:\/\/notebooklm\.google\.com\//i.test(String(v||'').trim()); }
+function nbPromptList(){ const name=getTripName()||L('הטיול','the trip');
+  return [
+    {label:L('🍽️ אוכל כשר/טבעוני','🍽️ Kosher/vegan food'), prompt:L('בהתבסס על המקורות, מצא אפשרויות אוכל כשרות/טבעוניות מומלצות לטיול "'+name+'". תן 5 המלצות עם נימוק קצר וכתובת.','Based on the sources, find recommended kosher/vegan food options for the trip "'+name+'". Give 5 picks with a short reason and an address.')},
+    {label:L('🥾 מסלולים רגועים','🥾 Easy routes'), prompt:L('הצע מסלול יומי רגוע ויפה לזוג שאוהב טבע, לטיול "'+name+'", עם זמני הליכה ונקודות עצירה.','Suggest a relaxed, scenic day route for a nature-loving couple for "'+name+'", with walking times and stops.')},
+    {label:L('🏨 השוואת לינה','🏨 Compare lodging'), prompt:L('השווה בין אפשרויות הלינה שבמקורות לטיול "'+name+'" — יחס מחיר/מיקום/נוף — והמלץ.','Compare the lodging options in the sources for "'+name+'" — price/location/view — and recommend.')},
+    {label:L('🚆 תחבורה','🚆 Transport'), prompt:L('מה הדרך הנוחה ביותר לעבור בין הנקודות בטיול "'+name+'" לפי המקורות? רכבת מול רכב, עם זמנים משוערים.','What is the most convenient way to get between points in "'+name+'" per the sources? Train vs car, with rough times.')},
+    {label:L('📝 סיכום יום','📝 Day recap'), prompt:L('כתוב סיכום קצר וחם של היום על בסיס המקורות ורשומות היומן של "'+name+'".','Write a short, warm recap of the day based on the sources and journal of "'+name+'".')},
+    {label:L('🎙️ פודקאסט (Audio Overview)','🎙️ Podcast (Audio Overview)'), prompt:L('צור Audio Overview בעברית על הטיול "'+name+'" — שיחה חמה בין שני מנחים על הרגעים המיוחדים.','Create an Audio Overview about the trip "'+name+'" — a warm conversation between two hosts about the special moments.')}
+  ];
+}
+async function nbCopy(text, btn){ try{ await navigator.clipboard.writeText(text); const o=btn.textContent; btn.textContent='✓'; setTimeout(()=>{btn.textContent=o;},1200); }catch(e){ window.prompt(L('העתק ידנית:','Copy manually:'), text); } }
+$('nbbtn').onclick=()=>{
+  if(!ensureTrip()) return;
+  const saved=localStorage.getItem(nbKey())||'';
+  $('nbUrl').value=saved;
+  $('nbHint').textContent = saved
+    ? L('מחובר לנוטבוק של הטיול. פתח אותו, או העתק שאלה מוכנה והדבק ב-NotebookLM.',"Linked to this trip's notebook. Open it, or copy a ready prompt and paste in NotebookLM.")
+    : L('פעם אחת: צור נוטבוק ב-NotebookLM, הוסף מקורות (מסמך הסיפור/מקורות מ-Drive), והדבק כאן את קישור הנוטבוק.','One-time: create a notebook in NotebookLM, add sources (the trip story/sources Doc from Drive), then paste the notebook link here.');
+  const wrap=$('nbPrompts'); wrap.innerHTML='';
+  nbPromptList().forEach(p=>{ const d=document.createElement('div'); d.className='pcard';
+    const s=document.createElement('span'); s.className='lbl'; s.textContent=p.label;
+    const b=document.createElement('button'); b.textContent='📋 '+L('העתק','Copy'); b.onclick=()=>nbCopy(p.prompt,b);
+    d.appendChild(s); d.appendChild(b); wrap.appendChild(d); });
+  $('nbgate').hidden=false;
+};
+$('nbSave').onclick=()=>{ const v=($('nbUrl').value||'').trim();
+  if(v && !nbValidUrl(v)){ alert(L('הדבק קישור נוטבוק תקין מ-notebooklm.google.com','Paste a valid notebooklm.google.com notebook link')); return; }
+  if(v) localStorage.setItem(nbKey(),v); else localStorage.removeItem(nbKey());
+  $('nbHint').textContent=L('נשמר ✓','Saved ✓'); };
+$('nbOpen').onclick=()=>{ const v=(localStorage.getItem(nbKey())||$('nbUrl').value||'').trim(); window.open(nbValidUrl(v)?v:NB_HOME, '_blank', 'noopener'); };
+$('nbClose').onclick=()=>{ $('nbgate').hidden=true; };
 
 // AI concierge
 $('askbtn').onclick=()=>{ $('askreply').textContent=''; $('askq').value=''; $('storylink').style.display='none'; $('askgate').hidden=false; $('askq').focus(); };

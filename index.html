@@ -68,6 +68,11 @@
   #bkRange[hidden]{ display:none !important }
   #bkRange input{ flex:1; min-width:0 }
   #bookgate .card select{ text-align:right }
+  #nbHint{ font-size:.85rem; color:#64748b; margin:-4px 0 10px; line-height:1.5 }
+  #nbPrompts{ display:flex; flex-direction:column; gap:6px; margin:12px 0 0; max-height:34vh; overflow:auto }
+  #nbPrompts .pcard{ display:flex; align-items:center; gap:8px; border:1px solid #e2e8f0; border-radius:12px; padding:8px 10px; background:#f8fafc }
+  #nbPrompts .pcard .lbl{ flex:1; text-align:right; font-size:.95rem; font-weight:600; color:#334155 }
+  #nbPrompts .pcard button{ flex:0 0 auto; border:0; border-radius:10px; background:#0e7490; color:#fff; padding:8px 12px; font-size:.9rem }
   #drawer .foot a{ text-align:center; color:var(--teal2); font-size:.9rem; text-decoration:none }
   /* gates / modals */
   .gate{ position:fixed; inset:0; background:rgba(11,18,32,.55); display:flex; align-items:center; justify-content:center; z-index:20; padding:18px }
@@ -185,8 +190,9 @@
     <div class="foot">
       <button id="newtrip">➕ טיול חדש</button>
       <button id="makebook">📖 צור ספר מסע</button>
+      <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v38 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v39 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -224,6 +230,21 @@
       <div id="bkProgress" hidden></div>
       <button id="bkBuild" class="act save" style="margin-top:6px">בנה ספר</button>
       <button id="bkCancel" style="background:#94a3b8; margin-top:8px">סגור</button>
+    </div>
+  </div>
+
+  <!-- NotebookLM "research brain" bridge (open the right notebook + ready prompts) -->
+  <div id="nbgate" class="gate" hidden>
+    <div class="card">
+      <p>📓 מוח מחקר — NotebookLM</p>
+      <div id="nbHint"></div>
+      <input id="nbUrl" type="url" placeholder="https://notebooklm.google.com/notebook/…" inputmode="url">
+      <div style="display:flex; gap:6px">
+        <button id="nbSave" style="flex:1; background:#475569">💾 שמור קישור</button>
+        <button id="nbOpen" class="act" style="flex:2; background:#6d28d9">📓 פתח מוח מחקר</button>
+      </div>
+      <div id="nbPrompts"></div>
+      <button id="nbClose" style="background:#94a3b8; margin-top:10px">סגור</button>
     </div>
   </div>
 
@@ -438,6 +459,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 </body>
 </html>
