@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v41';
+const APP_VER='v42';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -461,6 +461,52 @@ $('nbPacket').onclick=async()=>{
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ b.disabled=false; b.textContent=o; }
 };
+
+// 📚 Private Trip Dashboard — read-only reader inside the PWA (Photos / Expenses / Docs). No capture/delete/permission changes.
+$('dashbtn').onclick=()=>{ if(!ensureTrip()) return; closeDrawer(); $('dash').hidden=false; dashTab('photos'); };
+$('dashClose').onclick=()=>{ $('dash').hidden=true; $('dashbody').innerHTML=''; };
+document.querySelectorAll('#dashtabs .dtab').forEach(b=>{ b.onclick=()=>dashTab(b.dataset.tab); });
+function dashEmpty(msg){ $('dashbody').innerHTML='<div class="empty">'+escapeHtml(msg)+'</div>'; }
+async function dashTab(tab){
+  document.querySelectorAll('#dashtabs .dtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===tab));
+  dashEmpty(L('טוען…','Loading…'));
+  if(!navigator.onLine){ dashEmpty(L('צריך חיבור לאינטרנט','A connection is needed')); return; }
+  try{
+    if(tab==='photos'){ const r=await api({action:'list_gallery', tripId:getTripId(), limit:40}); dashRenderGallery(r); }
+    else if(tab==='expenses'){ const r=await api({action:'list_expenses', tripId:getTripId()}); dashRenderExpenses(r); }
+    else { const r=await api({action:'list_files', tripId:getTripId(), category:'document'}); dashRenderDocs(r); }
+  }catch(e){ dashEmpty(L('אין חיבור — נסה שוב','No connection — try again')); }
+}
+function dashRenderGallery(r){ const body=$('dashbody'); const ph=(r&&r.photos)||[];
+  if(!ph.length){ dashEmpty(L('עדיין אין תמונות בטיול הזה','No photos in this trip yet')); return; }
+  const g=document.createElement('div'); g.className='gal';
+  ph.forEach(p=>{ const c=document.createElement('div'); c.className='gcard';
+    if(p.thumb){ const im=document.createElement('img'); im.loading='lazy'; im.src=p.thumb; if(p.url){ im.style.cursor='pointer'; im.onclick=()=>window.open(p.url,'_blank','noopener'); } c.appendChild(im); }
+    const cap=document.createElement('div'); cap.className='cap'; cap.textContent=[p.caption, p.place?('📍'+p.place):'', p.date].filter(Boolean).join(' · '); c.appendChild(cap);
+    g.appendChild(c); });
+  body.innerHTML=''; body.appendChild(g);
+  if(r.truncated) body.insertAdjacentHTML('beforeend','<div class="empty">'+L('מוצגות 40 התמונות האחרונות','Showing the latest 40 photos')+'</div>');
+}
+function dashRenderExpenses(r){ const body=$('dashbody'); const ex=(r&&r.expenses)||[];
+  if(!ex.length){ dashEmpty(L('עדיין אין הוצאות','No expenses yet')); return; }
+  body.innerHTML='';
+  ex.forEach(e=>{ const amt=(e.amount||e.amount===0)?(e.amount+' '+(e.currency||'')):'';
+    const meta=[e.category, e.date, e.method, e.author].filter(Boolean).join(' · ');
+    const d=document.createElement('div'); d.className='dcard';
+    d.innerHTML='<div class="row1"><span>'+escapeHtml(e.description||e.category||'')+'</span><span class="amt">'+escapeHtml(amt)+'</span></div>'+
+      '<div class="meta">'+escapeHtml(meta)+'</div>'+
+      (e.receipt?('<div style="margin-top:6px"><a href="'+escapeHtml(e.receipt)+'" target="_blank" rel="noopener">🧾 '+L('פתח קבלה','Open receipt')+'</a></div>'):'');
+    body.appendChild(d); });
+}
+function dashRenderDocs(r){ const body=$('dashbody'); const fs=(r&&r.files)||[];
+  if(!fs.length){ dashEmpty(L('עדיין אין מסמכים','No documents yet')); return; }
+  body.innerHTML='';
+  fs.forEach(f=>{ const d=document.createElement('div'); d.className='dcard';
+    d.innerHTML='<div class="row1"><span>📄 '+escapeHtml(f.name||'')+'</span></div>'+
+      '<div class="meta">'+escapeHtml(String(f.date||'').slice(0,10))+'</div>'+
+      '<div style="margin-top:6px"><a href="'+escapeHtml(f.url||'#')+'" target="_blank" rel="noopener">'+L('פתח ב-Drive','Open in Drive')+'</a></div>';
+    body.appendChild(d); });
+}
 
 // AI concierge
 $('askbtn').onclick=()=>{ $('askreply').textContent=''; $('askq').value=''; $('storylink').style.display='none'; $('askgate').hidden=false; $('askq').focus(); };
