@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v40';
+const APP_VER='v41';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -414,26 +414,39 @@ function nbPromptList(){ const name=getTripName()||L('הטיול','the trip');
   ];
 }
 async function nbCopy(text, btn){ try{ await navigator.clipboard.writeText(text); const o=btn.textContent; btn.textContent='✓'; setTimeout(()=>{btn.textContent=o;},1200); }catch(e){ window.prompt(L('העתק ידנית:','Copy manually:'), text); } }
-$('nbbtn').onclick=()=>{
-  if(!ensureTrip()) return;
-  const saved=localStorage.getItem(nbKey())||'';
-  $('nbUrl').value=saved;
-  $('nbHint').textContent = saved
-    ? L('מחובר לנוטבוק של הטיול. פתח אותו, או העתק שאלה מוכנה והדבק ב-NotebookLM.',"Linked to this trip's notebook. Open it, or copy a ready prompt and paste in NotebookLM.")
-    : L('פעם אחת: צור נוטבוק ב-NotebookLM, הוסף מקורות (מסמך הסיפור/מקורות מ-Drive), והדבק כאן את קישור הנוטבוק.','One-time: create a notebook in NotebookLM, add sources (the trip story/sources Doc from Drive), then paste the notebook link here.');
-  const wrap=$('nbPrompts'); wrap.innerHTML='';
+function nbRenderPrompts(){ const wrap=$('nbPrompts'); wrap.innerHTML='';
   nbPromptList().forEach(p=>{ const d=document.createElement('div'); d.className='pcard';
     const s=document.createElement('span'); s.className='lbl'; s.textContent=p.label;
     const b=document.createElement('button'); b.textContent='📋 '+L('העתק','Copy'); b.onclick=()=>nbCopy(p.prompt,b);
-    d.appendChild(s); d.appendChild(b); wrap.appendChild(d); });
-  $('nbPacketLink').hidden=true;
-  $('nbgate').hidden=false;
+    d.appendChild(s); d.appendChild(b); wrap.appendChild(d); }); }
+$('nbbtn').onclick=async()=>{
+  if(!ensureTrip()) return;
+  const tid=getTripId(); const localUrl=localStorage.getItem(nbKey())||'';
+  $('nbUrl').value=localUrl; nbRenderPrompts(); $('nbPacketLink').hidden=true; $('nbgate').hidden=false;
+  $('nbHint').textContent=L('טוען…','Loading…');
+  // Phase 2: notebookUrl הוא trip-metadata (cross-device). localStorage = cache/legacy בלבד.
+  let backendUrl='', synced=false;
+  try{ const r=await api({action:'list_trips'}); if(r.ok){ const t=(r.trips||[]).find(x=>x.tripId===tid);
+    if(t){ backendUrl=t.notebookUrl||''; synced=true;
+      if(backendUrl){ $('nbUrl').value=backendUrl; if(backendUrl!==localUrl) localStorage.setItem(nbKey(),backendUrl); } } } }catch(e){}
+  const cur=($('nbUrl').value||'').trim();
+  $('nbHint').textContent = cur
+    ? L('קישור המחברת נשמר לטיול וזמין בכל מכשיר. פתח, או העתק שאלה והדבק ב-NotebookLM.','The notebook link is saved to the trip and available on every device. Open it, or copy a prompt and paste in NotebookLM.')
+    : (!synced && localUrl
+        ? L('יש קישור מקומי בלבד — לחץ "שמור קישור" כדי לסנכרן אותו לטיול (זמין בכל מכשיר).','Local-only link — tap "Save link" to sync it to the trip (available on every device).')
+        : L('פעם אחת: צור מחברת ב-NotebookLM, הדבק כאן את הקישור ושמור. אז הוסף את חבילת-המחקר כמקור.','One-time: create a notebook in NotebookLM, paste its link here and save. Then add the Research Packet as a source.'));
 };
-$('nbSave').onclick=()=>{ const v=($('nbUrl').value||'').trim();
+$('nbSave').onclick=async()=>{ const v=($('nbUrl').value||'').trim();
   if(v && !nbValidUrl(v)){ alert(L('הדבק קישור נוטבוק תקין מ-notebooklm.google.com','Paste a valid notebooklm.google.com notebook link')); return; }
-  if(v) localStorage.setItem(nbKey(),v); else localStorage.removeItem(nbKey());
-  $('nbHint').textContent=L('נשמר ✓','Saved ✓'); };
-$('nbOpen').onclick=()=>{ const v=(localStorage.getItem(nbKey())||$('nbUrl').value||'').trim(); window.open(nbValidUrl(v)?v:NB_HOME, '_blank', 'noopener'); };
+  if(!navigator.onLine){ alert(L('צריך חיבור כדי לשמור לטיול','A connection is needed to save to the trip')); return; }
+  const b=$('nbSave'); const o=b.textContent; b.disabled=true; b.textContent=L('שומר…','Saving…');
+  try{ const r=await api({action:'set_notebook_url', tripId:getTripId(), notebookUrl:v});
+    if(r.ok){ if(v) localStorage.setItem(nbKey(),v); else localStorage.removeItem(nbKey());   // cache
+      $('nbHint').textContent = v ? L('נשמר לטיול — זמין בכל מכשיר ✓','Saved to the trip — available on every device ✓') : L('הוסר ✓','Removed ✓'); }
+    else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
+  finally{ b.disabled=false; b.textContent=o; } };
+$('nbOpen').onclick=()=>{ const v=($('nbUrl').value||localStorage.getItem(nbKey())||'').trim(); window.open(nbValidUrl(v)?v:NB_HOME, '_blank', 'noopener'); };
 $('nbClose').onclick=()=>{ $('nbgate').hidden=true; };
 // 📦 Trip Research Packet — build/refresh a clean Doc (Drive "museum") to add as a NotebookLM source.
 $('nbPacket').onclick=async()=>{
