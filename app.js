@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v39';
+const APP_VER='v40';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -426,6 +426,7 @@ $('nbbtn').onclick=()=>{
     const s=document.createElement('span'); s.className='lbl'; s.textContent=p.label;
     const b=document.createElement('button'); b.textContent='📋 '+L('העתק','Copy'); b.onclick=()=>nbCopy(p.prompt,b);
     d.appendChild(s); d.appendChild(b); wrap.appendChild(d); });
+  $('nbPacketLink').hidden=true;
   $('nbgate').hidden=false;
 };
 $('nbSave').onclick=()=>{ const v=($('nbUrl').value||'').trim();
@@ -434,6 +435,19 @@ $('nbSave').onclick=()=>{ const v=($('nbUrl').value||'').trim();
   $('nbHint').textContent=L('נשמר ✓','Saved ✓'); };
 $('nbOpen').onclick=()=>{ const v=(localStorage.getItem(nbKey())||$('nbUrl').value||'').trim(); window.open(nbValidUrl(v)?v:NB_HOME, '_blank', 'noopener'); };
 $('nbClose').onclick=()=>{ $('nbgate').hidden=true; };
+// 📦 Trip Research Packet — build/refresh a clean Doc (Drive "museum") to add as a NotebookLM source.
+$('nbPacket').onclick=async()=>{
+  if(!ensureTrip()) return;
+  if(!navigator.onLine){ alert(L('צריך חיבור כדי לעדכן חבילת מחקר','A connection is needed to update the research packet')); return; }
+  const b=$('nbPacket'); const o=b.textContent; b.disabled=true; b.textContent=L('בונה…','Building…');
+  try{ const r=await api({action:'build_research_packet', tripId:getTripId()});
+    if(r.ok && r.url){ const a=$('nbPacketLink'); a.href=r.url;
+      a.textContent='📄 '+L('פתח חבילת מחקר (Doc) — הוסף כמקור ב-NotebookLM','Open Research Packet (Doc) — add as a NotebookLM source'); a.hidden=false;
+      const s=r.stats||{}; $('nbHint').textContent=L('עודכן ✓ — '+(s.journal||0)+' רשומות, '+(s.itin||0)+' פריטי-תכנית. פתח, ואז ב-NotebookLM: Add source → Google Docs → בחר את המסמך.','Updated ✓ — open it, then in NotebookLM: Add source → Google Docs → pick it.'); }
+    else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
+  finally{ b.disabled=false; b.textContent=o; }
+};
 
 // AI concierge
 $('askbtn').onclick=()=>{ $('askreply').textContent=''; $('askq').value=''; $('storylink').style.display='none'; $('askgate').hidden=false; $('askq').focus(); };
