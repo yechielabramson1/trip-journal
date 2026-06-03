@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v42';
+const APP_VER='v43';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -140,6 +140,13 @@ function renderDrawer(){
   });
 }
 function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// חותמת-זמן קצרה אחידה: dd/MM HH:mm (או dd/MM אם אין שעה). מקבל ISO / dd/MM/yyyy[ HH:mm] / YYYY-MM-DD.
+function shortTs(s){ s=String(s||'').trim(); if(!s) return ''; let m;
+  if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/))) return m[3]+'/'+m[2]+' '+m[4]+':'+m[5];
+  if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})/)))               return m[3]+'/'+m[2];
+  if((m=s.match(/^(\d{1,2})\/(\d{1,2})\/\d{2,4}\s+(\d{1,2}):(\d{2})/))) return m[1]+'/'+m[2]+' '+m[3]+':'+m[4];
+  if((m=s.match(/^(\d{1,2})\/(\d{1,2})\/\d{2,4}/)))         return m[1]+'/'+m[2];
+  return s; }
 
 /* ---------- API (online actions) ---------- */
 async function api(payload){
@@ -482,8 +489,10 @@ function dashRenderGallery(r){ const body=$('dashbody'); const ph=(r&&r.photos)|
   const g=document.createElement('div'); g.className='gal';
   ph.forEach(p=>{ const c=document.createElement('div'); c.className='gcard';
     if(p.thumb){ const im=document.createElement('img'); im.loading='lazy'; im.src=p.thumb; if(p.url){ im.style.cursor='pointer'; im.onclick=()=>window.open(p.url,'_blank','noopener'); } c.appendChild(im); }
-    const cap=document.createElement('div'); cap.className='cap'; cap.textContent=[p.caption, p.place?('📍'+p.place):'', p.date].filter(Boolean).join(' · '); c.appendChild(cap);
-    g.appendChild(c); });
+    const cap=document.createElement('div'); cap.className='cap';
+    const top=document.createElement('div'); top.textContent=[p.caption, p.place?('📍'+p.place):''].filter(Boolean).join(' · '); cap.appendChild(top);
+    const ts=document.createElement('div'); ts.className='ts'; ts.textContent=shortTs(p.date); cap.appendChild(ts);
+    c.appendChild(cap); g.appendChild(c); });
   body.innerHTML=''; body.appendChild(g);
   if(r.truncated) body.insertAdjacentHTML('beforeend','<div class="empty">'+L('מוצגות 40 התמונות האחרונות','Showing the latest 40 photos')+'</div>');
 }
@@ -491,11 +500,12 @@ function dashRenderExpenses(r){ const body=$('dashbody'); const ex=(r&&r.expense
   if(!ex.length){ dashEmpty(L('עדיין אין הוצאות','No expenses yet')); return; }
   body.innerHTML='';
   ex.forEach(e=>{ const amt=(e.amount||e.amount===0)?(e.amount+' '+(e.currency||'')):'';
-    const meta=[e.category, e.date, e.method, e.author].filter(Boolean).join(' · ');
+    const meta=[e.category, e.method, e.author].filter(Boolean).join(' · ');
     const d=document.createElement('div'); d.className='dcard';
     d.innerHTML='<div class="row1"><span>'+escapeHtml(e.description||e.category||'')+'</span><span class="amt">'+escapeHtml(amt)+'</span></div>'+
-      '<div class="meta">'+escapeHtml(meta)+'</div>'+
-      (e.receipt?('<div style="margin-top:6px"><a href="'+escapeHtml(e.receipt)+'" target="_blank" rel="noopener">🧾 '+L('פתח קבלה','Open receipt')+'</a></div>'):'');
+      (meta?('<div class="meta">'+escapeHtml(meta)+'</div>'):'')+
+      (e.receipt?('<div style="margin-top:6px"><a href="'+escapeHtml(e.receipt)+'" target="_blank" rel="noopener">🧾 '+L('פתח קבלה','Open receipt')+'</a></div>'):'')+
+      '<div class="ts">'+escapeHtml(shortTs(e.date))+'</div>';
     body.appendChild(d); });
 }
 function dashRenderDocs(r){ const body=$('dashbody'); const fs=(r&&r.files)||[];
@@ -503,8 +513,8 @@ function dashRenderDocs(r){ const body=$('dashbody'); const fs=(r&&r.files)||[];
   body.innerHTML='';
   fs.forEach(f=>{ const d=document.createElement('div'); d.className='dcard';
     d.innerHTML='<div class="row1"><span>📄 '+escapeHtml(f.name||'')+'</span></div>'+
-      '<div class="meta">'+escapeHtml(String(f.date||'').slice(0,10))+'</div>'+
-      '<div style="margin-top:6px"><a href="'+escapeHtml(f.url||'#')+'" target="_blank" rel="noopener">'+L('פתח ב-Drive','Open in Drive')+'</a></div>';
+      '<div style="margin-top:6px"><a href="'+escapeHtml(f.url||'#')+'" target="_blank" rel="noopener">'+L('פתח ב-Drive','Open in Drive')+'</a></div>'+
+      '<div class="ts">'+escapeHtml(shortTs(f.date))+'</div>';
     body.appendChild(d); });
 }
 
@@ -585,7 +595,7 @@ $('exEditBtn').onclick=async()=>{
   const r=await api({ action:'list_expenses', tripId:getTripId() }); const list=$('exList'); list.innerHTML='';
   if(r.ok && r.expenses && r.expenses.length){
     r.expenses.forEach(e=>{ const d=document.createElement('div'); d.className='trip';
-      d.textContent='💶 '+e.date+' · '+e.category+' · '+e.amount+' '+e.currency+(e.description?(' · '+e.description):'');
+      d.innerHTML='<span>💶 '+escapeHtml(e.category+' · '+e.amount+' '+e.currency+(e.description?(' · '+e.description):''))+'</span><span class="ts">'+escapeHtml(shortTs(e.date))+'</span>';
       d.onclick=()=>{ editingId=e.id; $('exAmount').value=e.amount; $('exDesc').value=e.description||'';
         if([...$('exCurrency').options].some(o=>o.value===e.currency)) $('exCurrency').value=e.currency;
         const o=[...$('exCategory').options].find(x=>x.value===e.category); if(o) $('exCategory').value=e.category;
@@ -1029,7 +1039,7 @@ async function refreshFood(){
   if(!navigator.onLine) return;
   try{ const r=await api({ action:'list_food', tripId:getTripId() }); const el=$('foodList'); el.innerHTML='';
     (r.food||[]).slice(0,25).forEach(f=>{ const d=document.createElement('div'); d.className='litem'; d.style.display='block';
-      d.innerHTML='<b>'+escapeHtml(f.date)+(f.kind?(' · '+escapeHtml(f.kind)):'')+(f.author?(' · '+escapeHtml(f.author)):'')+'</b><br>'+escapeHtml(f.text); el.appendChild(d); });
+      d.innerHTML=escapeHtml(f.text)+'<div class="ts">'+[f.kind,f.author,shortTs(f.date)].filter(Boolean).map(escapeHtml).join(' · ')+'</div>'; el.appendChild(d); });
   }catch(e){}
 }
 $('foodbtn').onclick=openFood;
