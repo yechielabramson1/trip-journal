@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v44';
+const APP_VER='v45';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -481,7 +481,7 @@ async function dashTab(tab){
   try{
     if(tab==='photos'){ const r=await api({action:'list_gallery', tripId:getTripId(), limit:40}); dashRenderGallery(r); }
     else if(tab==='expenses'){ const r=await api({action:'list_expenses', tripId:getTripId()}); dashRenderExpenses(r); }
-    else { const r=await api({action:'list_files', tripId:getTripId(), category:'document'}); dashRenderDocs(r); }
+    else { const r=await api({action:'list_files', tripId:getTripId(), category:'document'}); let srcs=[]; try{ const ri=await api({action:'list_itinerary', tripId:getTripId()}); srcs=(ri.items||[]).filter(x=>x.sourceUrl && isTrustedSource(x.sourceUrl)); }catch(e){} dashRenderDocs(r, srcs); }
   }catch(e){ dashEmpty(L('אין חיבור — נסה שוב','No connection — try again')); }
 }
 function dashRenderGallery(r){ const body=$('dashbody'); const ph=(r&&r.photos)||[];
@@ -508,13 +508,20 @@ function dashRenderExpenses(r){ const body=$('dashbody'); const ex=(r&&r.expense
       '<div class="ts">'+escapeHtml(shortTs(e.date))+'</div>';
     body.appendChild(d); });
 }
-function dashRenderDocs(r){ const body=$('dashbody'); const fs=(r&&r.files)||[];
-  if(!fs.length){ dashEmpty(L('עדיין אין מסמכים','No documents yet')); return; }
+function dashRenderDocs(r, srcs){ const body=$('dashbody'); const fs=(r&&r.files)||[]; srcs=srcs||[];
+  if(!fs.length && !srcs.length){ dashEmpty(L('עדיין אין מסמכים','No documents yet')); return; }
   body.innerHTML='';
   fs.forEach(f=>{ const d=document.createElement('div'); d.className='dcard';
     d.innerHTML='<div class="row1"><span>📄 '+escapeHtml(f.name||'')+'</span></div>'+
       '<div style="margin-top:6px"><a href="'+escapeHtml(f.url||'#')+'" target="_blank" rel="noopener">'+L('פתח ב-Drive','Open in Drive')+'</a></div>'+
       '<div class="ts">'+escapeHtml(shortTs(f.date))+'</div>';
+    body.appendChild(d); });
+  srcs.forEach(it=>{ const d=document.createElement('div'); d.className='dcard';
+    const isBk=/booking\.com/i.test(it.sourceUrl);
+    d.innerHTML='<div class="row1"><span>🔗 '+escapeHtml(it.title||L('הזמנה','Booking'))+'</span></div>';
+    const w=document.createElement('div'); w.style.marginTop='6px';
+    const a=document.createElement('a'); a.href='#'; a.textContent=isBk?L('פתח בבוקינג','Open in Booking'):L('פתח מקור','Open source');
+    a.onclick=(e)=>{ e.preventDefault(); openSource(it.sourceUrl); }; w.appendChild(a); d.appendChild(w);
     body.appendChild(d); });
 }
 
@@ -640,6 +647,11 @@ $('exSave').onclick=async()=>{
 let itinItems=[], itinStart='', itinDays=0, editItem=null, itinDayView=null;
 function toMin(t){ if(!t) return null; const p=String(t).split(':'); if(p.length<2) return null; return (+p[0])*60+(+p[1]); }
 const TYPE_ICON={activity:'🥾',sight:'📸',meal:'🍽️',hotel:'🏨',travel:'🚗'};
+// קישור-מקור (Booking וכו') — דומיינים אמינים בלבד, אישור לפני פתיחה, ללא פתיחה אוטומטית
+function isTrustedSource(u){ try{ const h=new URL(u).hostname.toLowerCase(); return /(^|\.)(booking\.com|airbnb\.com|agoda\.com|expedia\.com|hotels\.com)$/.test(h); }catch(e){ return false; } }
+function openSource(url){ if(!isTrustedSource(url)){ alert(L('קישור-מקור לא מזוהה','Unrecognized source link')); return; }
+  let host=''; try{ host=new URL(url).hostname; }catch(e){}
+  if(confirm(L('לפתוח את קישור-המקור?\n','Open the source link?\n')+host+'\n'+url)) window.open(url,'_blank','noopener'); }
 function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function parseYmd(s){ const p=String(s).split('-'); return new Date(+p[0], (+p[1]||1)-1, (+p[2]||1)); }
 function dayLabel(s){ try{ return parseYmd(s).toLocaleDateString(uiLang()==='en'?'en-GB':'he-IL',{weekday:'long',day:'2-digit',month:'2-digit'}); }catch(e){ return s; } }
@@ -674,6 +686,10 @@ function itemCard(it, withLinks){
     links+='<a class="lnk" href="waze://?q='+eq+'&navigate=yes" onclick="event.stopPropagation()">🚗 Waze</a>'; }
   const sub=[it.location, it.notes].filter(Boolean).map(escapeHtml).join(' · ');
   c.innerHTML='<div class="t">'+escapeHtml(tm||'—')+'</div><div class="bd"><div class="ttl">'+(TYPE_ICON[it.type]||'•')+' '+escapeHtml(it.title||'')+'</div>'+(sub?('<div class="sub">'+sub+'</div>'):'')+(links?('<div class="sub">'+links+'</div>'):'')+'</div>';
+  if(it.sourceUrl && isTrustedSource(it.sourceUrl)){ const bd=c.querySelector('.bd'); const w=document.createElement('div'); w.className='sub';
+    const a=document.createElement('a'); a.className='lnk'; a.href='#';
+    a.textContent='🔗 '+(/booking\.com/i.test(it.sourceUrl)?L('פתח בבוקינג','Open in Booking'):L('פתח מקור','Open source'));
+    a.onclick=(e)=>{ e.stopPropagation(); e.preventDefault(); openSource(it.sourceUrl); }; w.appendChild(a); bd.appendChild(w); }
   return c;
 }
 function renderOverview(){
@@ -763,7 +779,7 @@ $('itSave').onclick=async()=>{
   if(!navigator.onLine){ alert(L('עריכת תכנית דורשת חיבור','Editing the plan requires a connection')); return; }
   $('itSave').disabled=true;
   const item={ day:$('itDay').value, time:$('itTime').value, endTime:$('itEnd').value, title, type:$('itType').value, location:$('itLoc').value.trim(), address:$('itAddr').value.trim(), notes:$('itNotes').value.trim() };
-  if(editItem){ item.id=editItem.id; item.order=editItem.order; }
+  if(editItem){ item.id=editItem.id; item.order=editItem.order; item.sourceUrl=editItem.sourceUrl||''; }
   try{ const r=await api({action:'save_item', tripId:getTripId(), item}); if(r.ok){ $('itemgate').hidden=true; await reloadItin(); } else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור','No connection')); } finally{ $('itSave').disabled=false; }
 };
@@ -791,6 +807,7 @@ $('itinAskBtn').onclick=async()=>{
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
   try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
     if(r.savedDocs && r.savedDocs.length) logLine(L('📁 נשמרו '+r.savedDocs.length+' מסמכים מהמייל','📁 Saved '+r.savedDocs.length+' documents from email'));
+    if(r.sourceLinks) logLine(L('🔗 '+r.sourceLinks+' פריטים קושרו למקור-הזמנה','🔗 '+r.sourceLinks+' items linked to a booking source'));
     if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin(); } else alert(L('שגיאה: ','Error: ')+(r.error||''));
   }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
 };
