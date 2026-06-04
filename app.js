@@ -469,12 +469,17 @@ $('dayeditClose').onclick=()=>{ $('dayeditgate').hidden=true; };
 // תווית-יום קריאה: "יום N · רביעי 01/07" (יום-בשבוע + תאריך → המשתמש תופס יום שגוי מיד)
 const HEB_WD=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
 function journalDayLabel(day, index){ if(!day) return '';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(day)) return (index?(L('יום ','Day ')+index+' · '):'')+day;   // יום לא-תקני (נתון ישן/מלוכלך) — הצג כמו שהוא
   const dt=new Date(day+'T12:00:00');
   const wd = uiLang()==='en' ? dt.toLocaleDateString('en-US',{weekday:'long'}) : ('יום '+HEB_WD[dt.getDay()]);
   const dd=String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0');
   return (index?(L('יום ','Day ')+index+' · '):'')+wd+' '+dd; }
-// תווית-יום לפריט-תכנית: ממפה תאריך → מספר-יום-בטיול + יום-בשבוע + תאריך (כך המשתמש תופס יום שגוי)
-function itinDayLabel(day){ if(!day) return ''; const i=(typeof dayList==='function')?dayList().indexOf(day):-1; return journalDayLabel(day, i>=0?i+1:''); }
+// תווית-יום לפריט-תכנית: מספר-יום מחושב מ-startDate (עמיד לנתון מלוכלך) + יום-בשבוע + תאריך
+function itinDayLabel(day){ if(!day||!/^\d{4}-\d{2}-\d{2}$/.test(day)) return journalDayLabel(day);
+  let idx=''; try{ const t=cachedTrips().find(x=>x.tripId===getTripId());
+    if(t&&t.startDate){ const d0=new Date(t.startDate+'T12:00:00'), d1=new Date(day+'T12:00:00');
+      const n=Math.round((d1-d0)/86400000)+1; if(n>=1) idx=n; } }catch(e){}
+  return journalDayLabel(day, idx); }
 // ספר מלא/ללא-יום → בורר-יום פשוט לפני העריכה
 async function openDayPickerForJournalEdit(){
   $('dayeditHdr').textContent=L('בחר יום לעריכת רשומות','Pick a day to edit entries');
