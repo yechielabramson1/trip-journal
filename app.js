@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v49';
+const APP_VER='v50';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -298,7 +298,11 @@ function bkBusy(on, msg){ ['bkBuild','bkCancel','bkVoice','bkScope'].forEach(id=
 function bkProgress(msg){ const p=$('bkProgress'); p.hidden=false; p.textContent=msg; }
 function logBookStats(s){ const ai = s.voiceFallback ? L(' · נכתב אותנטי (AI לא זמין)',' · authentic (AI unavailable)') : (s.aiUsed ? L(' · עם נרטיב AI',' · with AI narrative') : ''); logLine(T().book_done+' · '+(s.entries||0)+' '+L('רשומות','entries')+', '+(s.photos||0)+' '+L('תמונות','photos')+', '+Math.round((s.bytes||0)/1024)+'KB'+ai); }
 
-$('makebook').onclick=async()=>{
+// 📖 כפתור ראשי = פתיחה מהירה של הספר האחרון (בלי build). אין ספר → פותח את שער-הבנייה.
+$('makebook').onclick=()=>openLatestBook();
+// 🔄 עדכן/בנה ספר — פעולת-בנייה מפורשת (השער הקיים)
+$('rebuildbook').onclick=()=>{ if(!ensureTrip()) return; openBuildGate(); };
+async function openBuildGate(){
   if(!ensureTrip()) return;
   closeDrawer(); bkBusy(false); $('bkProgress').hidden=true;
   $('bookmeta').textContent=L('טוען…','Loading…'); $('bookgate').hidden=false;
@@ -309,7 +313,7 @@ $('makebook').onclick=async()=>{
     $('bookmeta').textContent = nd+' '+L('ימים עם תוכן','days')+' · '+np+' '+L('תמונות','photos')+(long?(' · '+L('מומלץ: לפי פרקים','recommended: chapters')):'');
     $('bkScope').value = long ? 'chapters' : 'all'; onScopeChange();
   }catch(e){ storyDaysCache=[]; $('bookmeta').textContent=''; }
-};
+}
 function onScopeChange(){
   const sc=$('bkScope').value; $('bkRange').hidden = (sc!=='range');
   if(sc==='range' && storyDaysCache && storyDaysCache.length){
@@ -334,6 +338,8 @@ async function buildSingle(params){
     const r=await api(Object.assign({ action:'build_story_book', tripId:getTripId() }, params));
     if(r.ok && r.htmlB64){ logBookStats(r.stats||{}); $('bookgate').hidden=true;
       const oneDay=(params.scope==='range' && params.fromDay===params.toDay)?params.fromDay:'';   // ספר של יום בודד → כפתור 📸 רלוונטי
+      bookChapters=[]; bookBuildId='';
+      saveBookManifest('single', params.voice, { fileId:r.fileId, bytes:(r.stats&&r.stats.bytes)||0, scope:params.scope, day:oneDay, dayIndex:'' });
       openBookView(b64ToUtf8(r.htmlB64), r.url, oneDay?{day:oneDay,index:''}:null); }
     else if(r.ok && r.tooBig){ alert(L('📖 הספר גדול מדי לתצוגה — בחר "לפי פרקים". הקובץ נשמר בדרייב.','📖 Too large to display — choose "chapters". Saved to Drive.')); }
     else if(r && r.service){ alert(L('⏳ הבנייה ארכה — נסה "לפי פרקים"','⏳ Took too long — try "chapters"')); }
@@ -345,8 +351,20 @@ async function buildSingle(params){
 // ----- chaptered: לולאת בקשות-יום ב-PWA (פרק=בקשה אחת, קריאת-AI אחת לכל היותר) -----
 async function buildDayChapter_(d, voice){
   const r=await api({ action:'build_story_book', tripId:getTripId(), voice, scope:'chapter', day:d.day, dayIndex:d.index, buildId:bookBuildId, maxPhotos:8 });
-  if(r.ok && r.htmlB64){ bookChapters.push({ index:d.index, label:L('יום ','Day ')+d.index, day:d.day, htmlB64:r.htmlB64, aiUsed:(r.stats&&r.stats.aiUsed) }); return true; }
+  if(r.ok && r.htmlB64){ bookChapters.push({ index:d.index, label:L('יום ','Day ')+d.index, day:d.day, fileId:r.fileId||'', htmlB64:r.htmlB64, aiUsed:(r.stats&&r.stats.aiUsed) }); return true; }
   return false;
+}
+// 📚 שמירת מצביע ל-Drive של הבנייה האחרונה — כך "פתח ספר" קורא מיד בלי build
+async function saveBookManifest(mode, voice, single){
+  try{
+    if(mode==='chaptered'){
+      const chapters=bookChapters.map(c=>({ index:c.index, day:c.day, label:c.label, fileId:c.fileId, aiUsed:c.aiUsed }));
+      if(!chapters.length || !chapters.every(c=>c.fileId)) return;   // לא שומרים manifest חלקי
+      await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'chaptered', scope:'chapters', voice, buildId:bookBuildId, chapters, stats:{ chapters:chapters.length, aiChapters:bookChapters.filter(c=>c.aiUsed).length } } });
+    } else if(single && single.fileId){
+      await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'single', scope:single.scope, voice, fullBook:single } });
+    }
+  }catch(e){}
 }
 async function buildChaptered(voice){
   const days=(storyDaysCache||[]).slice();
@@ -363,6 +381,7 @@ async function buildChaptered(voice){
   bookChapters.sort((a,b)=>a.index-b.index);
   const aiN=bookChapters.filter(c=>c.aiUsed).length;
   logLine('📚 '+bookChapters.length+' '+L('פרקים','chapters')+(aiN?(' · '+aiN+' '+L('עם נרטיב','with narrative')):'')+(failed.length?(' · '+failed.length+' '+L('נכשלו','failed')):''));
+  if(!failed.length) saveBookManifest('chaptered', voice);   // ספר שלם → שמור מצביע ל"מדף"
   $('bookgate').hidden=true; openChapteredView(failed, voice);
 }
 async function retryFailed(failed, voice){
@@ -371,6 +390,7 @@ async function retryFailed(failed, voice){
   for(let i=0;i<failed.length;i++){ bkProgress(L('בונה מחדש ','Rebuilding ')+(i+1)+'/'+failed.length+'…');
     try{ if(!await buildDayChapter_(failed[i], voice)) still.push(failed[i]); }catch(e){ still.push(failed[i]); } }
   bookChapters.sort((a,b)=>a.index-b.index);
+  if(!still.length) saveBookManifest('chaptered', voice);   // הושלם → רענן את ה"מדף"
   openChapteredView(still, voice);
 }
 
@@ -391,13 +411,52 @@ function openChapteredView(failed, voice){
   $('bookview').hidden=false; document.body.style.overflow='hidden';
   showChapter(0);
 }
-function showChapter(idx){
+async function showChapter(idx){
   const c=bookChapters[idx]; if(!c) return;
   currentChapterIdx=idx; setBookDay(c.day, c.index); $('bookedit').hidden=false;   // עריכת-יום זמינה במצב-פרקים
-  $('bookframe').srcdoc=b64ToUtf8(c.htmlB64);   // רק הפרק הנבחר ב-iframe (זיכרון נמוך)
   Array.prototype.forEach.call($('bookchips').querySelectorAll('.chip:not(.fail)'), (el,i)=>el.classList.toggle('on', i===idx));
+  if(!c.htmlB64 && c.fileId){   // "מדף": פרק נטען עצלן מ-Drive בלחיצה (בלי build)
+    $('bookframe').srcdoc='<!doctype html><meta charset=utf-8><body style="font-family:system-ui;padding:24px;color:#64748b;direction:rtl">'+L('טוען פרק…','Loading chapter…')+'</body>';
+    try{ const r=await api({ action:'get_story_book_chapter', tripId:getTripId(), fileId:c.fileId });
+      if(r.ok && r.htmlB64) c.htmlB64=r.htmlB64; }catch(e){}
+  }
+  if(currentChapterIdx!==idx) return;   // המשתמש עבר פרק בזמן הטעינה
+  $('bookframe').srcdoc = c.htmlB64 ? b64ToUtf8(c.htmlB64)
+    : '<!doctype html><meta charset=utf-8><body style="font-family:system-ui;padding:24px;direction:rtl">'+L('הפרק לא נטען — נסה 🔄 לבנות מחדש','Chapter failed — try 🔄 rebuild')+'</body>';
 }
-$('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; $('bookchips').hidden=true; $('bookchips').innerHTML=''; bookChapters=[]; currentChapterIdx=-1; $('bookedit').hidden=true; setBookDay('',''); document.body.style.overflow=''; };
+// 📚 פתיחה מהירה: קורא את הספר האחרון מ-Drive (manifest) בלי לבנות. אין ספר → שער-בנייה.
+async function openLatestBook(){
+  if(!ensureTrip()) return;
+  closeDrawer();
+  let r; try{ r=await api({ action:'get_story_book_latest', tripId:getTripId() }); }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); return; }
+  if(r && r.empty) return openBuildGate();                                   // אין ספר עדיין → צור ראשון
+  if(r && r.stale){ alert(L('הספר השמור חסר — בונים מחדש','Saved book missing — rebuilding')); return openBuildGate(); }
+  if(!r || !r.ok){ alert(L('שגיאה: ','Error: ')+((r&&r.error)||'')); return openBuildGate(); }
+  if(r.mode==='chaptered'){
+    bookBuildId=String(Date.now());   // עריכות/rebuild מ"מדף" יקובצו לתת-תיקייה חדשה
+    bookChapters=(r.chapters||[]).map(c=>({ index:c.index, label:c.label||(L('יום ','Day ')+c.index), day:c.day, fileId:c.fileId, aiUsed:c.aiUsed, htmlB64:null }));
+    if(r.firstHtmlB64 && bookChapters[0]) bookChapters[0].htmlB64=r.firstHtmlB64;
+    if(!bookChapters.length) return openBuildGate();
+    openChapteredView([], r.voice||'authentic');
+  } else {
+    if(r.tooBig){ if(r.url) window.open(r.url,'_blank'); alert(L('📖 הספר גדול לתצוגה — נפתח בדרייב','📖 Too large — opened in Drive')); return; }
+    if(!r.htmlB64) return openBuildGate();
+    bookChapters=[]; bookBuildId='';
+    openBookView(b64ToUtf8(r.htmlB64), r.url, r.day?{day:r.day,index:r.dayIndex}:null);
+  }
+  setBookTitleMeta(r);
+}
+function setBookTitleMeta(r){   // כותרת: "📖 ספר המסע · עודכן <מתי>" + סימון אם יש תוכן חדש מאז
+  let s='📖 '+L('ספר המסע','Story Book');
+  if(r&&r.createdLabel) s+=' · '+L('עודכן ','updated ')+r.createdLabel;
+  $('booktitle').textContent=s;
+  $('bookrebuild').classList.toggle('hasnew', !!(r&&r.hasUpdates));
+  $('bookrebuild').title = (r&&r.hasUpdates) ? L('יש תוכן חדש מאז הבנייה — עדכן','New content since build — update') : L('עדכן/בנה מחדש','Update / rebuild');
+}
+$('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; $('bookchips').hidden=true; $('bookchips').innerHTML=''; bookChapters=[]; currentChapterIdx=-1; $('bookedit').hidden=true; setBookDay('',''); $('booktitle').textContent='📖 '+L('ספר המסע','Story Book'); $('bookrebuild').classList.remove('hasnew'); document.body.style.overflow=''; };
+// 🔄 עדכן/בנה מחדש — מתוך ה-viewer (פותח את שער-הבנייה)
+$('bookrebuild').onclick=()=>openBuildGate();
 
 // ✏️ עריכת/מחיקת רשומות-יומן של היום הנוכחי, מתוך ספר-המסע (מצב-פרקים) → בונה מחדש את הפרק
 $('bookedit').onclick=()=>{ if(currentBookDay && currentChapterIdx>=0) openDayEditor(); };
@@ -434,8 +493,12 @@ async function deleteJournalEntry(id){ if(!confirm(L('למחוק לחלוטין 
 async function rebuildCurrentChapter(){   // בונה מחדש את פרק-היום הנוכחי ומרענן את ה-iframe
   if(currentChapterIdx<0) return; const ch=bookChapters[currentChapterIdx]; if(!ch) return;
   const voice=(/* keep authentic on rebuild to avoid AI cost unless chapter had AI */ ch.aiUsed?'combined':'authentic');
-  try{ const r=await api({action:'build_story_book', tripId:getTripId(), scope:'chapter', day:ch.day, dayIndex:ch.index, buildId:bookBuildId||String(Date.now()), maxPhotos:8, voice});
-    if(r.ok && r.htmlB64){ ch.htmlB64=r.htmlB64; if($('dayeditgate').hidden) showChapter(currentChapterIdx); else $('bookframe').srcdoc=b64ToUtf8(r.htmlB64); } }catch(e){}
+  if(!bookBuildId) bookBuildId=String(Date.now());
+  try{ const r=await api({action:'build_story_book', tripId:getTripId(), scope:'chapter', day:ch.day, dayIndex:ch.index, buildId:bookBuildId, maxPhotos:8, voice});
+    if(r.ok && r.htmlB64){ ch.htmlB64=r.htmlB64; if(r.fileId) ch.fileId=r.fileId;
+      if($('dayeditgate').hidden) showChapter(currentChapterIdx); else $('bookframe').srcdoc=b64ToUtf8(r.htmlB64);
+      saveBookManifest('chaptered', voice);   // עריכה מ"מדף" → עדכן את המצביע לפרק החדש
+    } }catch(e){}
 }
 
 // 📸 POC — "עוד תמונות מהיום": גשר ל-Apple Photos דרך iOS Shortcut. שולח רק תאריך+שם-טיול.
