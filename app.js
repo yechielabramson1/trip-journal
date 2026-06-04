@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v43';
+const APP_VER='v44';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -780,9 +780,17 @@ $('itinUndo').onclick=async()=>{
 $('itinAskBtn').onclick=async()=>{
   const q=$('itinAsk').value.trim(); if(!q) return;
   if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
-  if(/ייבא|מה?מייל|מה?אימייל|מה?דוא|from .*e-?mail|import|gmail/i.test(q) && !confirm(L('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail ותשלח תקציר ל-AI. להמשיך?','This will read up to 6 recent booking emails from Gmail and send a summary to the AI. Continue?'))) return;
+  const wantsEmail=/ייבא|מייל|אימייל|דוא|דואר|email|e-?mail|gmail|import/i.test(q);
+  const wantsDocs=/שמור.*(מסמכ|pdf|קבצ|מצורף|צרופ)|save.*(document|attachment|pdf)/i.test(q);
+  if(wantsEmail){
+    const msg = wantsDocs
+      ? L('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail, תשמור עד 5 PDF רלוונטיים בתיקיית "מסמכים", ותשלח תקציר ל-AI. להמשיך?','This will read up to 6 recent booking emails, save up to 5 relevant PDFs to "Documents", and send a summary to the AI. Continue?')
+      : L('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail ותשלח תקציר ל-AI. להמשיך?','This will read up to 6 recent booking emails from Gmail and send a summary to the AI. Continue?');
+    if(!confirm(msg)) return;
+  }
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
   try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
+    if(r.savedDocs && r.savedDocs.length) logLine(L('📁 נשמרו '+r.savedDocs.length+' מסמכים מהמייל','📁 Saved '+r.savedDocs.length+' documents from email'));
     if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin(); } else alert(L('שגיאה: ','Error: ')+(r.error||''));
   }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
 };
