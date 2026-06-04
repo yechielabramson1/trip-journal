@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v51';
+const APP_VER='v52';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -401,7 +401,7 @@ async function retryFailed(failed, voice){
 // ----- viewer: פרק אחד בזיכרון בכל רגע (lazy) -----
 function setBookDay(day, index){ currentBookDay=day||''; currentDayIndex=index||''; $('bookmore').hidden = !currentBookDay; }
 function openBookView(html, driveUrl, dayInfo){
-  $('bookchips').hidden=true; $('bookchips').innerHTML=''; currentChapterIdx=-1; $('bookedit').hidden=true;   // עריכה זמינה רק במצב-פרקים
+  $('bookchips').hidden=true; $('bookchips').innerHTML=''; currentChapterIdx=-1; $('bookedit').hidden=false;   // ✏️ זמין בכל מצב (יום נוכחי → אותו יום; ספר מלא → בורר-יום)
   setBookDay(dayInfo&&dayInfo.day, dayInfo&&dayInfo.index);
   $('bookframe').srcdoc=html;
   const dl=$('bookdrive'); dl.href=driveUrl||'#'; dl.style.display=driveUrl?'inline':'none';
@@ -411,7 +411,7 @@ function openChapteredView(failed, voice){
   const chips=$('bookchips'); chips.innerHTML=''; chips.hidden=false;
   bookChapters.forEach((c,idx)=>{ const b=document.createElement('button'); b.className='chip'; b.textContent=c.label; b.onclick=()=>showChapter(idx); chips.appendChild(b); });
   if(failed && failed.length){ const rb=document.createElement('button'); rb.className='chip fail'; rb.textContent='↻ '+failed.length+' '+L('נכשלו','failed'); rb.onclick=()=>retryFailed(failed, voice); chips.appendChild(rb); }
-  $('bookdrive').style.display='none';
+  $('bookdrive').style.display='none'; $('bookedit').hidden=false;
   $('bookview').hidden=false; document.body.style.overflow='hidden';
   showChapter(0);
 }
@@ -462,14 +462,41 @@ $('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''
 // 🔄 עדכן/בנה מחדש — מתוך ה-viewer (פותח את שער-הבנייה)
 $('bookrebuild').onclick=()=>openBuildGate();
 
-// ✏️ עריכת/מחיקת רשומות-יומן של היום הנוכחי, מתוך ספר-המסע (מצב-פרקים) → בונה מחדש את הפרק
-$('bookedit').onclick=()=>{ if(currentBookDay && currentChapterIdx>=0) openDayEditor(); };
+// ✏️ עריכת/מחיקת רשומות-יומן — זמין בכל מצב-קריאה. יום נוכחי → אותו יום; ספר מלא → בורר-יום.
+let editingDay='';
+$('bookedit').onclick=()=>{ if(currentBookDay) openDayEditor(currentBookDay); else openDayPickerForJournalEdit(); };
 $('dayeditClose').onclick=()=>{ $('dayeditgate').hidden=true; };
-async function openDayEditor(){
-  $('dayeditHdr').textContent=L('✏️ עריכת רשומות היום','✏️ Edit this day\'s entries');
+// תווית-יום קריאה: "יום N · רביעי 01/07" (יום-בשבוע + תאריך → המשתמש תופס יום שגוי מיד)
+const HEB_WD=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+function journalDayLabel(day, index){ if(!day) return '';
+  const dt=new Date(day+'T12:00:00');
+  const wd = uiLang()==='en' ? dt.toLocaleDateString('en-US',{weekday:'long'}) : ('יום '+HEB_WD[dt.getDay()]);
+  const dd=String(dt.getDate()).padStart(2,'0')+'/'+String(dt.getMonth()+1).padStart(2,'0');
+  return (index?(L('יום ','Day ')+index+' · '):'')+wd+' '+dd; }
+// תווית-יום לפריט-תכנית: ממפה תאריך → מספר-יום-בטיול + יום-בשבוע + תאריך (כך המשתמש תופס יום שגוי)
+function itinDayLabel(day){ if(!day) return ''; const i=(typeof dayList==='function')?dayList().indexOf(day):-1; return journalDayLabel(day, i>=0?i+1:''); }
+// ספר מלא/ללא-יום → בורר-יום פשוט לפני העריכה
+async function openDayPickerForJournalEdit(){
+  $('dayeditHdr').textContent=L('בחר יום לעריכת רשומות','Pick a day to edit entries');
   $('dayeditBody').innerHTML='<div class="empty">'+L('טוען…','Loading…')+'</div>'; $('dayeditgate').hidden=false;
   if(!navigator.onLine){ $('dayeditBody').innerHTML='<div class="empty">'+L('צריך חיבור','Connection needed')+'</div>'; return; }
-  try{ const r=await api({action:'list_journal_day', tripId:getTripId(), day:currentBookDay});
+  let days=[];
+  if(bookChapters.length) days=bookChapters.map(c=>({day:c.day,index:c.index}));
+  else { try{ const r=await api({action:'story_days', tripId:getTripId()}); days=(r.days||[]).map(d=>({day:d.day,index:d.index})); }catch(e){} }
+  const body=$('dayeditBody'); body.innerHTML='';
+  if(!days.length){ body.innerHTML='<div class="empty">'+L('אין ימים עם תוכן','No days with content')+'</div>'; return; }
+  const wrap=document.createElement('div'); wrap.className='daypick';
+  days.forEach(d=>{ const b=document.createElement('button'); b.className='dpick'; b.textContent=journalDayLabel(d.day,d.index); b.onclick=()=>openDayEditor(d.day, d.index); wrap.appendChild(b); });
+  body.appendChild(wrap);
+}
+async function openDayEditor(day, index){
+  editingDay = day || currentBookDay || '';
+  if(!editingDay) return openDayPickerForJournalEdit();
+  if(index==null){ const ch=bookChapters.find(c=>c.day===editingDay); index=ch?ch.index:(editingDay===currentBookDay?currentDayIndex:''); }
+  $('dayeditHdr').textContent='✏️ '+(journalDayLabel(editingDay,index)||L('עריכת רשומות היום','Edit this day\'s entries'));
+  $('dayeditBody').innerHTML='<div class="empty">'+L('טוען…','Loading…')+'</div>'; $('dayeditgate').hidden=false;
+  if(!navigator.onLine){ $('dayeditBody').innerHTML='<div class="empty">'+L('צריך חיבור','Connection needed')+'</div>'; return; }
+  try{ const r=await api({action:'list_journal_day', tripId:getTripId(), day:editingDay});
     const ents=(r.entries||[]); const body=$('dayeditBody'); body.innerHTML='';
     if(!ents.length){ body.innerHTML='<div class="empty">'+L('אין רשומות-יומן ביום זה','No journal entries for this day')+'</div>'; return; }
     ents.forEach(e=>{ const d=document.createElement('div'); d.className='jent';
@@ -485,24 +512,30 @@ async function openDayEditor(){
 async function saveJournalEntry(id, text, btn){ text=(text||'').trim(); if(!text){ alert(L('טקסט ריק','Empty text')); return; }
   const o=btn.textContent; btn.disabled=true; btn.textContent='…';
   try{ const r=await api({action:'update_journal', tripId:getTripId(), entryId:id, text});
-    if(r.ok){ await rebuildCurrentChapter(); logLine(L('✏️ רשומה עודכנה','✏️ Entry updated')); }
+    if(r.ok){ logLine(L('✏️ רשומה עודכנה','✏️ Entry updated')); await afterJournalChange(editingDay); }
     else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ btn.disabled=false; btn.textContent=o; } }
 async function deleteJournalEntry(id){ if(!confirm(L('למחוק לחלוטין את רשומת-היומן הזו?','Permanently delete this journal entry?'))) return;
   try{ const r=await api({action:'delete_journal', tripId:getTripId(), entryId:id});
-    if(r.ok){ logLine(L('🗑️ רשומה נמחקה','🗑️ Entry deleted')); await rebuildCurrentChapter(); openDayEditor(); }
+    if(r.ok){ logLine(L('🗑️ רשומה נמחקה','🗑️ Entry deleted')); await afterJournalChange(editingDay); openDayEditor(editingDay); }
     else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } }
-async function rebuildCurrentChapter(){   // בונה מחדש את פרק-היום הנוכחי ומרענן את ה-iframe
-  if(currentChapterIdx<0) return; const ch=bookChapters[currentChapterIdx]; if(!ch) return;
-  const voice=(/* keep authentic on rebuild to avoid AI cost unless chapter had AI */ ch.aiUsed?'combined':'authentic');
+// אחרי עריכה/מחיקה: אם יש פרק תואם ליום → בנה אותו מחדש בלבד; אחרת toast (לא בונים full book אוטומטית)
+async function afterJournalChange(day){
+  let rebuilt=false;
+  if(bookChapters.length){ try{ rebuilt=await rebuildChapterForDay(day); }catch(e){} }
+  if(!rebuilt) toast(L('היומן עודכן · 🔄 עדכן ספר כדי לראות שינוי מלא','Journal updated · 🔄 rebuild to see the full change'));
+}
+async function rebuildChapterForDay(day){   // בונה מחדש פרק-יום מסוים (אם קיים), מרענן iframe אם זה הפרק המוצג
+  const idx=bookChapters.findIndex(c=>c.day===day); if(idx<0) return false;
+  const ch=bookChapters[idx]; const voice=(ch.aiUsed?'combined':'authentic');
   if(!bookBuildId) bookBuildId=String(Date.now());
-  try{ const r=await api({action:'build_story_book', tripId:getTripId(), scope:'chapter', day:ch.day, dayIndex:ch.index, buildId:bookBuildId, maxPhotos:8, voice});
-    if(r.ok && r.htmlB64){ ch.htmlB64=r.htmlB64; if(r.fileId) ch.fileId=r.fileId;
-      if($('dayeditgate').hidden) showChapter(currentChapterIdx); else $('bookframe').srcdoc=b64ToUtf8(r.htmlB64);
-      saveBookManifest('chaptered', voice);   // עריכה מ"מדף" → עדכן את המצביע לפרק החדש
-    } }catch(e){}
+  const r=await api({action:'build_story_book', tripId:getTripId(), scope:'chapter', day:ch.day, dayIndex:ch.index, buildId:bookBuildId, maxPhotos:8, voice});
+  if(r.ok && r.htmlB64){ ch.htmlB64=r.htmlB64; if(r.fileId) ch.fileId=r.fileId;
+    if(idx===currentChapterIdx){ if($('dayeditgate').hidden) showChapter(idx); else $('bookframe').srcdoc=b64ToUtf8(r.htmlB64); }
+    saveBookManifest('chaptered', voice); return true; }
+  return false;
 }
 
 // 📸 POC — "עוד תמונות מהיום": גשר ל-Apple Photos דרך iOS Shortcut. שולח רק תאריך+שם-טיול.
@@ -954,23 +987,31 @@ $('itinAskBtn').onclick=async()=>{
     if(!confirm(msg)) return;
   }
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
-  const beforeN=itinItems.length;
+  const before=itinItems.slice();   // snapshot מלא — diff אמיתי לפי id
   try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
-    // סיכום שמרני (לא ממציא): מסמכים+קישורים מוצגים גם אם ה-AI נכשל; דלתת-פריטים רק כשהצליח
+    // מסמכים+קישורים מוצגים גם אם ה-AI נכשל; פירוט-הפריטים רק כשהצליח (לא ממציאים)
     const extra=[];
-    if(r.savedDocs && r.savedDocs.length) extra.push(L(r.savedDocs.length+' מסמכים נשמרו במסמכים', r.savedDocs.length+' documents saved'));
+    if(r.savedDocs && r.savedDocs.length) extra.push(L(r.savedDocs.length+' מסמכים נשמרו', r.savedDocs.length+' documents saved'));
     if(r.sourceLinks) extra.push(L(r.sourceLinks+' קישורי-מקור', r.sourceLinks+' source links'));
-    if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin();
-      const delta=itinItems.length-beforeN;
-      const head = delta>0 ? L(delta+' פריטים נוספו לתכנית', delta+' items added to the plan')
-                 : (delta<0 ? L(Math.abs(delta)+' פריטים הוסרו', Math.abs(delta)+' items removed')
-                 : L('התכנית עודכנה','The plan was updated'));
+    if(r.ok){ // diff לפי חתימת-תוכן (השרת מקצה id חדש לכל פריט בכל קריאה, אז id לא אמין)
+      const sig=it=>((it.title||'').trim()+'|'+(it.day||'')+'|'+(it.time||''));
+      const beforeSigs=new Set(before.map(sig));
+      itinItems=r.items||[]; $('itinAsk').value=''; renderItin();
+      const added=itinItems.filter(x=>!beforeSigs.has(sig(x)));
+      let head;
+      if(added.length===1){ const it=added[0];
+        head=L('נוסף: ','Added: ')+(it.title||'')+' · '+itinDayLabel(it.day)+(it.time?(' · '+it.time):'');
+      } else if(added.length>1){
+        const names=added.slice(0,2).map(it=>(it.title||'')+(it.day?(' ('+itinDayLabel(it.day)+')'):'')).filter(Boolean);
+        head=L('נוספו '+added.length+': ','Added '+added.length+': ')+names.join(' | ')+(added.length>2?L(' +'+(added.length-2)+' נוספים',' +'+(added.length-2)+' more'):'');
+      } else { const delta=itinItems.length-before.length;
+        head = delta<0 ? L(Math.abs(delta)+' פריטים הוסרו', Math.abs(delta)+' items removed') : L('התכנית עודכנה','The plan was updated'); }
       const summary='🤖 '+[head].concat(extra).join(' · ');
-      toast(summary); logLine(summary);
-    } else {
-      if(extra.length) toast('📁 '+extra.join(' · '));
+      toast(summary, 7000); logLine(summary);
+    } else if(extra.length){
+      toast('📁 '+extra.join(' · ')+' · '+L('התכנית לא עודכנה','plan not updated'), 7000);
       alert(L('שגיאה: ','Error: ')+(r.error||''));
-    }
+    } else alert(L('שגיאה: ','Error: ')+(r.error||''));
   }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
 };
 

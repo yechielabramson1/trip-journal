@@ -78,6 +78,8 @@
   #dayeditBody .jent button{ border:0; border-radius:10px; padding:7px 12px; font-size:.9rem; color:#fff }
   #dayeditBody .jent .sv{ background:#15803d } #dayeditBody .jent .del{ background:#dc2626 }
   #dayeditBody .empty{ text-align:center; color:var(--muted); padding:20px }
+  #dayeditBody .daypick{ display:flex; flex-direction:column; gap:8px }
+  #dayeditBody .daypick .dpick{ width:100%; text-align:start; border:1px solid #cbd5e1; border-radius:12px; padding:13px 14px; font-size:1rem; background:#fff; color:var(--ink) }
   #nbHint{ font-size:.85rem; color:#64748b; margin:-4px 0 10px; line-height:1.5 }
   #nbPrompts{ display:flex; flex-direction:column; gap:6px; margin:12px 0 0; max-height:34vh; overflow:auto }
   #nbPrompts .pcard{ display:flex; align-items:center; gap:8px; border:1px solid #e2e8f0; border-radius:12px; padding:8px 10px; background:#f8fafc }
@@ -238,7 +240,7 @@
       <button id="rebuildbook" style="background:#0e7490">🔄 עדכן / בנה ספר</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v51 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v52 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -544,6 +546,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=51"></script>
+<script src="app.js?v=52"></script>
 </body>
 </html>
