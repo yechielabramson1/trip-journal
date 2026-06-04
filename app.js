@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v50';
+const APP_VER='v51';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -33,12 +33,12 @@ const I18N = {
        new_expense:'💶 הוצאה חדשה', ph_amount:'סכום', ph_desc:'תיאור (לא חובה)', attach_receipt:'📷 צרף קבלה / צילום מסך',
        paste_clipboard:'📋 הדבק צילום מהלוח (Copy & Delete)', keep_receipt:'שמור גם את צילום הקבלה (לקבלות אמיתיות)', save_expense:'💾 שמור הוצאה',
        del_expense:'🗑️ מחק הוצאה', edit_expense:'📋 ערוך הוצאה קיימת', peek_sheet:'📊 הצצה לגיליון ההוצאות',
-       btn_brain:'🧠 המוח (רשימות וידע)', brain_hub:'🧠 המוח', lv_search:'חיפוש…', lv_add:'הוסף פריט…', kv_search:'חיפוש בידע…', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
+       btn_brain:'🧠 המוח — ידע לכל הטיולים', brain_hub:'🧠 המוח — לקחים וידע לכל הטיולים', lv_search:'חיפוש…', lv_add:'הוסף פריט…', kv_search:'חיפוש בידע…', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
        paste_hdr:'📋 הדבק רשימה — ה-AI יפצל לפריטים', paste_ph:'הדבק כאן טקסט חופשי / רשימה…', paste_split:'✨ פצל והוסף', paste_cancel:'ביטול', open_sheet:'📊 פתח את הגיליון',
        btn_meal_photo:'📸 צלם ארוחה (זיהוי פריטים)', btn_food_photo:'📷 נתח תפריט / שלט (כשר+טבעוני)',
        btn_analyze_doc:'🔎 נתח מסמך נסיעה (AI)', doc_hdr:'🔎 ניתוח מסמך נסיעה', doc_to_itin:'➕ הוסף לתכנית', doc_to_expense:'💶 הוסף הוצאה', doc_to_note:'📝 שמור כהערת יומן',
        btn_food:'🍽️ יומן אוכל', food_hdr:'🍽️ יומן אוכל', food_ph:'מה אכלתם / מה קניתם לאכול היום?', food_save:'💾 שמור', food_saved:'🍽️ נשמר', food_sheet:'📊 פתח את גיליון האוכל',
-       btn_lesson:'💡 לקח / תובנה', lesson_hdr:'💡 לקח / תובנה', lesson_ph:'מה הלקח / התובנה?', lesson_note:'נשמר בנפרד מהיומן — לא נכנס לספר-המסע, ונכלל בהפקת-הלקחים של "🏁 סיום מסע".', lesson_saved:'💡 הלקח נשמר',
+       btn_lesson:'💡 לקח מהטיול', lesson_hdr:'💡 לקח מהטיול — תובנה מהשטח', lesson_ph:'מה הלקח / התובנה?', lesson_note:'תובנה חיה מהטיול הזה. נשמרת בנפרד מהיומן (לא בספר-המסע), מופיעה ב-📚 "כל מה שנשמר", נכללת בהפקת-הלקחים של "🏁 סיום מסע", ובסוף זורמת ל-🧠 המוח הגלובלי לטיולים הבאים.', lesson_saved:'💡 הלקח נשמר', send_to_brain:'📤 שלח למוח הגלובלי',
        food_kinds:{'מסעדה':'🍴 מסעדה','קפה':'☕ קפה','סופרמרקט':'🛒 סופרמרקט','בישול':'🍳 בישלנו','אחר':'אחר'},
        group_country:'קבץ לפי מדינה', no_country:'— ללא מדינה —', organize_confirm:'לארגן מחדש את כל המסמך? (ממזג כפילויות ומסדר לפי נושאים)', organizing_all:'🤖 מסדר…', restore_confirm:'לשחזר את המסמך מהגיבוי שלפני הסידור האחרון?', restored_ok:'↩️ שוחזר מהגיבוי',
        btn_wrap:'🏁 סיום מסע — סיכום ולקחים', wrap_title:'🏁 סיכום המסע', wrap_gen:'✨ הפק סיכום ולקחים', wrap_chat_ph:'מה היה טוב? מה לשפר לפעם הבאה?', wrap_save_lessons:'📥 שמור את הלקחים למוח',
@@ -58,12 +58,12 @@ const I18N = {
        new_expense:'💶 New expense', ph_amount:'Amount', ph_desc:'Description (optional)', attach_receipt:'📷 Attach receipt / screenshot',
        paste_clipboard:'📋 Paste screenshot (Copy & Delete)', keep_receipt:'Also keep the receipt image (for real receipts)', save_expense:'💾 Save expense',
        del_expense:'🗑️ Delete expense', edit_expense:'📋 Edit an existing expense', peek_sheet:'📊 Open the expenses sheet',
-       btn_brain:'🧠 The Brain (lists & knowledge)', brain_hub:'🧠 The Brain', lv_search:'Search…', lv_add:'Add an item…', kv_search:'Search the knowledge…', kv_add:'Add a lesson / how-to… the AI will organize it',
+       btn_brain:'🧠 The Brain — all-trips knowledge', brain_hub:'🧠 The Brain — lessons & knowledge for every trip', lv_search:'Search…', lv_add:'Add an item…', kv_search:'Search the knowledge…', kv_add:'Add a lesson / how-to… the AI will organize it',
        paste_hdr:'📋 Paste a list — the AI will split it into items', paste_ph:'Paste free text / a list here…', paste_split:'✨ Split & add', paste_cancel:'Cancel', open_sheet:'📊 Open the sheet',
        btn_meal_photo:'📸 Snap your meal (identify items)', btn_food_photo:'📷 Analyze menu / sign (kosher+vegan)',
        btn_analyze_doc:'🔎 Analyze travel doc (AI)', doc_hdr:'🔎 Travel document analysis', doc_to_itin:'➕ Add to itinerary', doc_to_expense:'💶 Add expense', doc_to_note:'📝 Save as journal note',
        btn_food:'🍽️ Food log', food_hdr:'🍽️ Food log', food_ph:'What did you eat / buy to eat today?', food_save:'💾 Save', food_saved:'🍽️ Saved', food_sheet:'📊 Open the food sheet',
-       btn_lesson:'💡 Lesson / insight', lesson_hdr:'💡 Lesson / insight', lesson_ph:"What's the lesson / insight?", lesson_note:'Saved separately from the journal — not in the Story Book, included in the "🏁 Wrap-up" lessons.', lesson_saved:'💡 Lesson saved',
+       btn_lesson:'💡 Trip lesson', lesson_hdr:'💡 Trip lesson — a field insight', lesson_ph:"What's the lesson / insight?", lesson_note:'A live insight from this trip. Saved separately from the journal (not in the Story Book), appears in 📚, included in the "🏁 Wrap-up" lessons, and flows to the 🧠 global Brain for future trips.', lesson_saved:'💡 Lesson saved', send_to_brain:'📤 Send to global Brain',
        food_kinds:{'מסעדה':'🍴 Restaurant','קפה':'☕ Café','סופרמרקט':'🛒 Supermarket','בישול':'🍳 Cooked','אחר':'Other'},
        group_country:'Group by country', no_country:'— no country —', organize_confirm:'Reorganize the whole document? (merges duplicates, sorts by topic)', organizing_all:'🤖 Organizing…', restore_confirm:'Restore the document from the backup before the last reorganize?', restored_ok:'↩️ Restored from backup',
        btn_wrap:'🏁 Wrap up trip — summary & lessons', wrap_title:'🏁 Trip wrap-up', wrap_gen:'✨ Generate summary & lessons', wrap_chat_ph:'What went well? What to improve next time?', wrap_save_lessons:'📥 Save the lessons to the Brain',
@@ -251,6 +251,10 @@ async function render(){
   else { s.textContent=t.synced; s.className='ok'; }
 }
 function logLine(t){ const d=document.createElement('div'); d.textContent=t; $('log').prepend(d); }
+// Toast קצר וזמני (לא חוסם) — נעלם לבד. שימוש: feedback אחרי פעולות AI/ייבוא.
+let _toastTimer=null;
+function toast(msg, ms){ let el=$('toast'); if(!el){ el=document.createElement('div'); el.id='toast'; document.body.appendChild(el); }
+  el.textContent=msg; el.classList.add('show'); clearTimeout(_toastTimer); _toastTimer=setTimeout(()=>el.classList.remove('show'), ms||5000); }
 function openDrawer(){ $('drawer').classList.add('open'); $('scrim').classList.add('open'); }
 function closeDrawer(){ $('drawer').classList.remove('open'); $('scrim').classList.remove('open'); }
 function showTokenGate(){ $('tokengate').hidden=false; const i=$('tokin'); if(i){ i.value=token(); i.focus(); } }
@@ -617,6 +621,13 @@ function dashRenderGallery(r){ const body=$('dashbody'); const ph=(r&&r.photos)|
 function dashRenderExpenses(r){ const body=$('dashbody'); const ex=(r&&r.expenses)||[];
   if(!ex.length){ dashEmpty(L('עדיין אין הוצאות','No expenses yet')); return; }
   body.innerHTML='';
+  // סה"כ לפי מטבע — בלי לערבב מטבעות (אין total חוצה-מטבעות). מבוסס רק על ההוצאות הקיימות.
+  const totals={}; ex.forEach(e=>{ const cur=((e.currency||'').trim())||'—'; totals[cur]=(totals[cur]||0)+(Number(e.amount)||0); });
+  const curs=Object.keys(totals).sort((a,b)=>totals[b]-totals[a]);
+  const sum=document.createElement('div'); sum.className='exsum';
+  sum.innerHTML='<div class="exsum-h">'+L('סה"כ עד כה','Total so far')+'</div>'+
+    curs.map(c=>'<div class="exsum-row"><span class="cur">'+escapeHtml(c)+'</span><span class="val">'+(Math.round(totals[c]*100)/100).toLocaleString()+'</span></div>').join('');
+  body.appendChild(sum);
   ex.forEach(e=>{ const amt=(e.amount||e.amount===0)?(e.amount+' '+(e.currency||'')):'';
     const meta=[e.category, e.method, e.author].filter(Boolean).join(' · ');
     const d=document.createElement('div'); d.className='dcard';
@@ -627,8 +638,11 @@ function dashRenderExpenses(r){ const body=$('dashbody'); const ex=(r&&r.expense
     body.appendChild(d); });
 }
 function dashRenderLessons(r){ const body=$('dashbody'); const ls=(r&&r.lessons)||[];
-  if(!ls.length){ dashEmpty(L('עדיין אין לקחים — הקש 💡 לקח/תובנה כדי להוסיף','No lessons yet — tap 💡 Lesson to add')); return; }
+  if(!ls.length){ dashEmpty(L('עדיין אין לקחים — הקש 💡 לקח מהטיול כדי להוסיף','No lessons yet — tap 💡 Trip lesson to add')); return; }
   body.innerHTML='';
+  const note=document.createElement('div'); note.className='dashnote';
+  note.textContent=L('לקחים אלה שייכים לטיול הזה. אפשר לשלוח אותם ל-🧠 המוח הגלובלי (דרך 💡) כדי לשרת טיולים הבאים.','These lessons belong to this trip. You can send them to the 🧠 global Brain (via 💡) to serve future trips.');
+  body.appendChild(note);
   ls.forEach(l=>{ const d=document.createElement('div'); d.className='dcard';
     d.innerHTML='<div class="row1"><span>💡 '+escapeHtml(l.text)+'</span></div><div class="ts">'+escapeHtml([l.author,shortTs(l.date)].filter(Boolean).join(' · '))+'</div>';
     body.appendChild(d); });
@@ -848,8 +862,18 @@ function renderDayGrid(day){
   dayItems.filter(i=>toMin(i.time)!=null).forEach(it=>{
     const sm=toMin(it.time); let em=toMin(it.endTime); if(em==null||em<=sm) em=sm+60;
     const b=document.createElement('div'); b.className='gblock '+(it.type||'');
-    b.style.top=(((sm/60)-H0)*HH)+'px'; b.style.height=Math.max(26,((em-sm)/60)*HH-2)+'px';
-    b.innerHTML='<div class="gt">'+escapeHtml(it.time||'')+(it.endTime?('–'+escapeHtml(it.endTime)):'')+'</div>'+(TYPE_ICON[it.type]||'')+' '+escapeHtml(it.title||'');
+    const bh=Math.max(26,((em-sm)/60)*HH-2); b.style.top=(((sm/60)-H0)*HH)+'px'; b.style.height=bh+'px';
+    // אינדיקטורים קטנים (לא לחיצים — לחיצה על הבלוק פותחת עריכה): 🔗 קישור-מקור אמין, 📄 קישור/מקור בהערות
+    const hasSrc=it.sourceUrl && isTrustedSource(it.sourceUrl);
+    const hasDoc=/\bhttps?:\/\//i.test(it.notes||'') || /מקור\s*:/.test(it.notes||'');
+    const ics=(hasSrc?'🔗':'')+(hasDoc?'📄':'');
+    const tmLbl=escapeHtml(it.time||'')+(it.endTime?('–'+escapeHtml(it.endTime)):'');
+    // לפי גובה: קטן=כותרת בלבד · בינוני=+מיקום · גדול=+הערה קצרה (טקסט נחתך יפה ב-CSS)
+    let inner='<div class="gt"><span>'+tmLbl+'</span>'+(ics?('<span class="gic">'+ics+'</span>'):'')+'</div>';
+    inner+='<div class="gttl">'+(TYPE_ICON[it.type]||'')+' '+escapeHtml(it.title||'')+'</div>';
+    if(bh>=46 && it.location) inner+='<div class="gloc">📍 '+escapeHtml(it.location)+'</div>';
+    if(bh>=72 && it.notes){ const n=it.notes.replace(/\s*\bhttps?:\/\/\S+/gi,'').trim(); if(n) inner+='<div class="gnotes">'+escapeHtml(n.length>70?n.slice(0,70)+'…':n)+'</div>'; }
+    b.innerHTML=inner;
     makeBlockInteractive(b, it, HH); grid.appendChild(b);
   });
   body.appendChild(grid);
@@ -930,10 +954,23 @@ $('itinAskBtn').onclick=async()=>{
     if(!confirm(msg)) return;
   }
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
+  const beforeN=itinItems.length;
   try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
-    if(r.savedDocs && r.savedDocs.length) logLine(L('📁 נשמרו '+r.savedDocs.length+' מסמכים מהמייל','📁 Saved '+r.savedDocs.length+' documents from email'));
-    if(r.sourceLinks) logLine(L('🔗 '+r.sourceLinks+' פריטים קושרו למקור-הזמנה','🔗 '+r.sourceLinks+' items linked to a booking source'));
-    if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin(); } else alert(L('שגיאה: ','Error: ')+(r.error||''));
+    // סיכום שמרני (לא ממציא): מסמכים+קישורים מוצגים גם אם ה-AI נכשל; דלתת-פריטים רק כשהצליח
+    const extra=[];
+    if(r.savedDocs && r.savedDocs.length) extra.push(L(r.savedDocs.length+' מסמכים נשמרו במסמכים', r.savedDocs.length+' documents saved'));
+    if(r.sourceLinks) extra.push(L(r.sourceLinks+' קישורי-מקור', r.sourceLinks+' source links'));
+    if(r.ok){ itinItems=r.items||[]; $('itinAsk').value=''; renderItin();
+      const delta=itinItems.length-beforeN;
+      const head = delta>0 ? L(delta+' פריטים נוספו לתכנית', delta+' items added to the plan')
+                 : (delta<0 ? L(Math.abs(delta)+' פריטים הוסרו', Math.abs(delta)+' items removed')
+                 : L('התכנית עודכנה','The plan was updated'));
+      const summary='🤖 '+[head].concat(extra).join(' · ');
+      toast(summary); logLine(summary);
+    } else {
+      if(extra.length) toast('📁 '+extra.join(' · '));
+      alert(L('שגיאה: ','Error: ')+(r.error||''));
+    }
   }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
 };
 
@@ -1204,7 +1241,7 @@ $('foodSave').onclick=async()=>{
 };
 /* --- 💡 יומן-לקחים per-trip (offline-queued) — נפרד מהיומן, נכלל בהפקת-הלקחים, לא בספר --- */
 async function enqueueLesson(text){ await dbAdd({ kind:'json', payload:{ action:'add_lesson', clientId:clientId(), author:getAuthor(), tripId:getTripId(), lessonId:uuid(), ts:new Date().toISOString(), text } }); }
-function openLessons(){ if(!ensureTrip()) return; $('lessonToBrain').textContent=L('📥 שמור למוח (לטיולים הבאים)','📥 Save to Brain (for future trips)'); $('lessongate').hidden=false; $('lessonText').value=''; $('lessonText').focus(); refreshLessons(); }
+function openLessons(){ if(!ensureTrip()) return; $('lessonToBrain').textContent=T().send_to_brain; $('lessongate').hidden=false; $('lessonText').value=''; $('lessonText').focus(); refreshLessons(); }
 $('lessonToBrain').onclick=async()=>{ if(!ensureTrip()) return; if(!navigator.onLine){ alert(L('צריך חיבור','Connection needed')); return; }
   const b=$('lessonToBrain'); const o=b.textContent; b.disabled=true; b.textContent=L('שומר…','Saving…');
   try{ const r=await api({action:'export_lessons_to_brain', tripId:getTripId()});
