@@ -69,6 +69,13 @@
   #bkRange[hidden]{ display:none !important }
   #bkRange input{ flex:1; min-width:0 }
   #bookgate .card select{ text-align:right }
+  #dayeditBody .jent{ border:1px solid var(--line); border-radius:12px; padding:8px; margin:6px 0; background:#fff }
+  #dayeditBody .jent textarea{ width:100%; border:1px solid #cbd5e1; border-radius:10px; padding:8px; font-size:.95rem; resize:vertical }
+  #dayeditBody .jent .row{ display:flex; gap:6px; margin-top:6px; align-items:center }
+  #dayeditBody .jent .meta{ flex:1; font-size:.75rem; color:var(--muted) }
+  #dayeditBody .jent button{ border:0; border-radius:10px; padding:7px 12px; font-size:.9rem; color:#fff }
+  #dayeditBody .jent .sv{ background:#15803d } #dayeditBody .jent .del{ background:#dc2626 }
+  #dayeditBody .empty{ text-align:center; color:var(--muted); padding:20px }
   #nbHint{ font-size:.85rem; color:#64748b; margin:-4px 0 10px; line-height:1.5 }
   #nbPrompts{ display:flex; flex-direction:column; gap:6px; margin:12px 0 0; max-height:34vh; overflow:auto }
   #nbPrompts .pcard{ display:flex; align-items:center; gap:8px; border:1px solid #e2e8f0; border-radius:12px; padding:8px 10px; background:#f8fafc }
@@ -217,7 +224,7 @@
       <button id="makebook">📖 צור ספר מסע</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v48 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v49 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -226,11 +233,21 @@
     <div id="bookbar">
       <button id="bookclose" aria-label="סגור">✕</button>
       <span id="booktitle">📖 ספר המסע</span>
+      <button id="bookedit" aria-label="ערוך את היום" title="ערוך/מחק רשומות היום" hidden>✏️</button>
       <button id="bookmore" aria-label="עוד תמונות מהיום" title="עוד תמונות מהיום" hidden>📸</button>
       <a id="bookdrive" href="#" target="_blank" rel="noopener" title="הקובץ נשמר בדרייב">💾</a>
     </div>
     <div id="bookchips" hidden></div>
     <iframe id="bookframe" title="ספר המסע"></iframe>
+  </div>
+
+  <!-- day editor (edit/delete journal entries of the current day, from the book) -->
+  <div id="dayeditgate" class="gate" hidden>
+    <div class="card" style="text-align:right">
+      <p id="dayeditHdr">✏️ עריכת רשומות היום</p>
+      <div id="dayeditBody" style="max-height:60vh; overflow:auto"></div>
+      <button id="dayeditClose" style="background:#94a3b8; margin-top:10px">סגור</button>
+    </div>
   </div>
 
   <!-- book gate (scope + voice) -->
@@ -512,6 +529,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=48"></script>
+<script src="app.js?v=49"></script>
 </body>
 </html>
