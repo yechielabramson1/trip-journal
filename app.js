@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v45';
+const APP_VER='v46';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -176,8 +176,20 @@ function compressImage(file, maxDim=1600, quality=0.7){
     img.onerror=rej; img.src=url; }); }
 function blobToB64(blob){ return new Promise((res,rej)=>{ const r=new FileReader();
   r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=rej; r.readAsDataURL(blob); }); }
+let _geoPrompted=false;   // לא לבקש מיקום יותר מפעם אחת לכל פתיחת-אפליקציה
 function quickLocation(){ return new Promise(res=>{ if(!navigator.geolocation) return res(null);
-  navigator.geolocation.getCurrentPosition(p=>res({lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5)}),()=>res(null),{enableHighAccuracy:false,timeout:4000,maximumAge:60000}); }); }
+  const get=()=>navigator.geolocation.getCurrentPosition(
+    p=>res({lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5)}),
+    ()=>res(null), {enableHighAccuracy:false,timeout:4000,maximumAge:600000});   // משתמש בקריאת-מיקום מהעבר (עד 10 דק') כדי לא לשאוב מחדש
+  const decide=(state)=>{ if(state==='granted') return get();          // הורשה — שקט, בלי שאלה
+    if(state==='denied') return res(null);                              // נדחה — לא שואלים שוב
+    if(_geoPrompted) return res(null);                                  // 'prompt' — שואלים לכל היותר פעם אחת לכל סשן
+    _geoPrompted=true; get(); };
+  try{ if(navigator.permissions && navigator.permissions.query)
+      navigator.permissions.query({name:'geolocation'}).then(s=>decide(s.state)).catch(()=>decide('prompt'));
+    else decide('prompt');
+  }catch(e){ decide('prompt'); }
+}); }
 
 /* ---------- enqueue (ts + tripId captured NOW) ---------- */
 async function enqueueJournal(text){

@@ -53,7 +53,8 @@
   #drawer .foot button{ width:100%; padding:14px; border:0; border-radius:14px; font-size:1.05rem; font-weight:600; background:var(--teal); color:#fff }
   #bookview{ position:fixed; inset:0; z-index:60; background:#faf6ee; display:flex; flex-direction:column }
   #bookview[hidden]{ display:none }
-  #bookbar{ display:flex; align-items:center; gap:10px; padding:10px 14px; background:#0e7490; color:#fff; flex:0 0 auto }
+  #bookbar{ display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; background:#0e7490; color:#fff; flex:0 0 auto }
+  #bookbar #bookclose{ font-size:1.5rem; padding:2px 10px }
   #bookbar #booktitle{ flex:1; font-weight:600; font-size:1rem }
   #bookbar button, #bookbar a{ background:transparent; border:0; color:#fff; font-size:1.2rem; cursor:pointer; text-decoration:none }
   #bookchips{ display:flex; gap:6px; overflow-x:auto; padding:8px 12px; background:#fff7ed; border-bottom:1px solid #fed7aa; flex:0 0 auto }
@@ -215,7 +216,7 @@
       <button id="makebook">📖 צור ספר מסע</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v45 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v46 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -499,6 +500,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=45"></script>
+<script src="app.js?v=46"></script>
 </body>
 </html>
