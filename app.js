@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v46';
+const APP_VER='v47';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -38,6 +38,7 @@ const I18N = {
        btn_meal_photo:'📸 צלם ארוחה (זיהוי פריטים)', btn_food_photo:'📷 נתח תפריט / שלט (כשר+טבעוני)',
        btn_analyze_doc:'🔎 נתח מסמך נסיעה (AI)', doc_hdr:'🔎 ניתוח מסמך נסיעה', doc_to_itin:'➕ הוסף לתכנית', doc_to_expense:'💶 הוסף הוצאה', doc_to_note:'📝 שמור כהערת יומן',
        btn_food:'🍽️ יומן אוכל', food_hdr:'🍽️ יומן אוכל', food_ph:'מה אכלתם / מה קניתם לאכול היום?', food_save:'💾 שמור', food_saved:'🍽️ נשמר', food_sheet:'📊 פתח את גיליון האוכל',
+       btn_lesson:'💡 לקח / תובנה', lesson_hdr:'💡 לקח / תובנה', lesson_ph:'מה הלקח / התובנה?', lesson_note:'נשמר בנפרד מהיומן — לא נכנס לספר-המסע, ונכלל בהפקת-הלקחים של "🏁 סיום מסע".', lesson_saved:'💡 הלקח נשמר',
        food_kinds:{'מסעדה':'🍴 מסעדה','קפה':'☕ קפה','סופרמרקט':'🛒 סופרמרקט','בישול':'🍳 בישלנו','אחר':'אחר'},
        group_country:'קבץ לפי מדינה', no_country:'— ללא מדינה —', organize_confirm:'לארגן מחדש את כל המסמך? (ממזג כפילויות ומסדר לפי נושאים)', organizing_all:'🤖 מסדר…', restore_confirm:'לשחזר את המסמך מהגיבוי שלפני הסידור האחרון?', restored_ok:'↩️ שוחזר מהגיבוי',
        btn_wrap:'🏁 סיום מסע — סיכום ולקחים', wrap_title:'🏁 סיכום המסע', wrap_gen:'✨ הפק סיכום ולקחים', wrap_chat_ph:'מה היה טוב? מה לשפר לפעם הבאה?', wrap_save_lessons:'📥 שמור את הלקחים למוח',
@@ -62,6 +63,7 @@ const I18N = {
        btn_meal_photo:'📸 Snap your meal (identify items)', btn_food_photo:'📷 Analyze menu / sign (kosher+vegan)',
        btn_analyze_doc:'🔎 Analyze travel doc (AI)', doc_hdr:'🔎 Travel document analysis', doc_to_itin:'➕ Add to itinerary', doc_to_expense:'💶 Add expense', doc_to_note:'📝 Save as journal note',
        btn_food:'🍽️ Food log', food_hdr:'🍽️ Food log', food_ph:'What did you eat / buy to eat today?', food_save:'💾 Save', food_saved:'🍽️ Saved', food_sheet:'📊 Open the food sheet',
+       btn_lesson:'💡 Lesson / insight', lesson_hdr:'💡 Lesson / insight', lesson_ph:"What's the lesson / insight?", lesson_note:'Saved separately from the journal — not in the Story Book, included in the "🏁 Wrap-up" lessons.', lesson_saved:'💡 Lesson saved',
        food_kinds:{'מסעדה':'🍴 Restaurant','קפה':'☕ Café','סופרמרקט':'🛒 Supermarket','בישול':'🍳 Cooked','אחר':'Other'},
        group_country:'Group by country', no_country:'— no country —', organize_confirm:'Reorganize the whole document? (merges duplicates, sorts by topic)', organizing_all:'🤖 Organizing…', restore_confirm:'Restore the document from the backup before the last reorganize?', restored_ok:'↩️ Restored from backup',
        btn_wrap:'🏁 Wrap up trip — summary & lessons', wrap_title:'🏁 Trip wrap-up', wrap_gen:'✨ Generate summary & lessons', wrap_chat_ph:'What went well? What to improve next time?', wrap_save_lessons:'📥 Save the lessons to the Brain',
@@ -100,6 +102,7 @@ function applyLang(){
   // food log
   set('foodbtn',t.btn_food); set('foodHdr',t.food_hdr); ph('foodText',t.food_ph); set('foodSave',t.food_save); set('foodSheet',t.food_sheet); set('foodClose',t.close); set('foodPhotoBtn',t.btn_food_photo); set('mealPhotoBtn',t.btn_meal_photo);
   opts('foodKind',t.food_kinds);
+  set('lessonbtn',t.btn_lesson); set('lessonHdr',t.lesson_hdr); ph('lessonText',t.lesson_ph); set('lessonSave',t.food_save); set('lessonClose',t.close); set('lessonNote',t.lesson_note);
   // travel-doc analyze
   set('docAnalyzeBtn',t.btn_analyze_doc); set('docHdr',t.doc_hdr); set('docToItin',t.doc_to_itin); set('docToExpense',t.doc_to_expense); set('docToNote',t.doc_to_note); set('docClose',t.close);
   // trip wrap-up
@@ -493,6 +496,7 @@ async function dashTab(tab){
   try{
     if(tab==='photos'){ const r=await api({action:'list_gallery', tripId:getTripId(), limit:40}); dashRenderGallery(r); }
     else if(tab==='expenses'){ const r=await api({action:'list_expenses', tripId:getTripId()}); dashRenderExpenses(r); }
+    else if(tab==='lessons'){ const r=await api({action:'list_lessons', tripId:getTripId()}); dashRenderLessons(r); }
     else { const r=await api({action:'list_files', tripId:getTripId(), category:'document'}); let srcs=[]; try{ const ri=await api({action:'list_itinerary', tripId:getTripId()}); srcs=(ri.items||[]).filter(x=>x.sourceUrl && isTrustedSource(x.sourceUrl)); }catch(e){} dashRenderDocs(r, srcs); }
   }catch(e){ dashEmpty(L('אין חיבור — נסה שוב','No connection — try again')); }
 }
@@ -518,6 +522,13 @@ function dashRenderExpenses(r){ const body=$('dashbody'); const ex=(r&&r.expense
       (meta?('<div class="meta">'+escapeHtml(meta)+'</div>'):'')+
       (e.receipt?('<div style="margin-top:6px"><a href="'+escapeHtml(e.receipt)+'" target="_blank" rel="noopener">🧾 '+L('פתח קבלה','Open receipt')+'</a></div>'):'')+
       '<div class="ts">'+escapeHtml(shortTs(e.date))+'</div>';
+    body.appendChild(d); });
+}
+function dashRenderLessons(r){ const body=$('dashbody'); const ls=(r&&r.lessons)||[];
+  if(!ls.length){ dashEmpty(L('עדיין אין לקחים — הקש 💡 לקח/תובנה כדי להוסיף','No lessons yet — tap 💡 Lesson to add')); return; }
+  body.innerHTML='';
+  ls.forEach(l=>{ const d=document.createElement('div'); d.className='dcard';
+    d.innerHTML='<div class="row1"><span>💡 '+escapeHtml(l.text)+'</span></div><div class="ts">'+escapeHtml([l.author,shortTs(l.date)].filter(Boolean).join(' · '))+'</div>';
     body.appendChild(d); });
 }
 function dashRenderDocs(r, srcs){ const body=$('dashbody'); const fs=(r&&r.files)||[]; srcs=srcs||[];
@@ -1088,6 +1099,22 @@ $('foodSave').onclick=async()=>{
   $('foodText').value=''; logLine(T().food_saved); await render(); flush();
   setTimeout(refreshFood, 1800);
   $('foodSave').disabled=false;
+};
+/* --- 💡 יומן-לקחים per-trip (offline-queued) — נפרד מהיומן, נכלל בהפקת-הלקחים, לא בספר --- */
+async function enqueueLesson(text){ await dbAdd({ kind:'json', payload:{ action:'add_lesson', clientId:clientId(), author:getAuthor(), tripId:getTripId(), lessonId:uuid(), ts:new Date().toISOString(), text } }); }
+function openLessons(){ if(!ensureTrip()) return; $('lessongate').hidden=false; $('lessonText').value=''; $('lessonText').focus(); refreshLessons(); }
+async function refreshLessons(){ if(!navigator.onLine) return;
+  try{ const r=await api({ action:'list_lessons', tripId:getTripId() }); const el=$('lessonList'); el.innerHTML='';
+    (r.lessons||[]).slice(0,40).forEach(l=>{ const d=document.createElement('div'); d.className='litem'; d.style.display='block';
+      d.innerHTML=escapeHtml(l.text)+'<div class="ts">'+[l.author,shortTs(l.date)].filter(Boolean).map(escapeHtml).join(' · ')+'</div>'; el.appendChild(d); });
+  }catch(e){} }
+$('lessonbtn').onclick=openLessons;
+$('lessonClose').onclick=()=>{ $('lessongate').hidden=true; };
+$('lessonSave').onclick=async()=>{ const text=$('lessonText').value.trim(); if(!text) return; if(!ensureTrip()) return;
+  $('lessonSave').disabled=true;
+  await enqueueLesson(text);
+  $('lessonText').value=''; logLine(T().lesson_saved); await render(); flush();
+  setTimeout(refreshLessons, 1800); $('lessonSave').disabled=false;
 };
 /* --- P2: ניתוח צילום תפריט/שלט (כשר+טבעוני) → הצעה ליומן-אוכל (אישור ידני) --- */
 function renderFoodAnalysis(d){

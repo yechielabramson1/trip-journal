@@ -28,7 +28,7 @@
   button.act,label.act{ display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:16px; font-size:1.05rem; font-weight:600; padding:16px; color:#fff; background:var(--teal) }
   button.act:active,label.act:active{ background:var(--teal2) }
   .act.save{ grid-column:1 / -1; font-size:1.2rem; padding:18px }
-  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 } .act.ask{ background:#6d28d9 } .act.expense{ background:#15803d } .act.food{ background:#c2410c } .act.wrap{ background:#b45309 }
+  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 } .act.ask{ background:#6d28d9 } .act.expense{ background:#15803d } .act.food{ background:#c2410c } .act.wrap{ background:#b45309 } .act.lesson{ background:#ca8a04 }
   .wmsg{ border-radius:12px; padding:10px 12px; margin:6px 0; font-size:.95rem; line-height:1.5; white-space:pre-wrap }
   .wmsg.ai{ background:#fff7ed; border:1px solid #fed7aa } .wmsg.me{ background:#e0f2fe; border:1px solid #bae6fd; text-align:right }
   .gate .card select{ width:100%; margin:6px 0 12px; padding:13px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; background:#fff }
@@ -195,6 +195,7 @@
       <button class="act expense" id="expensebtn">💶 הוצאה</button>
       <button class="act food" id="foodbtn" style="grid-column:1 / -1">🍽️ יומן אוכל</button>
       <button class="act ask" id="askbtn" style="grid-column:1 / -1">🤖 שאל את הקונסיירז'</button>
+      <button class="act lesson" id="lessonbtn" style="grid-column:1 / -1">💡 לקח / תובנה</button>
       <button class="act wrap" id="wrapbtn" style="grid-column:1 / -1">🏁 סיום מסע — סיכום ולקחים</button>
       <button class="act brain" id="brainbtn" style="grid-column:1 / -1">🧠 המוח (רשימות וידע)</button>
     </div>
@@ -216,7 +217,7 @@
       <button id="makebook">📖 צור ספר מסע</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v46 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v47 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -285,6 +286,7 @@
       <button class="dtab on" data-tab="photos">📷 תמונות</button>
       <button class="dtab" data-tab="expenses">💶 הוצאות</button>
       <button class="dtab" data-tab="docs">📁 מסמכים</button>
+      <button class="dtab" data-tab="lessons">💡 לקחים</button>
     </div>
     <div id="dashbody"></div>
   </div>
@@ -380,6 +382,15 @@
     <div id="foodList" style="max-height:30vh; overflow:auto; text-align:right; margin:6px 0"></div>
     <a id="foodSheet" href="#" target="_blank" rel="noopener" style="display:none; text-align:center; color:var(--teal2); text-decoration:none; margin:6px 0">📊 פתח את גיליון האוכל</a>
     <button id="foodClose" class="ghost">סגור</button>
+  </div></div>
+
+  <div id="lessongate" class="gate" hidden><div class="card" style="text-align:right">
+    <p id="lessonHdr">💡 לקח / תובנה</p>
+    <div id="lessonNote" style="font-size:.82rem; color:var(--muted); margin:-6px 0 8px"></div>
+    <textarea id="lessonText" rows="3" placeholder="מה הלקח / התובנה?"></textarea>
+    <button id="lessonSave">💾 שמור</button>
+    <div id="lessonList" style="max-height:34vh; overflow:auto; text-align:right; margin:6px 0"></div>
+    <button id="lessonClose" class="ghost">סגור</button>
   </div></div>
 
   <!-- trip wrap-up screen (end of trip: organize everything + lessons chat) -->
@@ -500,6 +511,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=46"></script>
+<script src="app.js?v=47"></script>
 </body>
 </html>
