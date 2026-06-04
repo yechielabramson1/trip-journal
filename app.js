@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v47';
+const APP_VER='v48';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1102,7 +1102,13 @@ $('foodSave').onclick=async()=>{
 };
 /* --- 💡 יומן-לקחים per-trip (offline-queued) — נפרד מהיומן, נכלל בהפקת-הלקחים, לא בספר --- */
 async function enqueueLesson(text){ await dbAdd({ kind:'json', payload:{ action:'add_lesson', clientId:clientId(), author:getAuthor(), tripId:getTripId(), lessonId:uuid(), ts:new Date().toISOString(), text } }); }
-function openLessons(){ if(!ensureTrip()) return; $('lessongate').hidden=false; $('lessonText').value=''; $('lessonText').focus(); refreshLessons(); }
+function openLessons(){ if(!ensureTrip()) return; $('lessonToBrain').textContent=L('📥 שמור למוח (לטיולים הבאים)','📥 Save to Brain (for future trips)'); $('lessongate').hidden=false; $('lessonText').value=''; $('lessonText').focus(); refreshLessons(); }
+$('lessonToBrain').onclick=async()=>{ if(!ensureTrip()) return; if(!navigator.onLine){ alert(L('צריך חיבור','Connection needed')); return; }
+  const b=$('lessonToBrain'); const o=b.textContent; b.disabled=true; b.textContent=L('שומר…','Saving…');
+  try{ const r=await api({action:'export_lessons_to_brain', tripId:getTripId()});
+    if(r.ok) logLine(L('🧠 '+(r.added||0)+' לקחים נוספו למוח','🧠 '+(r.added||0)+' lessons added to the Brain'));
+    else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } finally{ b.disabled=false; b.textContent=o; } };
 async function refreshLessons(){ if(!navigator.onLine) return;
   try{ const r=await api({ action:'list_lessons', tripId:getTripId() }); const el=$('lessonList'); el.innerHTML='';
     (r.lessons||[]).slice(0,40).forEach(l=>{ const d=document.createElement('div'); d.className='litem'; d.style.display='block';
@@ -1195,7 +1201,8 @@ $('wrapGen').onclick=async()=>{
     pend.textContent=T().wrap_summarizing;
     const r=await api({ action:'trip_wrapup', tripId:getTripId() });
     pend.remove();
-    if(r.ok && r.text){ wrapUrl=r.url||'#'; wrapLastLessons=r.text||''; wrapMsg('ai', r.text); }
+    if(r.ok && r.text){ wrapUrl=r.url||'#'; wrapLastLessons=r.text||''; wrapMsg('ai', r.text);
+      if(r.brainLessonsAdded) wrapMsg('ai', L('🧠 '+r.brainLessonsAdded+' לקחים נוספו למוח הגלובלי לטיולים הבאים.','🧠 '+r.brainLessonsAdded+' lessons added to the global Brain for future trips.')); }
     else if(r && r.service){ wrapMsg('ai', T().wrap_retry); }
     else wrapMsg('ai','⚠️ '+(r.error||'error'));
   }catch(e){ pend.remove(); wrapMsg('ai', L('אין חיבור — נסה שוב','No connection — try again')); }
