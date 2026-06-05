@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v55';
+const APP_VER='v56';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1037,7 +1037,23 @@ $('itinAskBtn').onclick=async()=>{
       : L('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail ותשלח תקציר ל-AI. להמשיך?','This will read up to 6 recent booking emails from Gmail and send a summary to the AI. Continue?');
     if(!confirm(msg)) return;
   }
+  // ⚡ נתיב מהיר: בקשת "הוסף..." פשוטה (לא מייל, לא סדר-מחדש/מחק/העבר) → quick_add_item דטרמיניסטי
+  const addOnly = /הוסף|תוסיף|להוסיף|\badd\b/i.test(q) && !wantsEmail
+    && !/סדר|מחדש|מחק|הסר|העבר|תזיז|reorder|delete|remove|\bmove\b|נקה|clear|rewrite|ארגן/i.test(q);
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
+  if(addOnly){
+    try{ const r=await api({action:'quick_add_item', tripId:getTripId(), text:q});
+      if(r.ok){ await reloadItin(); $('itinAsk').value='';
+        const it=r.item||{}; const resolved=(r.resolvedDay&&r.resolvedDay.label)?(' · 📅 '+r.resolvedDay.label):'';
+        const summary='⚡ '+(r.duplicate?L('כבר קיים: ','Already there: '):L('נוסף: ','Added: '))+(it.title||'')+' · '+itinDayLabel(it.day)+(it.time?(' · '+it.time):'')+resolved;
+        toast(summary, 6000); logLine(summary);
+        $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; return; }
+      // נכשל: לא נופלים אוטומטית ל-AI המלא — מציגים את ההסבר (שמרמז על 🤖) ומאפשרים לג'ק להחליט
+      $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖';
+      alert((r.error||L('לא הצלחתי להוסיף מהר','Quick add failed'))+(r.useFullAi?L('\n\nאפשר לנסח שוב, או למחוק "הוסף" כדי שה-🤖 המלא יטפל.',' \n\nRephrase, or remove "add" so the full 🤖 handles it.'):''));
+      return;
+    }catch(e){ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; alert(L('אין חיבור — נסה שוב','No connection — try again')); return; }
+  }
   const before=itinItems.slice();   // snapshot מלא — diff אמיתי לפי id
   try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
     // מסמכים+קישורים מוצגים גם אם ה-AI נכשל; פירוט-הפריטים רק כשהצליח (לא ממציאים)
