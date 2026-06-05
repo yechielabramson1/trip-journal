@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v61';
+const APP_VER='v62';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -405,6 +405,7 @@ function openBookView(html, driveUrl, dayInfo){
   setBookDay(dayInfo&&dayInfo.day, dayInfo&&dayInfo.index);
   currentBookFileId=(dayInfo&&dayInfo.fileId)||'';
   $('bookframe').srcdoc=html;
+  scheduleBookInlineWire();
   const dl=$('bookdrive'); dl.href=driveUrl||'#'; dl.style.display=driveUrl?'inline':'none';
   $('bookview').hidden=false; document.body.style.overflow='hidden';
 }
@@ -428,6 +429,7 @@ async function showChapter(idx){
   if(currentChapterIdx!==idx) return;   // המשתמש עבר פרק בזמן הטעינה
   $('bookframe').srcdoc = c.htmlB64 ? b64ToUtf8(c.htmlB64)
     : '<!doctype html><meta charset=utf-8><body style="font-family:system-ui;padding:24px;direction:rtl">'+L('הפרק לא נטען — נסה 🔄 לבנות מחדש','Chapter failed — try 🔄 rebuild')+'</body>';
+  scheduleBookInlineWire();
 }
 // 📚 פתיחה מהירה: קורא את הספר האחרון מ-Drive (manifest) בלי לבנות. אין ספר → שער-בנייה.
 async function openLatestBook(){
@@ -549,6 +551,7 @@ async function rebuildChapterForDay(day){   // בונה מחדש פרק-יום �
 let _bookWired=false;
 function initBookInlineEdit(){ if(_bookWired) return; const fr=$('bookframe'); if(!fr) return; _bookWired=true;
   fr.addEventListener('load', ()=>{ try{ wireBookInline(); }catch(e){} }); }
+function scheduleBookInlineWire(){ setTimeout(()=>{ try{ wireBookInline(); }catch(e){} }, 250); setTimeout(()=>{ try{ wireBookInline(); }catch(e){} }, 1200); }
 function wireBookInline(){
   const fr=$('bookframe'); let doc; try{ doc=fr.contentDocument; }catch(e){ return; }
   if(!doc || !doc.body) return;
