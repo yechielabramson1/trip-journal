@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v57';
+const APP_VER='v58';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -401,7 +401,7 @@ async function retryFailed(failed, voice){
 // ----- viewer: פרק אחד בזיכרון בכל רגע (lazy) -----
 function setBookDay(day, index){ currentBookDay=day||''; currentDayIndex=index||''; $('bookmore').hidden = !currentBookDay; }
 function openBookView(html, driveUrl, dayInfo){
-  $('bookchips').hidden=true; $('bookchips').innerHTML=''; currentChapterIdx=-1; $('bookedit').hidden=false;   // ✏️ זמין בכל מצב (יום נוכחי → אותו יום; ספר מלא → בורר-יום)
+  $('bookchips').hidden=true; $('bookchips').innerHTML=''; currentChapterIdx=-1; $('bookedit').hidden=true;   // עריכה נעשית ישירות על הרשומה בתוך הספר
   setBookDay(dayInfo&&dayInfo.day, dayInfo&&dayInfo.index);
   $('bookframe').srcdoc=html;
   const dl=$('bookdrive'); dl.href=driveUrl||'#'; dl.style.display=driveUrl?'inline':'none';
@@ -411,13 +411,13 @@ function openChapteredView(failed, voice){
   const chips=$('bookchips'); chips.innerHTML=''; chips.hidden=false;
   bookChapters.forEach((c,idx)=>{ const b=document.createElement('button'); b.className='chip'; b.textContent=c.label; b.onclick=()=>showChapter(idx); chips.appendChild(b); });
   if(failed && failed.length){ const rb=document.createElement('button'); rb.className='chip fail'; rb.textContent='↻ '+failed.length+' '+L('נכשלו','failed'); rb.onclick=()=>retryFailed(failed, voice); chips.appendChild(rb); }
-  $('bookdrive').style.display='none'; $('bookedit').hidden=false;
+  $('bookdrive').style.display='none'; $('bookedit').hidden=true;
   $('bookview').hidden=false; document.body.style.overflow='hidden';
   showChapter(0);
 }
 async function showChapter(idx){
   const c=bookChapters[idx]; if(!c) return;
-  currentChapterIdx=idx; setBookDay(c.day, c.index); $('bookedit').hidden=false;   // עריכת-יום זמינה במצב-פרקים
+  currentChapterIdx=idx; setBookDay(c.day, c.index); $('bookedit').hidden=true;   // עריכה ישירה על הרשומה בלבד
   Array.prototype.forEach.call($('bookchips').querySelectorAll('.chip:not(.fail)'), (el,i)=>el.classList.toggle('on', i===idx));
   if(!c.htmlB64 && c.fileId){   // "מדף": פרק נטען עצלן מ-Drive בלחיצה (בלי build)
     $('bookframe').srcdoc='<!doctype html><meta charset=utf-8><body style="font-family:system-ui;padding:24px;color:#64748b;direction:rtl">'+L('טוען פרק…','Loading chapter…')+'</body>';
@@ -458,11 +458,12 @@ function setBookTitleMeta(r){   // כותרת: "📖 ספר המסע · עודכ
   $('bookrebuild').classList.toggle('hasnew', !!(r&&r.hasUpdates));
   $('bookrebuild').title = (r&&r.hasUpdates) ? L('יש תוכן חדש מאז הבנייה — עדכן','New content since build — update') : L('עדכן/בנה מחדש','Update / rebuild');
 }
-$('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; $('bookchips').hidden=true; $('bookchips').innerHTML=''; bookChapters=[]; currentChapterIdx=-1; $('bookedit').hidden=true; setBookDay('',''); $('booktitle').textContent='📖 '+L('ספר המסע','Story Book'); $('bookrebuild').classList.remove('hasnew'); document.body.style.overflow=''; };
+$('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; $('bookchips').hidden=true; $('bookchips').innerHTML=''; $('dayeditgate').hidden=true; bookChapters=[]; currentChapterIdx=-1; $('bookedit').hidden=true; setBookDay('',''); $('booktitle').textContent='📖 '+L('ספר המסע','Story Book'); $('bookrebuild').classList.remove('hasnew'); document.body.style.overflow=''; };
 // 🔄 עדכן/בנה מחדש — מתוך ה-viewer (פותח את שער-הבנייה)
 $('bookrebuild').onclick=()=>openBuildGate();
 
-// ✏️ עריכת/מחיקת רשומות-יומן — זמין בכל מצב-קריאה. יום נוכחי → אותו יום; ספר מלא → בורר-יום.
+// ✏️ עריכת/מחיקת רשומות-יומן — המסלול הישן של "בחר יום" נשאר רק כגיבוי פנימי.
+// ב-UX הרגיל אין כפתור-יום: לוחצים על ✏️/🗑️ שעל הרשומה עצמה.
 let editingDay='';
 $('bookedit').onclick=()=>{ if(currentBookDay) openDayEditor(currentBookDay); else openDayPickerForJournalEdit(); };
 $('dayeditClose').onclick=()=>{ $('dayeditgate').hidden=true; };
@@ -517,20 +518,20 @@ async function openDayEditor(day, index){
 async function saveJournalEntry(id, text, btn){ text=(text||'').trim(); if(!text){ alert(L('טקסט ריק','Empty text')); return; }
   const o=btn.textContent; btn.disabled=true; btn.textContent='…';
   try{ const r=await api({action:'update_journal', tripId:getTripId(), entryId:id, text});
-    if(r.ok){ logLine(L('✏️ רשומה עודכנה','✏️ Entry updated')); await afterJournalChange(editingDay); }
+    if(r.ok){ updateInlineEntryDom(id, text); $('dayeditgate').hidden=true; logLine(L('✏️ רשומה עודכנה','✏️ Entry updated')); afterJournalChange(editingDay); }
     else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ btn.disabled=false; btn.textContent=o; } }
 async function deleteJournalEntry(id){ if(!confirm(L('למחוק לחלוטין את רשומת-היומן הזו?','Permanently delete this journal entry?'))) return;
   try{ const r=await api({action:'delete_journal', tripId:getTripId(), entryId:id});
-    if(r.ok){ logLine(L('🗑️ רשומה נמחקה','🗑️ Entry deleted')); await afterJournalChange(editingDay); openDayEditor(editingDay); }
+    if(r.ok){ removeInlineEntryDom(id); $('dayeditgate').hidden=true; logLine(L('🗑️ רשומה נמחקה','🗑️ Entry deleted')); afterJournalChange(editingDay); }
     else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } }
-// אחרי עריכה/מחיקה: אם יש פרק תואם ליום → בנה אותו מחדש בלבד; אחרת toast (לא בונים full book אוטומטית)
+// אחרי עריכה/מחיקה: לא בונים מחדש אוטומטית. העמוד הנוכחי מתעדכן מיד, והארכיון יסומן לעדכון.
 async function afterJournalChange(day){
-  let rebuilt=false;
-  if(bookChapters.length){ try{ rebuilt=await rebuildChapterForDay(day); }catch(e){} }
-  if(!rebuilt) toast(L('היומן עודכן · 🔄 עדכן ספר כדי לראות שינוי מלא','Journal updated · 🔄 rebuild to see the full change'));
+  $('bookrebuild').classList.add('hasnew');
+  $('bookrebuild').title=L('היומן השתנה — עדכן/בנה ספר כדי לשמור גרסת ארכיון חדשה','Journal changed — update/rebuild to save a fresh archive version');
+  toast(L('היומן עודכן','Journal updated'));
 }
 async function rebuildChapterForDay(day){   // בונה מחדש פרק-יום מסוים (אם קיים), מרענן iframe אם זה הפרק המוצג
   const idx=bookChapters.findIndex(c=>c.day===day); if(idx<0) return false;
@@ -551,17 +552,36 @@ function wireBookInline(){
   const fr=$('bookframe'); let doc; try{ doc=fr.contentDocument; }catch(e){ return; }
   if(!doc || !doc.body) return;
   if(!doc.getElementById('jeditStyle')){ const st=doc.createElement('style'); st.id='jeditStyle';
-    st.textContent='.entry{position:relative!important} .jedit{position:absolute;top:6px;inset-inline-start:6px;display:flex;gap:6px;z-index:9} .jedit button{font-size:15px;line-height:1;border:0;border-radius:9px;padding:6px 10px;background:rgba(14,116,144,.94);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);cursor:pointer} .jedit .del{background:rgba(220,38,38,.94)}';
+    st.textContent='.entry{position:relative!important;padding-inline-start:56px!important} .jedit{position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:7px;z-index:9999;pointer-events:auto} .jedit button{min-width:38px;min-height:38px;font-size:17px;line-height:1;border:0;border-radius:999px;padding:8px 10px;background:rgba(14,116,144,.96);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation} .jedit .del{background:rgba(220,38,38,.96)} .entry.jgone{opacity:.45;filter:grayscale(1)}';
     (doc.head||doc.body).appendChild(st); }
   doc.querySelectorAll('.entry[data-eid]').forEach(el=>{
     if(el.querySelector('.jedit')) return;
     const eid=el.getAttribute('data-eid'), day=el.getAttribute('data-day')||currentBookDay;
     const w=doc.createElement('div'); w.className='jedit';
-    const be=doc.createElement('button'); be.type='button'; be.textContent='✏️'; be.addEventListener('click', ev=>{ ev.preventDefault(); ev.stopPropagation(); openEntryEditor(eid, day); });
-    const bd=doc.createElement('button'); bd.type='button'; bd.className='del'; bd.textContent='🗑️'; bd.addEventListener('click', ev=>{ ev.preventDefault(); ev.stopPropagation(); deleteEntryInline(eid, day); });
+    const be=doc.createElement('button'); be.type='button'; be.textContent='✏️'; be.setAttribute('aria-label','ערוך רשומה'); be.addEventListener('click', ev=>{ ev.preventDefault(); ev.stopPropagation(); openEntryEditor(eid, day); });
+    const bd=doc.createElement('button'); bd.type='button'; bd.className='del'; bd.textContent='🗑️'; bd.setAttribute('aria-label','מחק רשומה'); bd.addEventListener('click', ev=>{ ev.preventDefault(); ev.stopPropagation(); deleteEntryInline(eid, day); });
     w.appendChild(be); w.appendChild(bd); el.appendChild(w);
   });
 }
+function inlineEntryEl(eid){ const fr=$('bookframe'); let doc; try{ doc=fr.contentDocument; }catch(e){ return null; } return doc ? doc.querySelector('.entry[data-eid="'+cssEscape(eid)+'"]') : null; }
+function cssEscape(s){ return String(s).replace(/["\\]/g,'\\$&'); }
+function updateInlineEntryDom(eid, text){
+  const el=inlineEntryEl(eid); if(!el) return;
+  const p=el.querySelector('p'); if(p) p.textContent=text;
+  syncCurrentChapterHtml();
+}
+function removeInlineEntryDom(eid){
+  const el=inlineEntryEl(eid); if(!el) return;
+  el.classList.add('jgone');
+  setTimeout(()=>{ try{ el.remove(); syncCurrentChapterHtml(); }catch(e){} }, 80);
+}
+function syncCurrentChapterHtml(){
+  const fr=$('bookframe'); let doc; try{ doc=fr.contentDocument; }catch(e){ return; }
+  if(!doc) return;
+  const html='<!doctype html>\n'+doc.documentElement.outerHTML;
+  if(currentChapterIdx>=0 && bookChapters[currentChapterIdx]) bookChapters[currentChapterIdx].htmlB64=utf8ToB64(html);
+}
+function utf8ToB64(s){ const bytes=new TextEncoder().encode(s); let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b)); return btoa(bin); }
 // עורך-רשומה-בודדת (מתוך לחיצת ✏️ inline) — אותו gate, רשומה אחת בלבד
 async function openEntryEditor(eid, day){
   editingDay = day || currentBookDay || '';
@@ -582,9 +602,10 @@ async function openEntryEditor(eid, day){
     d.appendChild(ta); d.appendChild(row); body.appendChild(d); ta.focus();
   }catch(e){ $('dayeditBody').innerHTML='<div class="empty">'+L('אין חיבור — נסה שוב','No connection — try again')+'</div>'; }
 }
-async function deleteEntryInline(eid, day){ if(!confirm(L('למחוק לחלוטין את רשומת-היומן הזו?','Permanently delete this journal entry?'))) return;
+async function deleteEntryInline(eid, day){ if(!confirm(L('למחוק את הרשומה הזו?','Delete this entry?'))) return;
   try{ const r=await api({action:'delete_journal', tripId:getTripId(), entryId:eid});
-    if(r.ok){ logLine(L('🗑️ רשומה נמחקה','🗑️ Entry deleted')); await afterJournalChange(day||currentBookDay); }
+    if(r.ok){ removeInlineEntryDom(eid); $('dayeditgate').hidden=true; logLine(L('🗑️ רשומה נמחקה','🗑️ Entry deleted')); afterJournalChange(day||currentBookDay); }
+    else if(r.error==='not found'){ removeInlineEntryDom(eid); $('dayeditgate').hidden=true; toast(L('הרשומה כבר נמחקה — ניקיתי אותה מהתצוגה','Entry was already deleted — removed from view')); }
     else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } }
 initBookInlineEdit();
