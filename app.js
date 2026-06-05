@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v64';
+const APP_VER='v65';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1114,6 +1114,7 @@ $('itinAskBtn').onclick=async()=>{
     const extra=[];
     if(r.savedDocs && r.savedDocs.length) extra.push(L(r.savedDocs.length+' מסמכים נשמרו', r.savedDocs.length+' documents saved'));
     if(r.sourceLinks) extra.push(L(r.sourceLinks+' קישורי-מקור', r.sourceLinks+' source links'));
+    if(r.deduped) extra.push(L(r.deduped+' כפילויות אוחדו', r.deduped+' duplicates merged'));
     if(r.ok){ // diff לפי חתימת-תוכן (השרת מקצה id חדש לכל פריט בכל קריאה, אז id לא אמין)
       const sig=it=>((it.title||'').trim()+'|'+(it.day||'')+'|'+(it.time||''));
       const beforeSigs=new Set(before.map(sig));
