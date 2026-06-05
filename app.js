@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v68';
+const APP_VER='v69';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -142,7 +142,7 @@ function renderDrawer(){
     list.appendChild(d);
   });
 }
-function escapeHtml(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 // חותמת-זמן קצרה אחידה: dd/MM HH:mm (או dd/MM אם אין שעה). מקבל ISO / dd/MM/yyyy[ HH:mm] / YYYY-MM-DD.
 function shortTs(s){ s=String(s||'').trim(); if(!s) return ''; let m;
   if((m=s.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/))) return m[3]+'/'+m[2]+' '+m[4]+':'+m[5];
@@ -152,9 +152,16 @@ function shortTs(s){ s=String(s||'').trim(); if(!s) return ''; let m;
   return s; }
 
 /* ---------- API (online actions) ---------- */
+// fetch עם timeout (AbortController) — בקשה תקועה מחזירה שגיאה במקום ספינר-אינסופי. ברירת מחדל 120ש' (פעולות-AI איטיות).
+async function postEndpoint(body, ms){
+  const ctrl = (typeof AbortController!=='undefined') ? new AbortController() : null;
+  const to = ctrl ? setTimeout(()=>{ try{ ctrl.abort(); }catch(e){} }, ms||120000) : null;
+  try{ return await fetch(ENDPOINT, { method:'POST', redirect:'follow',
+    headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body), signal:ctrl?ctrl.signal:undefined }); }
+  finally{ if(to) clearTimeout(to); }
+}
 async function api(payload){
-  const r = await fetch(ENDPOINT, { method:'POST', redirect:'follow',
-    headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify({ v:SCHEMA_V, token:token(), ...payload }) });
+  const r = await postEndpoint({ v:SCHEMA_V, token:token(), ...payload });
   if(!r.ok) throw new Error('HTTP '+r.status);
   return r.json();
 }
@@ -183,7 +190,7 @@ let _geoPrompted=false;   // לא לבקש מיקום יותר מפעם אחת �
 function quickLocation(){ return new Promise(res=>{ if(!navigator.geolocation) return res(null);
   const get=()=>navigator.geolocation.getCurrentPosition(
     p=>res({lat:+p.coords.latitude.toFixed(5),lng:+p.coords.longitude.toFixed(5)}),
-    ()=>res(null), {enableHighAccuracy:false,timeout:4000,maximumAge:600000});   // משתמש בקריאת-מיקום מהעבר (עד 10 דק') כדי לא לשאוב מחדש
+    ()=>res(null), {enableHighAccuracy:false,timeout:8000,maximumAge:600000});   // 8ש' (GPS קר צריך יותר מ-4); משתמש בקריאה מהעבר (עד 10 דק')
   const decide=(state)=>{ if(state==='granted') return get();          // הורשה — שקט, בלי שאלה
     if(state==='denied') return res(null);                              // נדחה — לא שואלים שוב
     if(_geoPrompted) return res(null);                                  // 'prompt' — שואלים לכל היותר פעם אחת לכל סשן
@@ -225,9 +232,11 @@ async function enqueueExpense(data, file){
 async function sendItem(item){
   const body={ ...item.payload, v:SCHEMA_V, token:token() };
   if(item.blob) body.dataB64=await blobToB64(item.blob);
-  const r=await fetch(ENDPOINT,{ method:'POST', redirect:'follow', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body) });
-  if(!r.ok) throw new Error('HTTP '+r.status);
-  const j=await r.json(); if(!j.ok) throw new Error(j.error||'server'); return j;
+  const r=await postEndpoint(body);
+  if(!r.ok){ const e=new Error('HTTP '+r.status); e.retriable=true; throw e; }   // רשת/שרת-למטה → ננסה שוב
+  const j=await r.json();
+  if(!j.ok){ const e=new Error(j.error||'server rejected'); e.permanent=true; throw e; }   // השרת דחה את הפריט → לא לנסות לנצח
+  return j;
 }
 let flushing=false, backoff=0;
 async function flush(){
@@ -236,7 +245,13 @@ async function flush(){
     const items=(await dbAll()).sort((a,b)=>a.seq-b.seq);
     for(const it of items){
       try{ await sendItem(it); await dbDel(it.seq); backoff=0; }
-      catch(err){ backoff=Math.min((backoff||1000)*2,60000); setTimeout(()=>{flushing=false;flush();},backoff); await render(); return; }
+      catch(err){
+        if(err && err.permanent){   // פריט שהשרת דחה לצמיתות — הסר והמשך, אחרת הוא חוסם את כל התור לנצח
+          await dbDel(it.seq); logLine('⚠️ '+L('פריט נדחה ולא נשמר: ','Item rejected: ')+(err.message||''));
+          continue;
+        }
+        backoff=Math.min((backoff||1000)*2,60000); setTimeout(()=>{flushing=false;flush();},backoff); await render(); return;   // רשת — ננסה שוב מאוחר יותר
+      }
     }
   } finally { flushing=false; }
   await render();
@@ -532,8 +547,7 @@ async function deleteJournalEntry(id){ if(!confirm(L('למחוק לחלוטין 
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); } }
 // אחרי עריכה/מחיקה: לא בונים מחדש אוטומטית. העמוד הנוכחי מתעדכן מיד, והארכיון יסומן לעדכון.
 async function afterJournalChange(day){
-  $('bookrebuild').classList.add('hasnew');
-  $('bookrebuild').title=L('היומן השתנה — עדכן/בנה ספר כדי לשמור גרסת ארכיון חדשה','Journal changed — update/rebuild to save a fresh archive version');
+  // השינוי נשמר ל-archive (patch_story_book_html) — אין צורך לסמן "רענון" אלא אם ה-patch נכשל (מטופל ב-patchCurrentStoryArchive)
   toast(L('היומן עודכן','Journal updated'));
 }
 async function rebuildChapterForDay(day){   // בונה מחדש פרק-יום מסוים (אם קיים), מרענן iframe אם זה הפרק המוצג
@@ -1111,7 +1125,7 @@ $('itinAskBtn').onclick=async()=>{
     if(!confirm(msg)) return;
   }
   // ⚡ נתיב מהיר: בקשת "הוסף..." פשוטה (לא מייל, לא סדר-מחדש/מחק/העבר) → quick_add_item דטרמיניסטי
-  const addOnly = /הוסף|תוסיף|להוסיף|\badd\b/i.test(q) && !wantsEmail
+  const addOnly = /הוסף|תוסיף|הוסיף|להוסיף|\badd\b/i.test(q) && !wantsEmail
     && !/סדר|מחדש|מחק|הסר|העבר|תזיז|reorder|delete|remove|\bmove\b|נקה|clear|rewrite|ארגן/i.test(q);
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
   if(addOnly){
