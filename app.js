@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v65';
+const APP_VER='v66';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -927,8 +927,7 @@ const TYPE_ICON={activity:'🥾',sight:'📸',meal:'🍽️',hotel:'🏨',travel
 // קישור-מקור (Booking וכו') — דומיינים אמינים בלבד, אישור לפני פתיחה, ללא פתיחה אוטומטית
 function isTrustedSource(u){ try{ const h=new URL(u).hostname.toLowerCase(); return /(^|\.)(booking\.com|airbnb\.com|agoda\.com|expedia\.com|hotels\.com)$/.test(h); }catch(e){ return false; } }
 function openSource(url){ if(!isTrustedSource(url)){ alert(L('קישור-מקור לא מזוהה','Unrecognized source link')); return; }
-  let host=''; try{ host=new URL(url).hostname; }catch(e){}
-  if(confirm(L('לפתוח את קישור-המקור?\n','Open the source link?\n')+host+'\n'+url)) window.open(url,'_blank','noopener'); }
+  window.open(url,'_blank','noopener'); }   // דומיין אמין (Booking/Airbnb…) — פתיחה ישירה בלי אישור מיותר
 function ymd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function parseYmd(s){ const p=String(s).split('-'); return new Date(+p[0], (+p[1]||1)-1, (+p[2]||1)); }
 function dayLabel(s){ try{ return parseYmd(s).toLocaleDateString(uiLang()==='en'?'en-GB':'he-IL',{weekday:'long',day:'2-digit',month:'2-digit'}); }catch(e){ return s; } }
