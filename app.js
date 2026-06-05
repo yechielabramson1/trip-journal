@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v54';
+const APP_VER='v55';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1057,7 +1057,8 @@ $('itinAskBtn').onclick=async()=>{
         head=L('נוספו '+added.length+': ','Added '+added.length+': ')+names.join(' | ')+(added.length>2?L(' +'+(added.length-2)+' נוספים',' +'+(added.length-2)+' more'):'');
       } else { const delta=itinItems.length-before.length;
         head = delta<0 ? L(Math.abs(delta)+' פריטים הוסרו', Math.abs(delta)+' items removed') : L('התכנית עודכנה','The plan was updated'); }
-      const summary='🤖 '+[head].concat(extra).join(' · ');
+      const resolved = (r.resolvedDay && r.resolvedDay.label) ? ('📅 '+r.resolvedDay.label) : '';   // התאריך שנפתר דטרמיניסטית
+      const summary='🤖 '+[head].concat(resolved?[resolved]:[]).concat(extra).join(' · ');
       toast(summary, 7000); logLine(summary);
     } else if(extra.length){
       toast('📁 '+extra.join(' · ')+' · '+L('התכנית לא עודכנה','plan not updated'), 7000);
