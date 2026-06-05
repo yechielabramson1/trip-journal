@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v60';
+const APP_VER='v61';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -552,6 +552,11 @@ function initBookInlineEdit(){ if(_bookWired) return; const fr=$('bookframe'); i
 function wireBookInline(){
   const fr=$('bookframe'); let doc; try{ doc=fr.contentDocument; }catch(e){ return; }
   if(!doc || !doc.body) return;
+  if(!doc.querySelector('.entry[data-eid]') && currentBookDay && !doc.body.dataset.hydratingIds){
+    doc.body.dataset.hydratingIds='1';
+    hydrateLegacyEntryIds(doc, currentBookDay).then(()=>{ try{ wireBookInline(); }catch(e){} });
+    return;
+  }
   if(!doc.getElementById('jeditStyle')){ const st=doc.createElement('style'); st.id='jeditStyle';
     st.textContent='.entry{position:relative!important;padding-inline-start:56px!important} .jedit{position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:7px;z-index:9999;pointer-events:auto} .jedit button{min-width:38px;min-height:38px;font-size:17px;line-height:1;border:0;border-radius:999px;padding:8px 10px;background:rgba(14,116,144,.96);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation} .jedit .del{background:rgba(220,38,38,.96)} .entry.jgone{opacity:.45;filter:grayscale(1)}';
     (doc.head||doc.body).appendChild(st); }
@@ -563,6 +568,19 @@ function wireBookInline(){
     const bd=doc.createElement('button'); bd.type='button'; bd.className='del'; bd.textContent='🗑️'; bd.setAttribute('aria-label','מחק רשומה'); bd.addEventListener('click', ev=>{ ev.preventDefault(); ev.stopPropagation(); deleteEntryInline(eid, day); });
     w.appendChild(be); w.appendChild(bd); el.appendChild(w);
   });
+}
+async function hydrateLegacyEntryIds(doc, day){
+  try{
+    const r=await api({action:'list_journal_day', tripId:getTripId(), day});
+    const entries=(r.entries||[]).slice(), used={};
+    const norm=s=>String(s||'').replace(/\s+/g,' ').trim();
+    Array.prototype.forEach.call(doc.querySelectorAll('.entry:not([data-eid])'), el=>{
+      const time=((el.querySelector('.t')||{}).textContent||'').match(/\d{2}:\d{2}/);
+      const txt=norm((el.querySelector('p')||{}).textContent||'');
+      const idx=entries.findIndex((e,i)=>!used[i] && (!time || e.time===time[0]) && (!txt || norm(e.text)===txt));
+      if(idx>=0){ used[idx]=1; el.setAttribute('data-eid', entries[idx].id); el.setAttribute('data-day', day); }
+    });
+  }catch(e){}
 }
 function inlineEntryEl(eid){ const fr=$('bookframe'); let doc; try{ doc=fr.contentDocument; }catch(e){ return null; } return doc ? doc.querySelector('.entry[data-eid="'+cssEscape(eid)+'"]') : null; }
 function cssEscape(s){ return String(s).replace(/["\\]/g,'\\$&'); }
