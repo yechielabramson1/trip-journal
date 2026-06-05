@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v58';
+const APP_VER='v59';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -297,7 +297,7 @@ $('newtripcreate').onclick=async()=>{
 // 📖 ספר המסע — בונה HTML פרטי ב-Drive ופותח אותו (ללא auto-share)
 // 📖 ספר המסע v2.1 — שער (היקף + קול), ספר-יחיד או chaptered (לולאת ימים)
 function b64ToUtf8(b64){ const bin=atob(b64); const bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i); return new TextDecoder('utf-8').decode(bytes); }
-let storyDaysCache=null, bookChapters=[], bookBuildId='', currentBookDay='', currentDayIndex='', currentChapterIdx=-1;
+let storyDaysCache=null, bookChapters=[], bookBuildId='', currentBookDay='', currentDayIndex='', currentChapterIdx=-1, currentBookFileId='';
 function bkBusy(on, msg){ ['bkBuild','bkCancel','bkVoice','bkScope'].forEach(id=>{ $(id).disabled=on; }); const p=$('bkProgress'); if(on){ p.hidden=false; if(msg) p.textContent=msg; } else { p.hidden=true; } }
 function bkProgress(msg){ const p=$('bkProgress'); p.hidden=false; p.textContent=msg; }
 function logBookStats(s){ const ai = s.voiceFallback ? L(' · נכתב אותנטי (AI לא זמין)',' · authentic (AI unavailable)') : (s.aiUsed ? L(' · עם נרטיב AI',' · with AI narrative') : ''); logLine(T().book_done+' · '+(s.entries||0)+' '+L('רשומות','entries')+', '+(s.photos||0)+' '+L('תמונות','photos')+', '+Math.round((s.bytes||0)/1024)+'KB'+ai); }
@@ -344,7 +344,7 @@ async function buildSingle(params){
       const oneDay=(params.scope==='range' && params.fromDay===params.toDay)?params.fromDay:'';   // ספר של יום בודד → כפתור 📸 רלוונטי
       bookChapters=[]; bookBuildId='';
       saveBookManifest('single', params.voice, { fileId:r.fileId, bytes:(r.stats&&r.stats.bytes)||0, scope:params.scope, day:oneDay, dayIndex:'' });
-      openBookView(b64ToUtf8(r.htmlB64), r.url, oneDay?{day:oneDay,index:''}:null); }
+      openBookView(b64ToUtf8(r.htmlB64), r.url, {day:oneDay, index:'', fileId:r.fileId||''}); }
     else if(r.ok && r.tooBig){ alert(L('📖 הספר גדול מדי לתצוגה — בחר "לפי פרקים". הקובץ נשמר בדרייב.','📖 Too large to display — choose "chapters". Saved to Drive.')); }
     else if(r && r.service){ alert(L('⏳ הבנייה ארכה — נסה "לפי פרקים"','⏳ Took too long — try "chapters"')); }
     else alert(L('שגיאה: ','Error: ')+(r.error||''));
@@ -403,6 +403,7 @@ function setBookDay(day, index){ currentBookDay=day||''; currentDayIndex=index||
 function openBookView(html, driveUrl, dayInfo){
   $('bookchips').hidden=true; $('bookchips').innerHTML=''; currentChapterIdx=-1; $('bookedit').hidden=true;   // עריכה נעשית ישירות על הרשומה בתוך הספר
   setBookDay(dayInfo&&dayInfo.day, dayInfo&&dayInfo.index);
+  currentBookFileId=(dayInfo&&dayInfo.fileId)||'';
   $('bookframe').srcdoc=html;
   const dl=$('bookdrive'); dl.href=driveUrl||'#'; dl.style.display=driveUrl?'inline':'none';
   $('bookview').hidden=false; document.body.style.overflow='hidden';
@@ -417,7 +418,7 @@ function openChapteredView(failed, voice){
 }
 async function showChapter(idx){
   const c=bookChapters[idx]; if(!c) return;
-  currentChapterIdx=idx; setBookDay(c.day, c.index); $('bookedit').hidden=true;   // עריכה ישירה על הרשומה בלבד
+  currentChapterIdx=idx; currentBookFileId=c.fileId||''; setBookDay(c.day, c.index); $('bookedit').hidden=true;   // עריכה ישירה על הרשומה בלבד
   Array.prototype.forEach.call($('bookchips').querySelectorAll('.chip:not(.fail)'), (el,i)=>el.classList.toggle('on', i===idx));
   if(!c.htmlB64 && c.fileId){   // "מדף": פרק נטען עצלן מ-Drive בלחיצה (בלי build)
     $('bookframe').srcdoc='<!doctype html><meta charset=utf-8><body style="font-family:system-ui;padding:24px;color:#64748b;direction:rtl">'+L('טוען פרק…','Loading chapter…')+'</body>';
@@ -447,7 +448,7 @@ async function openLatestBook(){
     if(r.tooBig){ if(r.url) window.open(r.url,'_blank'); alert(L('📖 הספר גדול לתצוגה — נפתח בדרייב','📖 Too large — opened in Drive')); return; }
     if(!r.htmlB64) return openBuildGate();
     bookChapters=[]; bookBuildId='';
-    openBookView(b64ToUtf8(r.htmlB64), r.url, r.day?{day:r.day,index:r.dayIndex}:null);
+    openBookView(b64ToUtf8(r.htmlB64), r.url, {day:r.day||'', index:r.dayIndex||'', fileId:r.fileId||''});
   }
   setBookTitleMeta(r);
 }
@@ -458,7 +459,7 @@ function setBookTitleMeta(r){   // כותרת: "📖 ספר המסע · עודכ
   $('bookrebuild').classList.toggle('hasnew', !!(r&&r.hasUpdates));
   $('bookrebuild').title = (r&&r.hasUpdates) ? L('יש תוכן חדש מאז הבנייה — עדכן','New content since build — update') : L('עדכן/בנה מחדש','Update / rebuild');
 }
-$('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; $('bookchips').hidden=true; $('bookchips').innerHTML=''; $('dayeditgate').hidden=true; bookChapters=[]; currentChapterIdx=-1; $('bookedit').hidden=true; setBookDay('',''); $('booktitle').textContent='📖 '+L('ספר המסע','Story Book'); $('bookrebuild').classList.remove('hasnew'); document.body.style.overflow=''; };
+$('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; $('bookchips').hidden=true; $('bookchips').innerHTML=''; $('dayeditgate').hidden=true; bookChapters=[]; currentChapterIdx=-1; currentBookFileId=''; $('bookedit').hidden=true; setBookDay('',''); $('booktitle').textContent='📖 '+L('ספר המסע','Story Book'); $('bookrebuild').classList.remove('hasnew'); document.body.style.overflow=''; };
 // 🔄 עדכן/בנה מחדש — מתוך ה-viewer (פותח את שער-הבנייה)
 $('bookrebuild').onclick=()=>openBuildGate();
 
@@ -580,8 +581,15 @@ function syncCurrentChapterHtml(){
   if(!doc) return;
   const html='<!doctype html>\n'+doc.documentElement.outerHTML;
   if(currentChapterIdx>=0 && bookChapters[currentChapterIdx]) bookChapters[currentChapterIdx].htmlB64=utf8ToB64(html);
+  patchCurrentStoryArchive(html);
 }
 function utf8ToB64(s){ const bytes=new TextEncoder().encode(s); let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b)); return btoa(bin); }
+async function patchCurrentStoryArchive(html){
+  const fileId=(currentChapterIdx>=0 && bookChapters[currentChapterIdx]) ? bookChapters[currentChapterIdx].fileId : currentBookFileId;
+  if(!fileId || !html || html.length>6*1024*1024) return;
+  try{ await api({action:'patch_story_book_html', tripId:getTripId(), fileId, htmlB64:utf8ToB64(html)}); }
+  catch(e){ $('bookrebuild').classList.add('hasnew'); }
+}
 // עורך-רשומה-בודדת (מתוך לחיצת ✏️ inline) — אותו gate, רשומה אחת בלבד
 async function openEntryEditor(eid, day){
   editingDay = day || currentBookDay || '';
