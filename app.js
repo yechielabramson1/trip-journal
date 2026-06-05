@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v63';
+const APP_VER='v64';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',

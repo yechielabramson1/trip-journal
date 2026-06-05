@@ -3,7 +3,7 @@
  * (כך האפליקציה עדיין נפתחת אופליין בהרים). POSTים לשרת לא עוברים דרך ה-SW.
  */
 const CACHE = 'fieldcapture-v64';
-const SHELL = ['./','./index.html','./app.js?v=63','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
+const SHELL = ['./','./index.html','./app.js?v=64','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 
 self.addEventListener('install', e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));
