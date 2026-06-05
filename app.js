@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v62';
+const APP_VER='v63';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -580,7 +580,9 @@ async function hydrateLegacyEntryIds(doc, day){
     Array.prototype.forEach.call(doc.querySelectorAll('.entry:not([data-eid])'), el=>{
       const time=((el.querySelector('.t')||{}).textContent||'').match(/\d{2}:\d{2}/);
       const txt=norm((el.querySelector('p')||{}).textContent||'');
-      const idx=entries.findIndex((e,i)=>!used[i] && (!time || e.time===time[0]) && (!txt || norm(e.text)===txt));
+      let idx=entries.findIndex((e,i)=>!used[i] && (!time || e.time===time[0]) && (!txt || norm(e.text)===txt));
+      if(idx<0 && time) idx=entries.findIndex((e,i)=>!used[i] && e.time===time[0]);
+      if(idx<0) idx=entries.findIndex((e,i)=>!used[i]);
       if(idx>=0){ used[idx]=1; el.setAttribute('data-eid', entries[idx].id); el.setAttribute('data-day', day); }
     });
   }catch(e){}
