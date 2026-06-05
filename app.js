@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v66';
+const APP_VER='v67';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -574,16 +574,17 @@ function wireBookInline(){
 }
 async function hydrateLegacyEntryIds(doc, day){
   try{
-    const r=await api({action:'list_journal_day', tripId:getTripId(), day});
+    // כל רשומות-היומן (כל הימים) — מתאימים לפי טקסט (חובה) כדי לא לשייך id שגוי, וקובעים את היום האמיתי
+    const r=await api({action:'list_journal_all', tripId:getTripId()});
     const entries=(r.entries||[]).slice(), used={};
     const norm=s=>String(s||'').replace(/\s+/g,' ').trim();
     Array.prototype.forEach.call(doc.querySelectorAll('.entry:not([data-eid])'), el=>{
       const time=((el.querySelector('.t')||{}).textContent||'').match(/\d{2}:\d{2}/);
       const txt=norm((el.querySelector('p')||{}).textContent||'');
-      let idx=entries.findIndex((e,i)=>!used[i] && (!time || e.time===time[0]) && (!txt || norm(e.text)===txt));
-      if(idx<0 && time) idx=entries.findIndex((e,i)=>!used[i] && e.time===time[0]);
-      if(idx<0) idx=entries.findIndex((e,i)=>!used[i]);
-      if(idx>=0){ used[idx]=1; el.setAttribute('data-eid', entries[idx].id); el.setAttribute('data-day', day); }
+      if(!txt) return;   // בלי טקסט אין התאמה אמינה — לא משייכים (עדיף בלי כפתור מאשר id שגוי)
+      let idx=entries.findIndex((e,i)=>!used[i] && norm(e.text)===txt && (!time||e.time===time[0]));
+      if(idx<0) idx=entries.findIndex((e,i)=>!used[i] && norm(e.text)===txt);   // התאמת-טקסט בלבד
+      if(idx>=0){ used[idx]=1; el.setAttribute('data-eid', entries[idx].id); el.setAttribute('data-day', entries[idx].day); }
     });
   }catch(e){}
 }
@@ -596,8 +597,21 @@ function updateInlineEntryDom(eid, text){
 }
 function removeInlineEntryDom(eid){
   const el=inlineEntryEl(eid); if(!el) return;
+  const doc=el.ownerDocument;
   el.classList.add('jgone');
-  setTimeout(()=>{ try{ el.remove(); syncCurrentChapterHtml(); }catch(e){} }, 80);
+  setTimeout(()=>{ try{ el.remove(); pruneEmptyDayHeaders(doc); syncCurrentChapterHtml(); }catch(e){} }, 80);
+}
+// מסיר כותרת-יום (h2.day) שאין אחריה רשומות/תמונות — כשמוחקים את כל תוכן היום, גם התאריך נעלם
+function pruneEmptyDayHeaders(doc){
+  if(!doc) return;
+  Array.prototype.forEach.call(doc.querySelectorAll('h2.day'), h=>{
+    let n=h.nextElementSibling, hasContent=false;
+    while(n && !(n.tagName==='H2' && n.classList.contains('day'))){
+      if(n.classList.contains('entry') || n.tagName==='FIGURE' || n.classList.contains('photo')){ hasContent=true; break; }
+      n=n.nextElementSibling;
+    }
+    if(!hasContent) h.remove();
+  });
 }
 function syncCurrentChapterHtml(){
   const fr=$('bookframe'); let doc; try{ doc=fr.contentDocument; }catch(e){ return; }
@@ -622,9 +636,13 @@ async function openEntryEditor(eid, day){
   $('dayeditHdr').textContent='✏️ '+(journalDayLabel(editingDay, idx)||L('עריכת רשומה','Edit entry'));
   $('dayeditBody').innerHTML='<div class="empty">'+L('טוען…','Loading…')+'</div>'; $('dayeditgate').hidden=false;
   if(!navigator.onLine){ $('dayeditBody').innerHTML='<div class="empty">'+L('צריך חיבור','Connection needed')+'</div>'; return; }
-  try{ const r=await api({action:'list_journal_day', tripId:getTripId(), day:editingDay});
-    const e=(r.entries||[]).find(x=>x.id===eid); const body=$('dayeditBody'); body.innerHTML='';
-    if(!e){ body.innerHTML='<div class="empty">'+L('הרשומה לא נמצאה','Entry not found')+'</div>'; return; }
+  // אמין: מאתר את הרשומה לפי id בכל-הגיליון (לא מסונן-יום) — עובד גם בספר-מלא/ישן
+  try{ const r=await api({action:'get_journal_entry', tripId:getTripId(), entryId:eid});
+    const e=r.ok && r.entry; const body=$('dayeditBody'); body.innerHTML='';
+    if(!e){   // הרשומה כבר לא קיימת (ספר לא-מעודכן) — נקה מהתצוגה, אל תבלבל
+      removeInlineEntryDom(eid);
+      body.innerHTML='<div class="empty">'+L('הרשומה כבר לא קיימת (הספר אינו מעודכן). לחץ 🔄 לרענון הספר.','This entry no longer exists (book is outdated). Tap 🔄 to refresh.')+'</div>'; return; }
+    editingDay = e.day || editingDay;   // היום האמיתי של הרשומה
     const d=document.createElement('div'); d.className='jent';
     const ta=document.createElement('textarea'); ta.rows=4; ta.value=e.text||'';
     const row=document.createElement('div'); row.className='row';
