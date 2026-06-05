@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v56';
+const APP_VER='v57';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -924,7 +924,7 @@ function renderOverview(){
     const add=document.createElement('button'); add.textContent='＋'; add.onclick=(e)=>{ e.stopPropagation(); openItem(null, day); }; hdr.appendChild(add);
     hdr.onclick=()=>{ itinDayView=day; renderItin(); $('itinBody').scrollTop=0; };
     body.appendChild(hdr);
-    const items=itinItems.filter(i=>i.day===day).sort((a,b)=>(a.order-b.order)||String(a.time).localeCompare(String(b.time)));
+    const items=itinItems.filter(i=>i.day===day).sort((a,b)=>{ const ta=String(a.time||''), tb=String(b.time||''); return ta!==tb ? (!ta?-1:(!tb?1:ta.localeCompare(tb))) : ((a.order||0)-(b.order||0)); });   // שעה ראשי, order שובר-שוויון
     if(!items.length){ const e=document.createElement('div'); e.className='emptyday'; e.textContent=L('— ריק (הקש על היום לתצוגת שעות) —','— empty (tap the day for the hour view) —'); body.appendChild(e); return; }
     items.forEach(it=> body.appendChild(itemCard(it, true)));
   });
