@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v59';
+const APP_VER='v60';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -556,7 +556,7 @@ function wireBookInline(){
     st.textContent='.entry{position:relative!important;padding-inline-start:56px!important} .jedit{position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:7px;z-index:9999;pointer-events:auto} .jedit button{min-width:38px;min-height:38px;font-size:17px;line-height:1;border:0;border-radius:999px;padding:8px 10px;background:rgba(14,116,144,.96);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation} .jedit .del{background:rgba(220,38,38,.96)} .entry.jgone{opacity:.45;filter:grayscale(1)}';
     (doc.head||doc.body).appendChild(st); }
   doc.querySelectorAll('.entry[data-eid]').forEach(el=>{
-    if(el.querySelector('.jedit')) return;
+    const old=el.querySelector('.jedit'); if(old) old.remove();   // HTML שמור עלול להכיל כפתורים בלי listeners — תמיד מחווטים מחדש
     const eid=el.getAttribute('data-eid'), day=el.getAttribute('data-day')||currentBookDay;
     const w=doc.createElement('div'); w.className='jedit';
     const be=doc.createElement('button'); be.type='button'; be.textContent='✏️'; be.setAttribute('aria-label','ערוך רשומה'); be.addEventListener('click', ev=>{ ev.preventDefault(); ev.stopPropagation(); openEntryEditor(eid, day); });
@@ -579,7 +579,9 @@ function removeInlineEntryDom(eid){
 function syncCurrentChapterHtml(){
   const fr=$('bookframe'); let doc; try{ doc=fr.contentDocument; }catch(e){ return; }
   if(!doc) return;
-  const html='<!doctype html>\n'+doc.documentElement.outerHTML;
+  const clean=doc.documentElement.cloneNode(true);
+  clean.querySelectorAll('#jeditStyle,.jedit').forEach(n=>n.remove());   // הארכיון נשמר כספר נקי, לא עם כפתורי-מערכת
+  const html='<!doctype html>\n'+clean.outerHTML;
   if(currentChapterIdx>=0 && bookChapters[currentChapterIdx]) bookChapters[currentChapterIdx].htmlB64=utf8ToB64(html);
   patchCurrentStoryArchive(html);
 }
