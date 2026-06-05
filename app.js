@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v67';
+const APP_VER='v68';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -561,7 +561,7 @@ function wireBookInline(){
     return;
   }
   if(!doc.getElementById('jeditStyle')){ const st=doc.createElement('style'); st.id='jeditStyle';
-    st.textContent='.entry{position:relative!important;padding-inline-start:56px!important} .jedit{position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:7px;z-index:9999;pointer-events:auto} .jedit button{min-width:38px;min-height:38px;font-size:17px;line-height:1;border:0;border-radius:999px;padding:8px 10px;background:rgba(14,116,144,.96);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation} .jedit .del{background:rgba(220,38,38,.96)} .entry.jgone{opacity:.45;filter:grayscale(1)}';
+    st.textContent='.entry{position:relative!important;padding-inline-start:56px!important;transition:background .3s} .jedit{position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:7px;z-index:9999;pointer-events:auto} .jedit button{min-width:38px;min-height:38px;font-size:17px;line-height:1;border:0;border-radius:999px;padding:8px 10px;background:rgba(14,116,144,.96);color:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation;transition:transform .07s,filter .07s} .jedit button:active{transform:scale(.85);filter:brightness(.82)} .jedit .del{background:rgba(220,38,38,.96)} .entry.jgone{opacity:.35;filter:grayscale(1);transform:scale(.97);transition:opacity .25s,transform .25s,filter .25s} .entry.jflash{background:#fef9c3;box-shadow:0 0 0 3px #fde68a}';
     (doc.head||doc.body).appendChild(st); }
   doc.querySelectorAll('.entry[data-eid]').forEach(el=>{
     const old=el.querySelector('.jedit'); if(old) old.remove();   // HTML שמור עלול להכיל כפתורים בלי listeners — תמיד מחווטים מחדש
@@ -593,6 +593,8 @@ function cssEscape(s){ return String(s).replace(/["\\]/g,'\\$&'); }
 function updateInlineEntryDom(eid, text){
   const el=inlineEntryEl(eid); if(!el) return;
   const p=el.querySelector('p'); if(p) p.textContent=text;
+  el.classList.add('jflash'); el.scrollIntoView({block:'center',behavior:'smooth'});   // הבזק-צהוב + גלילה אליו → רואים מיד מה השתנה
+  setTimeout(()=>{ try{ el.classList.remove('jflash'); }catch(e){} }, 1100);
   syncCurrentChapterHtml();
 }
 function removeInlineEntryDom(eid){
