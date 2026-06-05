@@ -1087,8 +1087,8 @@ $('itinAskBtn').onclick=async()=>{
   const wantsDocs=/שמור.*(מסמכ|pdf|קבצ|מצורף|צרופ)|save.*(document|attachment|pdf)/i.test(q);
   if(wantsEmail){
     const msg = wantsDocs
-      ? L('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail, תשמור עד 5 PDF רלוונטיים בתיקיית "מסמכים", ותשלח תקציר ל-AI. להמשיך?','This will read up to 6 recent booking emails, save up to 5 relevant PDFs to "Documents", and send a summary to the AI. Continue?')
-      : L('הפעולה תקרא עד 6 מיילי הזמנה אחרונים מ-Gmail ותשלח תקציר ל-AI. להמשיך?','This will read up to 6 recent booking emails from Gmail and send a summary to the AI. Continue?');
+      ? L('הפעולה תקרא עד 10 מיילי הזמנה אחרונים מ-Gmail, תוסיף לתכנית, תשמור עד 5 PDF במסמכים, ותוסיף הוצאות-לינה מהמחיר שבמייל (ניתן למחוק). להמשיך?','This reads up to 10 recent booking emails, updates the plan, saves up to 5 PDFs, and adds lodging expenses from the email price (deletable). Continue?')
+      : L('הפעולה תקרא עד 10 מיילי הזמנה אחרונים מ-Gmail, תוסיף לתכנית קישורי-מקור, ותוסיף הוצאות-לינה מהמחיר שבמייל (ניתן למחוק). להמשיך?','This reads up to 10 recent booking emails, adds source links to the plan, and adds lodging expenses from the email price (deletable). Continue?');
     if(!confirm(msg)) return;
   }
   // ⚡ נתיב מהיר: בקשת "הוסף..." פשוטה (לא מייל, לא סדר-מחדש/מחק/העבר) → quick_add_item דטרמיניסטי
@@ -1130,6 +1130,9 @@ $('itinAskBtn').onclick=async()=>{
       const resolved = (r.resolvedDay && r.resolvedDay.label) ? ('📅 '+r.resolvedDay.label) : '';   // התאריך שנפתר דטרמיניסטית
       const summary='🤖 '+[head].concat(resolved?[resolved]:[]).concat(extra).join(' · ');
       toast(summary, 7000); logLine(summary);
+      // 💶 ייבוא-מייל → גם הוצאות-לינה מהמחיר שבגוף-המייל (idempotent; ניתן למחוק ב-📚)
+      if(wantsEmail){ try{ const ex=await api({action:'import_booking_expenses', tripId:getTripId(), author:getAuthor()});
+        if(ex.ok && ex.addedCount){ const m='💶 '+L(ex.addedCount+' הוצאות-לינה נוספו (ניתן למחוק ב-📚)', ex.addedCount+' lodging expenses added (deletable in 📚)'); toast(m, 8000); logLine(m); } }catch(e){} }
     } else if(extra.length){
       toast('📁 '+extra.join(' · ')+' · '+L('התכנית לא עודכנה','plan not updated'), 7000);
       alert(L('שגיאה: ','Error: ')+(r.error||''));
