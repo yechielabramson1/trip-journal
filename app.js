@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v71';
+const APP_VER='v72';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1119,33 +1119,52 @@ $('itinAskBtn').onclick=async()=>{
   const wantsEmail=/ייבא|מייל|אימייל|דוא|דואר|email|e-?mail|gmail|import/i.test(q);
   const wantsDocs=/מסמכ|document|\bdocs?\b|pdf|קבצ|מצורף|צרופ|attachment|תיק/i.test(q);
   if(wantsEmail){
-    const msg = wantsDocs
-      ? L('הפעולה תקרא מיילי הזמנה אחרונים מ-Gmail (כולל השכרת רכב), תוסיף לתכנית, תשמור מסמכים (PDF או מסמך-מקור), ותוסיף הוצאות מהמחיר שבמייל (לינה/טיסות/רכב, ניתן למחוק). להמשיך?','This reads recent booking emails from Gmail (incl. car rental), updates the plan, saves documents (PDF or a source doc), and adds expenses from the email price (lodging/flights/car, deletable). Continue?')
-      : L('הפעולה תקרא מיילי הזמנה אחרונים מ-Gmail (כולל השכרת רכב), תוסיף לתכנית קישורי-מקור, ותוסיף הוצאות מהמחיר שבמייל (ניתן למחוק). להמשיך?','This reads recent booking emails from Gmail (incl. car rental), adds source links to the plan, and adds expenses from the email price (deletable). Continue?');
+    const isDeep=/סריקה עמוקה|כל ההזמנות|כל המיילים|חפש בכל|deep ?scan|all reservations|scan all/i.test(q);
+    const msg = isDeep
+      ? L('סריקה עמוקה: תקרא הרבה מיילי-הזמנה מ-Gmail ותעדכן את כל ההזמנות (תכנית+מסמכים+הוצאות). זה איטי יותר. להמשיך?','Deep scan: reads many booking emails and updates all reservations (plan+docs+expenses). Slower. Continue?')
+      : L('הפעולה תקרא את ההזמנה האחרונה הרלוונטית מ-Gmail (כולל השכרת רכב) ותוסיף אותה לתכנית + מסמכים + הוצאה (ניתן למחוק). מהיר. להמשיך?','Reads the latest relevant booking from Gmail (incl. car rental) and adds it to the plan + documents + an expense (deletable). Fast. Continue?');
     if(!confirm(msg)) return;
   }
-  // 📨 ייבוא-מייל → פעולה אטומית אחת (תכנית+מסמכים+הוצאות). כל שלב עצמאי בשרת — אם התכנית נכשלת, ההוצאות עדיין רצות.
+  // 📨 ייבוא-מייל. ברירת-מחדל = מהיר וממוקד (הזמנה אחרונה אחת). "סריקה עמוקה" = הנתיב הכבד (כל ההזמנות).
   if(wantsEmail){
+    const deep=/סריקה עמוקה|כל ההזמנות|כל המיילים|חפש בכל|deep ?scan|all reservations|scan all/i.test(q);
     $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
-    try{ const r=await api({action:'import_travel_reservation', tripId:getTripId(), text:q, author:getAuthor()});
-      await reloadItin(); $('itinAsk').value='';
-      const parts=[];
-      if(r.plan){ if(r.plan.ok) parts.push(L('התכנית עודכנה','plan updated')); else if(r.plan.error) parts.push('⚠️ '+L('התכנית לא עודכנה','plan not updated')); }
-      const nd=(r.docs&&r.docs.saved)?r.docs.saved.length:0;
-      if(nd) parts.push(L(nd+' מסמכים נשמרו', nd+' documents saved'));
-      if(r.docs&&r.docs.error) parts.push('⚠️ '+L('שמירת מסמכים נכשלה','documents failed'));
-      if(r.expenses){
-        if(r.expenses.addedCount){ const list=(r.expenses.added||[]).map(a=>(a.category||'')+' · '+a.amount+' '+(a.currency||'')).slice(0,3);
-          const more=r.expenses.addedCount>3?L(' +'+(r.expenses.addedCount-3),' +'+(r.expenses.addedCount-3)):'';
-          parts.push('💶 '+(r.expenses.addedCount===1?L('נוספה הוצאה: ','expense: '):L(r.expenses.addedCount+' הוצאות: ',r.expenses.addedCount+' expenses: '))+list.join(' | ')+more); }
-        else { const rs=r.expenses.skippedReasons||{};
-          if(rs.noAmount) parts.push('ℹ️ '+L('לא נוספה הוצאה: אין סכום ברור','no expense: no clear amount'));
-          else if(rs.dup) parts.push(L('הוצאות כבר קיימות','expenses already present')); }
-        if(r.expenses.error) parts.push('⚠️ '+L('ייבוא הוצאות נכשל','expense import failed'));
+    toast(deep?L('🔎 סריקה עמוקה — קורא הזמנות…','🔎 Deep scan — reading bookings…'):L('🔎 מחפש את ההזמנה האחרונה…','🔎 finding the latest booking…'), 25000);
+    const slow=setTimeout(()=>toast(L('עדיין עובד… (חילוץ ושמירה)','Still working… (extract & save)'),20000), 22000);
+    try{
+      if(deep){
+        const r=await api({action:'import_travel_reservation', tripId:getTripId(), text:q, author:getAuthor()});
+        clearTimeout(slow); await reloadItin(); $('itinAsk').value='';
+        const parts=[];
+        if(r.plan){ if(r.plan.ok) parts.push(L('התכנית עודכנה','plan updated')); else if(r.plan.error) parts.push('⚠️ '+L('התכנית לא עודכנה','plan not updated')); }
+        const nd=(r.docs&&r.docs.saved)?r.docs.saved.length:0; if(nd) parts.push(L(nd+' מסמכים נשמרו', nd+' documents saved'));
+        if(r.expenses){ if(r.expenses.addedCount){ const list=(r.expenses.added||[]).map(a=>(a.category||'')+' · '+a.amount+' '+(a.currency||'')).slice(0,3);
+            parts.push('💶 '+L(r.expenses.addedCount+' הוצאות: ',r.expenses.addedCount+' expenses: ')+list.join(' | ')); }
+          else { const rs=r.expenses.skippedReasons||{}; if(rs.noAmount) parts.push('ℹ️ '+L('אין סכום ברור','no clear amount')); else if(rs.dup) parts.push(L('הוצאות כבר קיימות','expenses already present')); } }
+        const summary='🔎 '+(parts.length?parts.join(' · '):L('לא נמצא מה לייבא','nothing to import'));
+        toast(summary, 9000); logLine(summary);
+      } else {
+        const r=await api({action:'import_latest_reservation', tripId:getTripId(), text:q, author:getAuthor()});
+        clearTimeout(slow); await reloadItin(); $('itinAsk').value='';
+        if(r.ok===false){ toast('⚠️ '+(r.error||L('שגיאה','Error')), 8000); logLine('⚠️ '+(r.error||'')); }
+        else if(r.found===false){ toast('ℹ️ '+(r.message||L('לא נמצאה הזמנה','no booking found')), 9000); logLine('ℹ️ '+(r.message||'')); }
+        else {
+          const kindHe={car:'רכב',hotel:'מלון',flight:'טיסה',transport:'תחבורה',other:'הזמנה'}[r.kind]||'הזמנה';
+          const parts=[];
+          if(r.plan){ if(r.plan.outOfRange) parts.push('⚠️ '+L('מחוץ לטווח הטיול — לא נוסף לתכנית','outside trip dates — not added to plan'));
+            else if(r.plan.added) parts.push(L('נוסף לתכנית','added to plan')); else if(r.plan.updated) parts.push(L('עודכן בתכנית','updated in plan')); }
+          if(r.doc){ if(r.doc.dup) parts.push(L('מסמך כבר קיים','document already saved')); else if(r.doc.name) parts.push(L('נשמר מסמך','document saved')); }
+          if(r.expense){ if(r.expense.added) parts.push('💶 '+r.expense.amount+' '+r.expense.currency+' · '+r.expense.category);
+            else if(r.expense.reason==='no-amount') parts.push('ℹ️ '+L('אין סכום ברור — לא נוספה הוצאה','no clear amount — no expense'));
+            else if(r.expense.reason==='dup') parts.push(L('הוצאה כבר קיימת','expense already present'));
+            else if(r.expense.reason==='cancelled') parts.push(L('הוזמנה בוטלה בעבר','previously cancelled')); }
+          const ttl=(r.reservation&&r.reservation.title)?(' '+r.reservation.title):'';
+          const secs=r.timings?(' · '+Math.round((r.timings.totalMs||0)/1000)+'s'):'';
+          const summary='⚡ '+kindHe+ttl+(parts.length?(' — '+parts.join(' · ')):'')+secs;
+          toast(summary, 9000); logLine(summary);
+        }
       }
-      const summary='📨 '+(parts.length?parts.join(' · '):L('לא נמצא מה לייבא','nothing to import'));
-      toast(summary, 9000); logLine(summary);
-    }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
+    }catch(e){ clearTimeout(slow); alert(L('אין חיבור — נסה שוב','No connection — try again')); }
     finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
     return;
   }
