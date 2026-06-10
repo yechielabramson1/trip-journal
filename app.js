@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v72';
+const APP_VER='v73';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -33,7 +33,7 @@ const I18N = {
        new_expense:'💶 הוצאה חדשה', ph_amount:'סכום', ph_desc:'תיאור (לא חובה)', attach_receipt:'📷 צרף קבלה / צילום מסך',
        paste_clipboard:'📋 הדבק צילום מהלוח (Copy & Delete)', keep_receipt:'שמור גם את צילום הקבלה (לקבלות אמיתיות)', save_expense:'💾 שמור הוצאה',
        del_expense:'🗑️ מחק הוצאה', edit_expense:'📋 ערוך הוצאה קיימת', peek_sheet:'📊 הצצה לגיליון ההוצאות',
-       btn_brain:'🧠 המוח — ידע לכל הטיולים', brain_hub:'🧠 המוח — לקחים וידע לכל הטיולים', lv_search:'חיפוש…', lv_add:'הוסף פריט…', kv_search:'חיפוש בידע…', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
+       btn_brain:'🧠 המוח — ידע לכל הטיולים', brain_hub:'🧠 המוח — לקחים וידע לכל הטיולים', lv_search:'חיפוש…', lv_add:'הוסף פריט…', kv_search:'שאל את המוח: למשל מה למדתי על השכרת רכב?', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
        paste_hdr:'📋 הדבק רשימה — ה-AI יפצל לפריטים', paste_ph:'הדבק כאן טקסט חופשי / רשימה…', paste_split:'✨ פצל והוסף', paste_cancel:'ביטול', open_sheet:'📊 פתח את הגיליון',
        btn_meal_photo:'📸 צלם ארוחה (זיהוי פריטים)', btn_food_photo:'📷 נתח תפריט / שלט (כשר+טבעוני)',
        btn_analyze_doc:'🔎 נתח מסמך נסיעה (AI)', doc_hdr:'🔎 ניתוח מסמך נסיעה', doc_to_itin:'➕ הוסף לתכנית', doc_to_expense:'💶 הוסף הוצאה', doc_to_note:'📝 שמור כהערת יומן',
@@ -58,7 +58,7 @@ const I18N = {
        new_expense:'💶 New expense', ph_amount:'Amount', ph_desc:'Description (optional)', attach_receipt:'📷 Attach receipt / screenshot',
        paste_clipboard:'📋 Paste screenshot (Copy & Delete)', keep_receipt:'Also keep the receipt image (for real receipts)', save_expense:'💾 Save expense',
        del_expense:'🗑️ Delete expense', edit_expense:'📋 Edit an existing expense', peek_sheet:'📊 Open the expenses sheet',
-       btn_brain:'🧠 The Brain — all-trips knowledge', brain_hub:'🧠 The Brain — lessons & knowledge for every trip', lv_search:'Search…', lv_add:'Add an item…', kv_search:'Search the knowledge…', kv_add:'Add a lesson / how-to… the AI will organize it',
+       btn_brain:'🧠 The Brain — all-trips knowledge', brain_hub:'🧠 The Brain — lessons & knowledge for every trip', lv_search:'Search…', lv_add:'Add an item…', kv_search:'Ask the Brain: e.g. what did I learn about car rentals?', kv_add:'Add a lesson / how-to… the AI will organize it',
        paste_hdr:'📋 Paste a list — the AI will split it into items', paste_ph:'Paste free text / a list here…', paste_split:'✨ Split & add', paste_cancel:'Cancel', open_sheet:'📊 Open the sheet',
        btn_meal_photo:'📸 Snap your meal (identify items)', btn_food_photo:'📷 Analyze menu / sign (kosher+vegan)',
        btn_analyze_doc:'🔎 Analyze travel doc (AI)', doc_hdr:'🔎 Travel document analysis', doc_to_itin:'➕ Add to itinerary', doc_to_expense:'💶 Add expense', doc_to_note:'📝 Save as journal note',
@@ -1399,7 +1399,7 @@ $('pasteSplit').onclick=async()=>{
 /* --- knowledge (lessons / how-to), AI-organized doc --- */
 let kvKey=null, kvText='', kvUrl='#', kvSearchTimer=null;
 async function openKnow(tile){
-  kvKey=tile.key; $('kvSearch').value='';
+  kvKey=tile.key; $('kvSearch').value=''; $('kvAnswer').hidden=true; $('kvAnswer').innerHTML='';
   $('kvTitle').textContent=tile.emoji+' '+tileLabel(tile);
   $('knowview').hidden=false; $('kvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>';
   try{ const r=await api({ action:'get_knowledge', docKey:kvKey });
@@ -1412,9 +1412,50 @@ function renderKnow(){
   let txt=String(kvText||'').replace(/^.*\n/, m=> (m.trim()===($('kvTitle').textContent||'').trim()? '' : m)).trim();
   if(!txt) txt=String(kvText||'').trim();
   if(!txt){ body.innerHTML='<div class="emptyday">'+L('— עדיין ריק. הוסף לקח/הוראה —','— still empty. Add a lesson / how-to —')+'</div>'; return; }
-  let html=escapeHtml(txt);
-  if(q){ const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'); html=html.replace(re,'<mark>$1</mark>'); }
-  body.innerHTML='<div class="kvtext">'+html+'</div>';
+  // הדגשת מילות-חיפוש (אחרי escape, על כל שורה בנפרד)
+  const hi=s=>{ let h=escapeHtml(s);
+    if(q){ const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi'); h=h.replace(re,'<mark>$1</mark>'); }
+    return h; };
+  // מבנה: שורה ללא bullet וקצרה = כותרת-נושא; שורות "-"/"•" = רשימה; השאר = פסקה
+  const out=[]; let ul=[];
+  const flush=()=>{ if(ul.length){ out.push('<ul class="kvul">'+ul.map(li=>'<li>'+hi(li)+'</li>').join('')+'</ul>'); ul=[]; } };
+  txt.split('\n').forEach(line=>{
+    const t=line.trim();
+    if(!t){ flush(); return; }
+    const m=t.match(/^[-•]\s*(.*)$/);
+    if(m){ ul.push(m[1]); return; }
+    flush();
+    if(t.length<70 && !/[.?!]$/.test(t)) out.push('<div class="kvsec">'+hi(t)+'</div>');
+    else out.push('<div class="kvp">'+hi(t)+'</div>');
+  });
+  flush();
+  body.innerHTML='<div class="kvtext">'+out.join('')+'</div>';
+}
+// 🤖 "שאל את המוח" — תשובת AI מתוך מסמך-הידע בלבד (לא ידע כללי)
+async function kvAsk(){
+  const question=$('kvSearch').value.trim(); if(!question){ $('kvSearch').focus(); return; }
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  const card=$('kvAnswer'); card.hidden=false; card.classList.remove('notfound');
+  card.innerHTML='<div class="kvahdr">🤖 '+L('מחפש בידע שלך…','Searching your knowledge…')+'</div>';
+  $('kvAskBtn').disabled=true;
+  try{ const r=await api({ action:'ask_knowledge', docKey:kvKey, question:question });
+    if(!r.ok){
+      card.classList.add('notfound');
+      card.innerHTML='<div class="kvahdr">⚠️ '+escapeHtml(r.error||L('שגיאה','Error'))+'</div>'+
+        (r.aiUnavailable?('<div class="kvasrc">'+L('בינתיים: ההקלדה מדגישה מילים במסמך למטה.','Meanwhile: typing highlights words in the doc below.')+'</div>'):'');
+      renderKnow(); return;
+    }
+    let h='<div class="kvahdr">'+(r.found?('🧠 '+L('תשובת המוח','Brain answer')):('ℹ️ '+L('אין עדיין לקח בנושא','No lesson on this yet')))+'</div>';
+    h+='<div>'+escapeHtml(r.answer||'')+'</div>';
+    if(r.found && r.sections && r.sections.length)
+      h+='<div class="kvasrc">'+L('מבוסס על: ','Based on: ')+escapeHtml(r.sections.join(' · '))+'</div>';
+    if(r.found && r.quotes && r.quotes.length)
+      r.quotes.forEach(qt=>{ h+='<div class="kvaq">'+escapeHtml(qt)+'</div>'; });
+    if(!r.found) card.classList.add('notfound');
+    card.innerHTML=h;
+    renderKnow();   // השאלה גם מדגישה מילים במסמך למטה
+  }catch(e){ card.classList.add('notfound'); card.innerHTML='<div class="kvahdr">'+L('אין חיבור — נסה שוב','No connection — try again')+'</div>'; }
+  finally{ $('kvAskBtn').disabled=false; }
 }
 async function knowAdd(){
   const v=$('kvAdd').value.trim(); if(!v) return;
@@ -1440,8 +1481,10 @@ $('kvRestore').onclick=async()=>{   // שחזור מסמך-ידע מהגיבוי
 };
 $('kvAddBtn').onclick=knowAdd;
 $('kvAdd').addEventListener('keydown', e=>{ if(e.key==='Enter') knowAdd(); });
-$('kvSearch').addEventListener('input', ()=>{ clearTimeout(kvSearchTimer); kvSearchTimer=setTimeout(renderKnow, 200); });
-$('kvSearchClear').onclick=()=>{ $('kvSearch').value=''; renderKnow(); };
+$('kvSearch').addEventListener('input', ()=>{ clearTimeout(kvSearchTimer); kvSearchTimer=setTimeout(renderKnow, 200); });   // הקלדה = הדגשה מקומית בלבד
+$('kvSearch').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); kvAsk(); } });                       // Enter = שאל את המוח
+$('kvAskBtn').onclick=kvAsk;
+$('kvSearchClear').onclick=()=>{ $('kvSearch').value=''; $('kvAnswer').hidden=true; $('kvAnswer').innerHTML=''; renderKnow(); };  // ✕ מנקה שדה+תשובה בלבד
 $('kvOrganize').onclick=async()=>{   // סדר כולל (מדי פעם) — AI מארגן מחדש את כל המסמך
   if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
   if(!confirm(T().organize_confirm)) return;

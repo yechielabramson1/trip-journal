@@ -190,8 +190,18 @@
   .litem .ltag{ font-size:.72rem; background:#e0f2fe; color:#0369a1; border-radius:999px; padding:2px 8px; white-space:nowrap }
   .litem .lbtn{ border:0; background:transparent; font-size:1.05rem; color:#94a3b8; padding:4px 5px }
   .lvfoot{ display:block; text-align:center; color:var(--teal2); text-decoration:none; padding:10px; font-size:.9rem; border-top:1px solid var(--line) }
-  .kvtext{ white-space:pre-wrap; line-height:1.6; font-size:1rem; background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px }
+  .kvtext{ line-height:1.6; font-size:1rem; background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px }
   .kvtext mark{ background:#fde68a; padding:0 1px }
+  .kvsec{ margin:18px 0 6px; padding:8px 12px; background:#f1f5f9; border-radius:10px; font-weight:800; font-size:1.02rem; color:#0f172a }
+  .kvsec:first-child{ margin-top:0 }
+  .kvul{ margin:4px 0 10px; padding-inline-start:20px }
+  .kvul li{ margin:5px 0 }
+  .kvp{ margin:6px 2px }
+  #kvAnswer{ margin:10px 12px 0; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:14px; padding:12px 14px; line-height:1.55 }
+  #kvAnswer.notfound{ background:#f8fafc; border-color:var(--line) }
+  #kvAnswer .kvahdr{ font-weight:800; margin-bottom:6px }
+  #kvAnswer .kvasrc{ margin-top:8px; font-size:.85rem; color:#475569 }
+  #kvAnswer .kvaq{ margin-top:6px; padding:6px 10px; background:#fff; border-inline-start:3px solid #34d399; border-radius:6px; font-size:.9rem; color:#334155 }
   /* travel-doc preview */
   #docResult{ background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:12px; margin:6px 0; text-align:right }
   #docResult .dtitle{ font-weight:700; font-size:1.05rem; color:var(--teal2); margin-bottom:8px }
@@ -245,7 +255,7 @@
       <button id="rebuildbook" style="background:#0e7490">🔄 עדכן / בנה ספר</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v72 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v73 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -386,9 +396,11 @@
       <button class="icon" id="kvDoc" aria-label="מסמך">📂</button>
     </header>
     <div class="iai" style="background:#fef3c7; border-color:#fde68a">
-      <input id="kvSearch" placeholder="חיפוש בידע…">
-      <button id="kvSearchClear" aria-label="נקה">✕</button>
+      <input id="kvSearch" placeholder="שאל את המוח: למשל מה למדתי על השכרת רכב?">
+      <button id="kvAskBtn" aria-label="שאל" style="min-width:44px;min-height:44px;font-size:1.15rem">🤖</button>
+      <button id="kvSearchClear" aria-label="נקה" style="min-width:44px;min-height:44px">✕</button>
     </div>
+    <div id="kvAnswer" hidden></div>
     <div class="lvadd">
       <input id="kvAdd" placeholder="הוסף לקח / הוראה… ה-AI יארגן" autocomplete="off">
       <button id="kvAddBtn" aria-label="הוסף">＋</button>
@@ -551,6 +563,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=72"></script>
+<script src="app.js?v=73"></script>
 </body>
 </html>
