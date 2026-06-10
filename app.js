@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v69';
+const APP_VER='v70';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1117,11 +1117,11 @@ $('itinAskBtn').onclick=async()=>{
   const q=$('itinAsk').value.trim(); if(!q) return;
   if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
   const wantsEmail=/ייבא|מייל|אימייל|דוא|דואר|email|e-?mail|gmail|import/i.test(q);
-  const wantsDocs=/שמור.*(מסמכ|pdf|קבצ|מצורף|צרופ)|save.*(document|attachment|pdf)/i.test(q);
+  const wantsDocs=/מסמכ|document|\bdocs?\b|pdf|קבצ|מצורף|צרופ|attachment|תיק/i.test(q);
   if(wantsEmail){
     const msg = wantsDocs
-      ? L('הפעולה תקרא עד 10 מיילי הזמנה אחרונים מ-Gmail, תוסיף לתכנית, תשמור עד 5 PDF במסמכים, ותוסיף הוצאות-לינה מהמחיר שבמייל (ניתן למחוק). להמשיך?','This reads up to 10 recent booking emails, updates the plan, saves up to 5 PDFs, and adds lodging expenses from the email price (deletable). Continue?')
-      : L('הפעולה תקרא עד 10 מיילי הזמנה אחרונים מ-Gmail, תוסיף לתכנית קישורי-מקור, ותוסיף הוצאות-לינה מהמחיר שבמייל (ניתן למחוק). להמשיך?','This reads up to 10 recent booking emails, adds source links to the plan, and adds lodging expenses from the email price (deletable). Continue?');
+      ? L('הפעולה תקרא מיילי הזמנה אחרונים מ-Gmail (כולל השכרת רכב), תוסיף לתכנית, תשמור מסמכים (PDF או מסמך-מקור), ותוסיף הוצאות מהמחיר שבמייל (לינה/טיסות/רכב, ניתן למחוק). להמשיך?','This reads recent booking emails from Gmail (incl. car rental), updates the plan, saves documents (PDF or a source doc), and adds expenses from the email price (lodging/flights/car, deletable). Continue?')
+      : L('הפעולה תקרא מיילי הזמנה אחרונים מ-Gmail (כולל השכרת רכב), תוסיף לתכנית קישורי-מקור, ותוסיף הוצאות מהמחיר שבמייל (ניתן למחוק). להמשיך?','This reads recent booking emails from Gmail (incl. car rental), adds source links to the plan, and adds expenses from the email price (deletable). Continue?');
     if(!confirm(msg)) return;
   }
   // ⚡ נתיב מהיר: בקשת "הוסף..." פשוטה (לא מייל, לא סדר-מחדש/מחק/העבר) → quick_add_item דטרמיניסטי
@@ -1164,9 +1164,19 @@ $('itinAskBtn').onclick=async()=>{
       const resolved = (r.resolvedDay && r.resolvedDay.label) ? ('📅 '+r.resolvedDay.label) : '';   // התאריך שנפתר דטרמיניסטית
       const summary='🤖 '+[head].concat(resolved?[resolved]:[]).concat(extra).join(' · ');
       toast(summary, 7000); logLine(summary);
-      // 💶 ייבוא-מייל → גם הוצאות-לינה מהמחיר שבגוף-המייל (idempotent; ניתן למחוק ב-📚)
+      // 💶 ייבוא-מייל → גם הוצאות מהמחיר שבגוף-המייל (לינה/טיסות/רכב/תחבורה; idempotent; ניתן למחוק ב-📚)
       if(wantsEmail){ try{ const ex=await api({action:'import_booking_expenses', tripId:getTripId(), author:getAuthor()});
-        if(ex.ok && ex.addedCount){ const m='💶 '+L(ex.addedCount+' הוצאות-לינה נוספו (ניתן למחוק ב-📚)', ex.addedCount+' lodging expenses added (deletable in 📚)'); toast(m, 8000); logLine(m); } }catch(e){} }
+        if(ex.ok && ex.addedCount){
+          const list=(ex.added||[]).map(a=>(a.category||'')+' · '+a.amount+' '+(a.currency||'')).slice(0,3);
+          const more=ex.addedCount>3?L(' +'+(ex.addedCount-3)+' נוספות',' +'+(ex.addedCount-3)+' more'):'';
+          const m='💶 '+(ex.addedCount===1?L('נוספה הוצאה: ','Expense added: '):L(ex.addedCount+' הוצאות נוספו: ',ex.addedCount+' expenses added: '))+list.join(' | ')+more+L(' (ניתן למחוק ב-📚)',' (deletable in 📚)');
+          toast(m, 8000); logLine(m);
+        } else if(ex.ok){   // לא להסתיר כשל בשקט — אם דולג בגלל חוסר-סכום, להגיד זאת
+          const r=ex.skippedReasons||{};
+          if(r.noAmount) { const m='ℹ️ '+L('לא נוספה הוצאה: לא נמצא סכום ברור במייל'+(r.noAmount>1?(' ('+r.noAmount+' הזמנות)'):''),'No expense added: no clear amount in the email'+(r.noAmount>1?(' ('+r.noAmount+' bookings)'):'')); toast(m, 8000); logLine(m); }
+          else if(r.dup) { logLine('💶 '+L('הוצאות כבר קיימות — לא הוכפלו','expenses already present — not duplicated')); }
+        }
+      }catch(e){ logLine('⚠️ '+L('ייבוא ההוצאות נכשל','expense import failed')); } }
     } else if(extra.length){
       toast('📁 '+extra.join(' · ')+' · '+L('התכנית לא עודכנה','plan not updated'), 7000);
       alert(L('שגיאה: ','Error: ')+(r.error||''));
