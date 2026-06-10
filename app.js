@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v73';
+const APP_VER='v74';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -33,7 +33,7 @@ const I18N = {
        new_expense:'💶 הוצאה חדשה', ph_amount:'סכום', ph_desc:'תיאור (לא חובה)', attach_receipt:'📷 צרף קבלה / צילום מסך',
        paste_clipboard:'📋 הדבק צילום מהלוח (Copy & Delete)', keep_receipt:'שמור גם את צילום הקבלה (לקבלות אמיתיות)', save_expense:'💾 שמור הוצאה',
        del_expense:'🗑️ מחק הוצאה', edit_expense:'📋 ערוך הוצאה קיימת', peek_sheet:'📊 הצצה לגיליון ההוצאות',
-       btn_brain:'🧠 המוח — ידע לכל הטיולים', brain_hub:'🧠 המוח — לקחים וידע לכל הטיולים', lv_search:'חיפוש…', lv_add:'הוסף פריט…', kv_search:'שאל את המוח: למשל מה למדתי על השכרת רכב?', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
+       btn_brain:'🧠 המוח — ידע לכל הטיולים', brain_hub:'🧠 המוח — לקחים וידע לכל הטיולים', lv_search:'שאל/בקש מהמוח… (הקלדה מסננת)', lv_add:'הוסף פריט…', kv_search:'שאל את המוח: למשל מה למדתי על השכרת רכב?', kv_add:'הוסף לקח / הוראה… ה-AI יארגן',
        paste_hdr:'📋 הדבק רשימה — ה-AI יפצל לפריטים', paste_ph:'הדבק כאן טקסט חופשי / רשימה…', paste_split:'✨ פצל והוסף', paste_cancel:'ביטול', open_sheet:'📊 פתח את הגיליון',
        btn_meal_photo:'📸 צלם ארוחה (זיהוי פריטים)', btn_food_photo:'📷 נתח תפריט / שלט (כשר+טבעוני)',
        btn_analyze_doc:'🔎 נתח מסמך נסיעה (AI)', doc_hdr:'🔎 ניתוח מסמך נסיעה', doc_to_itin:'➕ הוסף לתכנית', doc_to_expense:'💶 הוסף הוצאה', doc_to_note:'📝 שמור כהערת יומן',
@@ -58,7 +58,7 @@ const I18N = {
        new_expense:'💶 New expense', ph_amount:'Amount', ph_desc:'Description (optional)', attach_receipt:'📷 Attach receipt / screenshot',
        paste_clipboard:'📋 Paste screenshot (Copy & Delete)', keep_receipt:'Also keep the receipt image (for real receipts)', save_expense:'💾 Save expense',
        del_expense:'🗑️ Delete expense', edit_expense:'📋 Edit an existing expense', peek_sheet:'📊 Open the expenses sheet',
-       btn_brain:'🧠 The Brain — all-trips knowledge', brain_hub:'🧠 The Brain — lessons & knowledge for every trip', lv_search:'Search…', lv_add:'Add an item…', kv_search:'Ask the Brain: e.g. what did I learn about car rentals?', kv_add:'Add a lesson / how-to… the AI will organize it',
+       btn_brain:'🧠 The Brain — all-trips knowledge', brain_hub:'🧠 The Brain — lessons & knowledge for every trip', lv_search:'Ask the Brain… (typing filters)', lv_add:'Add an item…', kv_search:'Ask the Brain: e.g. what did I learn about car rentals?', kv_add:'Add a lesson / how-to… the AI will organize it',
        paste_hdr:'📋 Paste a list — the AI will split it into items', paste_ph:'Paste free text / a list here…', paste_split:'✨ Split & add', paste_cancel:'Cancel', open_sheet:'📊 Open the sheet',
        btn_meal_photo:'📸 Snap your meal (identify items)', btn_food_photo:'📷 Analyze menu / sign (kosher+vegan)',
        btn_analyze_doc:'🔎 Analyze travel doc (AI)', doc_hdr:'🔎 Travel document analysis', doc_to_itin:'➕ Add to itinerary', doc_to_expense:'💶 Add expense', doc_to_note:'📝 Save as journal note',
@@ -1324,7 +1324,7 @@ $('brainClose').onclick=()=>{ $('brain').hidden=true; };
 /* --- generic list (packing / pre-departure / kosher / favorites) --- */
 let lvKey=null, lvArchived=false, lvItems=[], lvSearchTimer=null, lvGroupByTag=false;
 async function openList(tile){
-  lvKey=tile.key; lvArchived=false; lvGroupByTag=false; $('lvSearch').value=''; $('lvArchiveToggle').textContent='🗄️';
+  lvKey=tile.key; lvArchived=false; lvGroupByTag=false; $('lvSearch').value=''; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML=''; $('lvArchiveToggle').textContent='🗄️';
   $('lvGroupToggle').style.display = (tile.key==='kosher') ? '' : 'none';   // מדינה = תגית משנית; קיבוץ אופציונלי לכשרות
   $('lvGroupToggle').style.opacity = '1';
   $('lvTitle').textContent=tile.emoji+' '+tileLabel(tile);
@@ -1381,8 +1381,44 @@ $('lvClose').onclick=()=>{ $('listview').hidden=true; };
 $('lvAddBtn').onclick=listAddOne;
 $('lvAdd').addEventListener('keydown', e=>{ if(e.key==='Enter') listAddOne(); });
 $('lvArchiveToggle').onclick=()=>{ lvArchived=!lvArchived; $('lvArchiveToggle').textContent=lvArchived?'📋':'🗄️'; reloadList(); };
-$('lvSearch').addEventListener('input', ()=>{ clearTimeout(lvSearchTimer); lvSearchTimer=setTimeout(reloadList, 350); });
-$('lvSearchClear').onclick=()=>{ $('lvSearch').value=''; reloadList(); };
+$('lvSearch').addEventListener('input', ()=>{ clearTimeout(lvSearchTimer); lvSearchTimer=setTimeout(reloadList, 350); });   // הקלדה = סינון מקומי
+$('lvSearch').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); lvAsk(); } });                       // Enter = שאל את המוח
+$('lvAskBtn').onclick=()=>lvAsk();
+$('lvSearchClear').onclick=()=>{ $('lvSearch').value=''; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML=''; reloadList(); };
+// 🤖 שורת-ה-AI ברשימות: תשובה + הצעות-פריטים; ההוספה רק בלחיצת-המשתמש (➕ / הוסף הכל) — שקוף, בלי כתיבה אוטומטית
+async function lvAsk(){
+  const prompt=$('lvSearch').value.trim(); if(!prompt){ $('lvSearch').focus(); return; }
+  if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
+  const card=$('lvAnswer'); card.hidden=false; card.classList.remove('notfound');
+  card.innerHTML='<div class="kvahdr">🤖 '+L('המוח חושב על הרשימה שלך…','The Brain is thinking about your list…')+'</div>';
+  $('lvAskBtn').disabled=true;
+  try{ const r=await api({ action:'brain_ai', area:lvKey, prompt:prompt });
+    if(!r.ok){ card.classList.add('notfound'); card.innerHTML='<div class="kvahdr">⚠️ '+escapeHtml(r.error||L('שגיאה','Error'))+'</div>'; return; }
+    let h='<div class="kvahdr">🧠 '+L('תשובת המוח','Brain answer')+'</div><div>'+escapeHtml(r.answer||'')+'</div>';
+    if(r.suggestedItems && r.suggestedItems.length){
+      h+='<div class="kvasrc">'+L('הצעות — לחץ ➕ כדי להוסיף לרשימה:','Suggestions — tap ➕ to add to the list:')+'</div><div class="lvsugg">'+
+        r.suggestedItems.map((s,i)=>'<span class="sg" data-i="'+i+'">'+escapeHtml(s)+'<button data-add="'+i+'" aria-label="הוסף">➕</button></span>').join('')+
+        '</div><button class="lvsuggall" id="lvSuggAll">➕ '+L('הוסף הכל','Add all')+' ('+r.suggestedItems.length+')</button>';
+    }
+    card.innerHTML=h;
+    // חיווט ההצעות — כל הוספה דרך add_list_item הרגיל (שקוף + מסוכם)
+    const sugg=r.suggestedItems||[]; let addedCount=0;
+    async function addOne(i){
+      const el=card.querySelector('.sg[data-i="'+i+'"]'); if(!el || el.classList.contains('added')) return false;
+      try{ const rr=await api({ action:'add_list_item', listKey:lvKey, text:sugg[i] });
+        if(rr.ok){ el.classList.add('added'); addedCount++; return true; } }catch(e){}
+      return false;
+    }
+    card.querySelectorAll('button[data-add]').forEach(b=>{ b.onclick=async()=>{ b.disabled=true;
+      if(await addOne(Number(b.dataset.add))){ toast(L('נוסף ✓','Added ✓'),2000); await reloadList(); } else b.disabled=false; }; });
+    const all=card.querySelector('#lvSuggAll');
+    if(all) all.onclick=async()=>{ all.disabled=true; all.textContent='⏳';
+      for(let i=0;i<sugg.length;i++) await addOne(i);
+      all.textContent='✓ '+L('נוספו '+addedCount+' פריטים','added '+addedCount+' items');
+      toast(L('נוספו '+addedCount+' פריטים לרשימה','Added '+addedCount+' items to the list'),5000); logLine('🧠 '+L('נוספו '+addedCount+' פריטים','added '+addedCount+' items')); await reloadList(); };
+  }catch(e){ card.classList.add('notfound'); card.innerHTML='<div class="kvahdr">'+L('אין חיבור — נסה שוב','No connection — try again')+'</div>'; }
+  finally{ $('lvAskBtn').disabled=false; }
+}
 $('lvGroupToggle').onclick=()=>{ lvGroupByTag=!lvGroupByTag; $('lvGroupToggle').style.opacity=lvGroupByTag?'.5':'1'; renderList(); };
 $('lvAddManyBtn').onclick=()=>{ $('pasteText').value=''; $('pastegate').hidden=false; $('pasteText').focus(); };
 $('pasteCancel').onclick=()=>{ $('pastegate').hidden=true; };
@@ -1438,20 +1474,28 @@ async function kvAsk(){
   const card=$('kvAnswer'); card.hidden=false; card.classList.remove('notfound');
   card.innerHTML='<div class="kvahdr">🤖 '+L('מחפש בידע שלך…','Searching your knowledge…')+'</div>';
   $('kvAskBtn').disabled=true;
-  try{ const r=await api({ action:'ask_knowledge', docKey:kvKey, question:question });
+  try{ const r=await api({ action:'brain_ai', area:kvKey, prompt:question });
     if(!r.ok){
       card.classList.add('notfound');
       card.innerHTML='<div class="kvahdr">⚠️ '+escapeHtml(r.error||L('שגיאה','Error'))+'</div>'+
         (r.aiUnavailable?('<div class="kvasrc">'+L('בינתיים: ההקלדה מדגישה מילים במסמך למטה.','Meanwhile: typing highlights words in the doc below.')+'</div>'):'');
       renderKnow(); return;
     }
-    let h='<div class="kvahdr">'+(r.found?('🧠 '+L('תשובת המוח','Brain answer')):('ℹ️ '+L('אין עדיין לקח בנושא','No lesson on this yet')))+'</div>';
-    h+='<div>'+escapeHtml(r.answer||'')+'</div>';
-    if(r.found && r.sections && r.sections.length)
-      h+='<div class="kvasrc">'+L('מבוסס על: ','Based on: ')+escapeHtml(r.sections.join(' · '))+'</div>';
-    if(r.found && r.quotes && r.quotes.length)
-      r.quotes.forEach(qt=>{ h+='<div class="kvaq">'+escapeHtml(qt)+'</div>'; });
-    if(!r.found) card.classList.add('notfound');
+    const personal=String(r.personal||'').trim(), general=String(r.general||'').trim();
+    let h='';
+    if(personal){
+      h+='<div class="kvahdr">🧠 '+L('מתוך הידע שלך','From your knowledge')+'</div><div>'+escapeHtml(personal)+'</div>';
+      if(r.sections && r.sections.length) h+='<div class="kvasrc">'+L('מבוסס על: ','Based on: ')+escapeHtml(r.sections.join(' · '))+'</div>';
+      if(r.quotes && r.quotes.length) r.quotes.forEach(qt=>{ h+='<div class="kvaq">'+escapeHtml(qt)+'</div>'; });
+    } else {
+      h+='<div class="kvahdr">ℹ️ '+L('אין עדיין לקח אישי בנושא','No personal lesson on this yet')+'</div>';
+      card.classList.add('notfound');
+    }
+    if(general){
+      h+='<div class="kvgen"><div class="kvghdr">🌍 '+L('ידע כללי להשלמה (לא מהמוח שלך)','General knowledge supplement (not from your brain)')+'</div><div>'+escapeHtml(general)+'</div></div>';
+    } else if(!personal){
+      h+='<div>'+L('לא מצאתי עדיין לקח בנושא הזה.','I have no saved lesson on this yet.')+'</div>';
+    }
     card.innerHTML=h;
     renderKnow();   // השאלה גם מדגישה מילים במסמך למטה
   }catch(e){ card.classList.add('notfound'); card.innerHTML='<div class="kvahdr">'+L('אין חיבור — נסה שוב','No connection — try again')+'</div>'; }

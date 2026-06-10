@@ -2,8 +2,8 @@
  * תמיד מנסה רשת קודם (כדי שעדכונים יופיעו מיד), ונופל ל-cache רק כשאין רשת
  * (כך האפליקציה עדיין נפתחת אופליין בהרים). POSTים לשרת לא עוברים דרך ה-SW.
  */
-const CACHE = 'fieldcapture-v73';
-const SHELL = ['./','./index.html','./app.js?v=73','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
+const CACHE = 'fieldcapture-v74';
+const SHELL = ['./','./index.html','./app.js?v=74','./manifest.json','./icons/icon-192.png','./icons/icon-512.png'];
 
 self.addEventListener('install', e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));

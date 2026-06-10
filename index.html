@@ -197,11 +197,18 @@
   .kvul{ margin:4px 0 10px; padding-inline-start:20px }
   .kvul li{ margin:5px 0 }
   .kvp{ margin:6px 2px }
-  #kvAnswer{ margin:10px 12px 0; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:14px; padding:12px 14px; line-height:1.55 }
-  #kvAnswer.notfound{ background:#f8fafc; border-color:var(--line) }
-  #kvAnswer .kvahdr{ font-weight:800; margin-bottom:6px }
-  #kvAnswer .kvasrc{ margin-top:8px; font-size:.85rem; color:#475569 }
-  #kvAnswer .kvaq{ margin-top:6px; padding:6px 10px; background:#fff; border-inline-start:3px solid #34d399; border-radius:6px; font-size:.9rem; color:#334155 }
+  #kvAnswer,#lvAnswer{ margin:10px 12px 0; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:14px; padding:12px 14px; line-height:1.55 }
+  #kvAnswer.notfound,#lvAnswer.notfound{ background:#f8fafc; border-color:var(--line) }
+  #kvAnswer .kvahdr,#lvAnswer .kvahdr{ font-weight:800; margin-bottom:6px }
+  #kvAnswer .kvasrc,#lvAnswer .kvasrc{ margin-top:8px; font-size:.85rem; color:#475569 }
+  #kvAnswer .kvaq,#lvAnswer .kvaq{ margin-top:6px; padding:6px 10px; background:#fff; border-inline-start:3px solid #34d399; border-radius:6px; font-size:.9rem; color:#334155 }
+  .kvgen{ margin-top:10px; padding:8px 10px; background:#eff6ff; border:1px dashed #93c5fd; border-radius:10px }
+  .kvgen .kvghdr{ font-weight:700; font-size:.85rem; color:#1d4ed8; margin-bottom:4px }
+  .lvsugg{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px }
+  .lvsugg .sg{ display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #99f6e4; border-radius:999px; padding:6px 6px 6px 12px; font-size:.92rem }
+  .lvsugg .sg button{ border:0; background:#0f766e; color:#fff; border-radius:999px; min-width:34px; min-height:34px; font-size:1.05rem }
+  .lvsugg .sg.added{ opacity:.55 } .lvsugg .sg.added button{ background:#94a3b8 }
+  .lvsuggall{ margin-top:8px; border:0; background:#0f766e; color:#fff; border-radius:12px; padding:10px 16px; font-size:.95rem; font-weight:600 }
   /* travel-doc preview */
   #docResult{ background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:12px; margin:6px 0; text-align:right }
   #docResult .dtitle{ font-weight:700; font-size:1.05rem; color:var(--teal2); margin-bottom:8px }
@@ -255,7 +262,7 @@
       <button id="rebuildbook" style="background:#0e7490">🔄 עדכן / בנה ספר</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v73 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v74 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -374,9 +381,11 @@
       <button class="icon" id="lvArchiveToggle" aria-label="ארכיון">🗄️</button>
     </header>
     <div class="iai" style="background:#ecfeff; border-color:#cffafe">
-      <input id="lvSearch" placeholder="חיפוש…">
-      <button id="lvSearchClear" aria-label="נקה">✕</button>
+      <input id="lvSearch" placeholder="שאל/בקש מהמוח… (הקלדה מסננת)">
+      <button id="lvAskBtn" aria-label="שאל" style="min-width:44px;min-height:44px;font-size:1.15rem">🤖</button>
+      <button id="lvSearchClear" aria-label="נקה" style="min-width:44px;min-height:44px">✕</button>
     </div>
+    <div id="lvAnswer" hidden></div>
     <div class="lvadd">
       <input id="lvAdd" placeholder="הוסף פריט…" autocomplete="off">
       <button id="lvAddBtn" aria-label="הוסף">＋</button>
@@ -563,6 +572,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=73"></script>
+<script src="app.js?v=74"></script>
 </body>
 </html>
