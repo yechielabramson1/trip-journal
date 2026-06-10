@@ -1331,8 +1331,9 @@ async function openList(tile){
   $('listview').hidden=false; $('lvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>';
   await reloadList();
 }
+let lvAskMode=false;   // אחרי שאלת-AI: הטקסט בשדה הוא שאלה, לא פילטר — הרשימה מוצגת מלאה
 async function reloadList(){
-  try{ const r=await api({ action:'get_list', listKey:lvKey, includeArchived:lvArchived, query:$('lvSearch').value.trim() });
+  try{ const r=await api({ action:'get_list', listKey:lvKey, includeArchived:lvArchived, query:(lvAskMode?'':$('lvSearch').value.trim()) });
     if(r.ok){ lvItems=r.items||[]; if(r.url) $('lvSheet').href=r.url; renderList(); }
     else $('lvBody').innerHTML='<div class="emptyday">'+L('שגיאה','Error')+'</div>';
   }catch(e){ $('lvBody').innerHTML='<div class="emptyday">'+L('אין חיבור','No connection')+'</div>'; }
@@ -1381,10 +1382,10 @@ $('lvClose').onclick=()=>{ $('listview').hidden=true; };
 $('lvAddBtn').onclick=listAddOne;
 $('lvAdd').addEventListener('keydown', e=>{ if(e.key==='Enter') listAddOne(); });
 $('lvArchiveToggle').onclick=()=>{ lvArchived=!lvArchived; $('lvArchiveToggle').textContent=lvArchived?'📋':'🗄️'; reloadList(); };
-$('lvSearch').addEventListener('input', ()=>{ clearTimeout(lvSearchTimer); lvSearchTimer=setTimeout(reloadList, 350); });   // הקלדה = סינון מקומי
+$('lvSearch').addEventListener('input', ()=>{ lvAskMode=false; clearTimeout(lvSearchTimer); lvSearchTimer=setTimeout(reloadList, 350); });   // הקלדה = סינון מקומי
 $('lvSearch').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); lvAsk(); } });                       // Enter = שאל את המוח
 $('lvAskBtn').onclick=()=>lvAsk();
-$('lvSearchClear').onclick=()=>{ $('lvSearch').value=''; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML=''; reloadList(); };
+$('lvSearchClear').onclick=()=>{ $('lvSearch').value=''; lvAskMode=false; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML=''; reloadList(); };
 // 🤖 שורת-ה-AI ברשימות: תשובה + הצעות-פריטים; ההוספה רק בלחיצת-המשתמש (➕ / הוסף הכל) — שקוף, בלי כתיבה אוטומטית
 async function lvAsk(){
   const prompt=$('lvSearch').value.trim(); if(!prompt){ $('lvSearch').focus(); return; }
@@ -1394,6 +1395,7 @@ async function lvAsk(){
   $('lvAskBtn').disabled=true;
   try{ const r=await api({ action:'brain_ai', area:lvKey, prompt:prompt });
     if(!r.ok){ card.classList.add('notfound'); card.innerHTML='<div class="kvahdr">⚠️ '+escapeHtml(r.error||L('שגיאה','Error'))+'</div>'; return; }
+    lvAskMode=true; reloadList();   // הטקסט בשדה = שאלה, לא פילטר — הרשימה למטה נשארת מלאה
     let h='<div class="kvahdr">🧠 '+L('תשובת המוח','Brain answer')+'</div><div>'+escapeHtml(r.answer||'')+'</div>';
     if(r.suggestedItems && r.suggestedItems.length){
       h+='<div class="kvasrc">'+L('הצעות — לחץ ➕ כדי להוסיף לרשימה:','Suggestions — tap ➕ to add to the list:')+'</div><div class="lvsugg">'+
