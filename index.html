@@ -262,7 +262,7 @@
       <button id="rebuildbook" style="background:#0e7490">🔄 עדכן / בנה ספר</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v76 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v77 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -292,7 +292,7 @@
   <!-- book gate (scope + voice) -->
   <div id="bookgate" class="gate" hidden>
     <div class="card">
-      <p>📖 צור ספר מסע</p>
+      <p id="bkHdr">📖 צור ספר מסע</p>
       <div id="bookmeta"></div>
       <select id="bkVoice">
         <option value="authentic">✍️ אותנטי — המילים שלך + תמונות</option>
@@ -317,7 +317,7 @@
   <!-- NotebookLM "research brain" bridge (open the right notebook + ready prompts) -->
   <div id="nbgate" class="gate" hidden>
     <div class="card">
-      <p>📓 מוח מחקר — NotebookLM</p>
+      <p id="nbHdr">📓 מוח מחקר — NotebookLM</p>
       <div id="nbHint"></div>
       <input id="nbUrl" type="url" placeholder="https://notebooklm.google.com/notebook/…" inputmode="url">
       <div style="display:flex; gap:6px">
@@ -335,7 +335,7 @@
   <div id="dash" class="screen" hidden>
     <header class="ihead">
       <button class="icon" id="dashClose" aria-label="סגור">✕</button>
-      <span id="itinTitle">📚 כל מה שנשמר</span>
+      <span id="dashTitle">📚 כל מה שנשמר</span>
       <span style="width:36px"></span>
     </header>
     <div id="dashtabs">
@@ -366,7 +366,7 @@
   <div id="brain" class="screen" hidden>
     <header class="ihead">
       <button class="icon" id="brainClose" aria-label="סגור">✕</button>
-      <span id="itinTitle" style="flex:1;text-align:center;font-weight:700"><span id="brainTitle">🧠 המוח</span></span>
+      <span style="flex:1;text-align:center;font-weight:700"><span id="brainTitle">🧠 המוח</span></span>
       <span style="width:36px"></span>
     </header>
     <div id="brainTiles" class="braintiles"></div>
@@ -572,6 +572,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=76"></script>
+<script src="app.js?v=77"></script>
 </body>
 </html>
