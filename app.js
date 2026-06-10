@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v75';
+const APP_VER='v76';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -73,6 +73,20 @@ const I18N = {
        methods:{'Apple Pay':'Apple Pay','מזומן':'Cash','כרטיס אשראי':'Credit card','אחר':'Other'} }
 };
 const uiLang = () => getAuthor()==='Sky' ? 'en' : 'he';
+/* 🌐 Viewer Language Layer — תרגום-לתצוגה בלבד; המקור ב-Drive/Sheets לא משתנה לעולם */
+const needsViewTx = s => uiLang()==='en' ? /[֐-׿]/.test(String(s||'')) : /[A-Za-z][A-Za-z' -]{14,}/.test(String(s||''));
+const __vtCache = new Map();   // cache בצד-לקוח לסשן (בנוסף ל-cache בשרת)
+async function viewTexts(texts){   // מחזיר מערך display באותו אורך/סדר; fallback = המקור
+  const out=texts.slice(); const miss=[], missIx=[];
+  texts.forEach((t,i)=>{ if(!needsViewTx(t)) return;
+    const k=uiLang()+'|'+t; if(__vtCache.has(k)) out[i]=__vtCache.get(k); else { miss.push(t); missIx.push(i); } });
+  if(miss.length){
+    try{ const r=await api({ action:'translate_for_view', viewerLang:uiLang(), texts:miss });
+      if(r.ok && r.texts) r.texts.forEach((x,j)=>{ out[missIx[j]]=x.display; __vtCache.set(uiLang()+'|'+miss[j], x.display); });
+    }catch(e){}
+  }
+  return out;
+}
 const T = () => I18N[uiLang()];
 const L = (he,en) => uiLang()==='en' ? en : he;
 function applyLang(){
@@ -844,7 +858,7 @@ $('asksend').onclick=async()=>{
   if(!navigator.onLine){ $('askreply').textContent=T().neednet; return; }
   $('storylink').style.display='none';
   $('asksend').disabled=true; $('askreply').textContent=T().thinking;
-  try{ const r=await api({ action:'ask', tripId:getTripId(), text:q });
+  try{ const r=await api({ action:'ask', tripId:getTripId(), text:q, viewerLang:uiLang() });
     $('askreply').textContent = r.ok ? r.reply : ('⚠️ '+(r.error||'error'));
   }catch(e){ $('askreply').textContent=T().neednet; }
   finally{ $('asksend').disabled=false; }
@@ -1334,14 +1348,18 @@ async function openList(tile){
 let lvAskMode=false;   // אחרי שאלת-AI: הטקסט בשדה הוא שאלה, לא פילטר — הרשימה מוצגת מלאה
 async function reloadList(){
   try{ const r=await api({ action:'get_list', listKey:lvKey, includeArchived:lvArchived, query:(lvAskMode?'':$('lvSearch').value.trim()) });
-    if(r.ok){ lvItems=r.items||[]; if(r.url) $('lvSheet').href=r.url; renderList(); }
+    if(r.ok){ lvItems=r.items||[]; if(r.url) $('lvSheet').href=r.url; renderList();
+      // 🌐 תרגום-תצוגה: פריטים שלא בשפת-הצופה מוצגים מתורגמים (המקור בגיליון לא משתנה)
+      if(lvItems.some(it=>needsViewTx(it.text))){ const myKey=lvKey;
+        viewTexts(lvItems.map(it=>it.text)).then(disp=>{ if(lvKey!==myKey) return;
+          lvItems.forEach((it,i)=>{ if(disp[i]!==it.text) it.displayText=disp[i]; }); renderList(); }); } }
     else $('lvBody').innerHTML='<div class="emptyday">'+L('שגיאה','Error')+'</div>';
   }catch(e){ $('lvBody').innerHTML='<div class="emptyday">'+L('אין חיבור','No connection')+'</div>'; }
 }
 function lvRow(it){
   const row=document.createElement('div'); row.className='litem'+(it.done?' done':'');
   if(lvArchived){
-    const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.text; row.appendChild(tx);
+    const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.displayText||it.text; row.appendChild(tx);
     if(it.tag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
     const rest=document.createElement('button'); rest.className='lbtn'; rest.textContent='♻️'; rest.onclick=()=>itemUpdate(it.id,{archived:false}); row.appendChild(rest);
     const del=document.createElement('button'); del.className='lbtn'; del.style.color='#b91c1c'; del.textContent='🗑️';
@@ -1349,8 +1367,8 @@ function lvRow(it){
   } else {
     const cb=document.createElement('input'); cb.type='checkbox'; cb.className='lcheck'; cb.checked=it.done;
     cb.onchange=()=>itemUpdate(it.id,{done:cb.checked}); row.appendChild(cb);
-    const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.text;
-    tx.onclick=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); }; row.appendChild(tx);
+    const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.displayText||it.text;
+    tx.onclick=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); }; row.appendChild(tx);   // עריכה תמיד על המקור
     if(it.tag && !lvGroupByTag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
     const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
   }
@@ -1393,7 +1411,7 @@ async function lvAsk(){
   const card=$('lvAnswer'); card.hidden=false; card.classList.remove('notfound');
   card.innerHTML='<div class="kvahdr">🤖 '+L('המוח חושב על הרשימה שלך…','The Brain is thinking about your list…')+'</div>';
   $('lvAskBtn').disabled=true;
-  try{ const r=await api({ action:'brain_ai', area:lvKey, prompt:prompt });
+  try{ const r=await api({ action:'brain_ai', area:lvKey, prompt:prompt, viewerLang:uiLang() });
     if(!r.ok){ card.classList.add('notfound'); card.innerHTML='<div class="kvahdr">⚠️ '+escapeHtml(r.error||L('שגיאה','Error'))+'</div>'; return; }
     lvAskMode=true; reloadList();   // הטקסט בשדה = שאלה, לא פילטר — הרשימה למטה נשארת מלאה
     let h='<div class="kvahdr">🧠 '+L('תשובת המוח','Brain answer')+'</div><div>'+escapeHtml(r.answer||'')+'</div>';
@@ -1435,20 +1453,26 @@ $('pasteSplit').onclick=async()=>{
 };
 
 /* --- knowledge (lessons / how-to), AI-organized doc --- */
-let kvKey=null, kvText='', kvUrl='#', kvSearchTimer=null;
+let kvKey=null, kvText='', kvDisplay='', kvUrl='#', kvSearchTimer=null;
 async function openKnow(tile){
   kvKey=tile.key; $('kvSearch').value=''; $('kvAnswer').hidden=true; $('kvAnswer').innerHTML='';
+  kvDisplay='';
   $('kvTitle').textContent=tile.emoji+' '+tileLabel(tile);
   $('knowview').hidden=false; $('kvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>';
   try{ const r=await api({ action:'get_knowledge', docKey:kvKey });
-    if(r.ok){ kvText=r.text||''; kvUrl=r.url||'#'; renderKnow(); } else $('kvBody').innerHTML='<div class="emptyday">'+L('שגיאה','Error')+'</div>';
+    if(r.ok){ kvText=r.text||''; kvUrl=r.url||'#'; renderKnow();
+      // 🌐 תרגום-תצוגה: מציגים מיד את המקור, ומחליפים לתרגום כשמוכן (ה-Doc לא משתנה)
+      if(needsViewTx(kvText)){ const myKey=kvKey;
+        viewTexts([kvText]).then(d=>{ if(kvKey!==myKey) return; if(d[0]!==kvText){ kvDisplay=d[0]; renderKnow(); } }); }
+    } else $('kvBody').innerHTML='<div class="emptyday">'+L('שגיאה','Error')+'</div>';
   }catch(e){ $('kvBody').innerHTML='<div class="emptyday">'+L('אין חיבור','No connection')+'</div>'; }
 }
 function renderKnow(){
   const body=$('kvBody'); const q=$('kvSearch').value.trim();
+  const src=kvDisplay||kvText;   // 🌐 תצוגה מתורגמת אם קיימת; המקור נשאר ב-kvText (ול-Doc)
   // הסר את כותרת המסמך (שורה ראשונה) שכבר מופיעה בכותרת המסך
-  let txt=String(kvText||'').replace(/^.*\n/, m=> (m.trim()===($('kvTitle').textContent||'').trim()? '' : m)).trim();
-  if(!txt) txt=String(kvText||'').trim();
+  let txt=String(src||'').replace(/^.*\n/, m=> (m.trim()===($('kvTitle').textContent||'').trim()? '' : m)).trim();
+  if(!txt) txt=String(src||'').trim();
   if(!txt){ body.innerHTML='<div class="emptyday">'+L('— עדיין ריק. הוסף לקח/הוראה —','— still empty. Add a lesson / how-to —')+'</div>'; return; }
   // הדגשת מילות-חיפוש (אחרי escape, על כל שורה בנפרד)
   const hi=s=>{ let h=escapeHtml(s);
@@ -1476,7 +1500,7 @@ async function kvAsk(){
   const card=$('kvAnswer'); card.hidden=false; card.classList.remove('notfound');
   card.innerHTML='<div class="kvahdr">🤖 '+L('מחפש בידע שלך…','Searching your knowledge…')+'</div>';
   $('kvAskBtn').disabled=true;
-  try{ const r=await api({ action:'brain_ai', area:kvKey, prompt:question });
+  try{ const r=await api({ action:'brain_ai', area:kvKey, prompt:question, viewerLang:uiLang() });
     if(!r.ok){
       card.classList.add('notfound');
       card.innerHTML='<div class="kvahdr">⚠️ '+escapeHtml(r.error||L('שגיאה','Error'))+'</div>'+
@@ -1509,7 +1533,7 @@ async function knowAdd(){
   $('kvAddBtn').disabled=true; const old=$('kvAddBtn').textContent; $('kvAddBtn').textContent='⏳';
   $('kvBody').innerHTML='<div class="emptyday">'+L('🤖 מארגן…','🤖 Organizing…')+'</div>';
   try{ const r=await api({ action:'add_knowledge', docKey:kvKey, text:v });
-    if(r.ok){ kvText=r.text||kvText; kvUrl=r.url||kvUrl; $('kvAdd').value=''; renderKnow(); } else { alert(L('שגיאה','Error')); renderKnow(); } }
+    if(r.ok){ kvText=r.text||kvText; kvDisplay=''; kvUrl=r.url||kvUrl; $('kvAdd').value=''; renderKnow(); } else { alert(L('שגיאה','Error')); renderKnow(); } }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); renderKnow(); }
   finally{ $('kvAddBtn').disabled=false; $('kvAddBtn').textContent=old; }
 }
@@ -1520,7 +1544,7 @@ $('kvRestore').onclick=async()=>{   // שחזור מסמך-ידע מהגיבוי
   if(!confirm(T().restore_confirm)) return;
   const old=$('kvRestore').textContent; $('kvRestore').textContent='⏳';
   try{ const r=await api({ action:'restore_knowledge', docKey:kvKey });
-    if(r.ok){ kvText=r.text||kvText; kvUrl=r.url||kvUrl; $('kvSearch').value=''; renderKnow(); logLine(T().restored_ok); }
+    if(r.ok){ kvText=r.text||kvText; kvDisplay=''; kvUrl=r.url||kvUrl; $('kvSearch').value=''; renderKnow(); logLine(T().restored_ok); }
     else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ $('kvRestore').textContent=old; }
@@ -1537,7 +1561,7 @@ $('kvOrganize').onclick=async()=>{   // סדר כולל (מדי פעם) — AI �
   const old=$('kvOrganize').textContent; $('kvOrganize').textContent='⏳';
   $('kvBody').innerHTML='<div class="emptyday">'+T().organizing_all+'</div>';
   try{ const r=await api({ action:'organize_knowledge', docKey:kvKey });
-    if(r.ok){ kvText=r.text||kvText; kvUrl=r.url||kvUrl; renderKnow(); } else { alert(L('שגיאה','Error')); renderKnow(); } }
+    if(r.ok){ kvText=r.text||kvText; kvDisplay=''; kvUrl=r.url||kvUrl; renderKnow(); } else { alert(L('שגיאה','Error')); renderKnow(); } }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); renderKnow(); }
   finally{ $('kvOrganize').textContent=old; }
 };
