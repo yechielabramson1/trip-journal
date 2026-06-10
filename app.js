@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v70';
+const APP_VER='v71';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1124,6 +1124,31 @@ $('itinAskBtn').onclick=async()=>{
       : L('הפעולה תקרא מיילי הזמנה אחרונים מ-Gmail (כולל השכרת רכב), תוסיף לתכנית קישורי-מקור, ותוסיף הוצאות מהמחיר שבמייל (ניתן למחוק). להמשיך?','This reads recent booking emails from Gmail (incl. car rental), adds source links to the plan, and adds expenses from the email price (deletable). Continue?');
     if(!confirm(msg)) return;
   }
+  // 📨 ייבוא-מייל → פעולה אטומית אחת (תכנית+מסמכים+הוצאות). כל שלב עצמאי בשרת — אם התכנית נכשלת, ההוצאות עדיין רצות.
+  if(wantsEmail){
+    $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
+    try{ const r=await api({action:'import_travel_reservation', tripId:getTripId(), text:q, author:getAuthor()});
+      await reloadItin(); $('itinAsk').value='';
+      const parts=[];
+      if(r.plan){ if(r.plan.ok) parts.push(L('התכנית עודכנה','plan updated')); else if(r.plan.error) parts.push('⚠️ '+L('התכנית לא עודכנה','plan not updated')); }
+      const nd=(r.docs&&r.docs.saved)?r.docs.saved.length:0;
+      if(nd) parts.push(L(nd+' מסמכים נשמרו', nd+' documents saved'));
+      if(r.docs&&r.docs.error) parts.push('⚠️ '+L('שמירת מסמכים נכשלה','documents failed'));
+      if(r.expenses){
+        if(r.expenses.addedCount){ const list=(r.expenses.added||[]).map(a=>(a.category||'')+' · '+a.amount+' '+(a.currency||'')).slice(0,3);
+          const more=r.expenses.addedCount>3?L(' +'+(r.expenses.addedCount-3),' +'+(r.expenses.addedCount-3)):'';
+          parts.push('💶 '+(r.expenses.addedCount===1?L('נוספה הוצאה: ','expense: '):L(r.expenses.addedCount+' הוצאות: ',r.expenses.addedCount+' expenses: '))+list.join(' | ')+more); }
+        else { const rs=r.expenses.skippedReasons||{};
+          if(rs.noAmount) parts.push('ℹ️ '+L('לא נוספה הוצאה: אין סכום ברור','no expense: no clear amount'));
+          else if(rs.dup) parts.push(L('הוצאות כבר קיימות','expenses already present')); }
+        if(r.expenses.error) parts.push('⚠️ '+L('ייבוא הוצאות נכשל','expense import failed'));
+      }
+      const summary='📨 '+(parts.length?parts.join(' · '):L('לא נמצא מה לייבא','nothing to import'));
+      toast(summary, 9000); logLine(summary);
+    }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
+    finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
+    return;
+  }
   // ⚡ נתיב מהיר: בקשת "הוסף..." פשוטה (לא מייל, לא סדר-מחדש/מחק/העבר) → quick_add_item דטרמיניסטי
   const addOnly = /הוסף|תוסיף|הוסיף|להוסיף|\badd\b/i.test(q) && !wantsEmail
     && !/סדר|מחדש|מחק|הסר|העבר|תזיז|reorder|delete|remove|\bmove\b|נקה|clear|rewrite|ארגן/i.test(q);
@@ -1164,19 +1189,6 @@ $('itinAskBtn').onclick=async()=>{
       const resolved = (r.resolvedDay && r.resolvedDay.label) ? ('📅 '+r.resolvedDay.label) : '';   // התאריך שנפתר דטרמיניסטית
       const summary='🤖 '+[head].concat(resolved?[resolved]:[]).concat(extra).join(' · ');
       toast(summary, 7000); logLine(summary);
-      // 💶 ייבוא-מייל → גם הוצאות מהמחיר שבגוף-המייל (לינה/טיסות/רכב/תחבורה; idempotent; ניתן למחוק ב-📚)
-      if(wantsEmail){ try{ const ex=await api({action:'import_booking_expenses', tripId:getTripId(), author:getAuthor()});
-        if(ex.ok && ex.addedCount){
-          const list=(ex.added||[]).map(a=>(a.category||'')+' · '+a.amount+' '+(a.currency||'')).slice(0,3);
-          const more=ex.addedCount>3?L(' +'+(ex.addedCount-3)+' נוספות',' +'+(ex.addedCount-3)+' more'):'';
-          const m='💶 '+(ex.addedCount===1?L('נוספה הוצאה: ','Expense added: '):L(ex.addedCount+' הוצאות נוספו: ',ex.addedCount+' expenses added: '))+list.join(' | ')+more+L(' (ניתן למחוק ב-📚)',' (deletable in 📚)');
-          toast(m, 8000); logLine(m);
-        } else if(ex.ok){   // לא להסתיר כשל בשקט — אם דולג בגלל חוסר-סכום, להגיד זאת
-          const r=ex.skippedReasons||{};
-          if(r.noAmount) { const m='ℹ️ '+L('לא נוספה הוצאה: לא נמצא סכום ברור במייל'+(r.noAmount>1?(' ('+r.noAmount+' הזמנות)'):''),'No expense added: no clear amount in the email'+(r.noAmount>1?(' ('+r.noAmount+' bookings)'):'')); toast(m, 8000); logLine(m); }
-          else if(r.dup) { logLine('💶 '+L('הוצאות כבר קיימות — לא הוכפלו','expenses already present — not duplicated')); }
-        }
-      }catch(e){ logLine('⚠️ '+L('ייבוא ההוצאות נכשל','expense import failed')); } }
     } else if(extra.length){
       toast('📁 '+extra.join(' · ')+' · '+L('התכנית לא עודכנה','plan not updated'), 7000);
       alert(L('שגיאה: ','Error: ')+(r.error||''));
