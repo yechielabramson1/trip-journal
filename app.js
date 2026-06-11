@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v77';
+const APP_VER='v78';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -457,6 +457,7 @@ async function retryFailed(failed, voice){
 // ----- viewer: פרק אחד בזיכרון בכל רגע (lazy) -----
 function setBookDay(day, index){ currentBookDay=day||''; currentDayIndex=index||''; $('bookmore').hidden = !currentBookDay; }
 function openBookView(html, driveUrl, dayInfo){
+  $('booktitle').textContent='📖 '+L('ספר המסע','Story Book');   // 🌐 i18n: אחרי build הכותרת נשארה ברירת-המחדל העברית הסטטית
   $('bookchips').hidden=true; $('bookchips').innerHTML=''; currentChapterIdx=-1; $('bookedit').hidden=true;   // עריכה נעשית ישירות על הרשומה בתוך הספר
   setBookDay(dayInfo&&dayInfo.day, dayInfo&&dayInfo.index);
   currentBookFileId=(dayInfo&&dayInfo.fileId)||'';
@@ -466,6 +467,7 @@ function openBookView(html, driveUrl, dayInfo){
   $('bookview').hidden=false; document.body.style.overflow='hidden';
 }
 function openChapteredView(failed, voice){
+  $('booktitle').textContent='📖 '+L('ספר המסע','Story Book');   // 🌐 i18n: כותרת בשפת-הצופה גם במצב-פרקים
   const chips=$('bookchips'); chips.innerHTML=''; chips.hidden=false;
   bookChapters.forEach((c,idx)=>{ const b=document.createElement('button'); b.className='chip'; b.textContent=c.label; b.onclick=()=>showChapter(idx); chips.appendChild(b); });
   if(failed && failed.length){ const rb=document.createElement('button'); rb.className='chip fail'; rb.textContent='↻ '+failed.length+' '+L('נכשלו','failed'); rb.onclick=()=>retryFailed(failed, voice); chips.appendChild(rb); }
