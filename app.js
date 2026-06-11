@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v78';
+const APP_VER='v79';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -146,6 +146,7 @@ function applyLang(){
   const ARIA={'סגור':'Close','תפריט':'Menu','כותב':'Writer','הוסף':'Add','נקה':'Clear','שאל':'Ask','שחזר':'Restore','מסמך':'Document','ארכיון':'Archive','סדר הכל':'Organize all','קבץ לפי מדינה':'Group by country','הדבק רבים':'Paste many','שלח':'Send','מתאריך':'From date','עד תאריך':'To date','שחזר תכנית':'Restore plan','עדכן או בנה מחדש':'Update / rebuild','ערוך את היום':'Edit this day','עוד תמונות מהיום':'More photos from this day'};
   const ARIA_BACK={}; Object.keys(ARIA).forEach(k=>ARIA_BACK[ARIA[k]]=k);
   document.querySelectorAll('[aria-label]').forEach(el=>{ const v=el.getAttribute('aria-label'); const m=en?ARIA[v]:ARIA_BACK[v]; if(m) el.setAttribute('aria-label',m); });
+  const veil=document.getElementById('bootveil'); if(veil) veil.remove();   // 🌐 anti-flash: הטקסטים הוחלפו — מציגים
 }
 function setAuthor(n){ localStorage.setItem('author', n||''); $('who').textContent = n ? ('· '+n) : '?'; applyLang(); render(); }
 
@@ -418,9 +419,9 @@ async function saveBookManifest(mode, voice, single){
     if(mode==='chaptered'){
       const chapters=bookChapters.map(c=>({ index:c.index, day:c.day, label:c.label, fileId:c.fileId, aiUsed:c.aiUsed }));
       if(!chapters.length || !chapters.every(c=>c.fileId)) return;   // לא שומרים manifest חלקי
-      await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'chaptered', scope:'chapters', voice, buildId:bookBuildId, chapters, stats:{ chapters:chapters.length, aiChapters:bookChapters.filter(c=>c.aiUsed).length } } });
+      await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'chaptered', scope:'chapters', voice, lang:uiLang(), buildId:bookBuildId, chapters, stats:{ chapters:chapters.length, aiChapters:bookChapters.filter(c=>c.aiUsed).length } } });
     } else if(single && single.fileId){
-      await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'single', scope:single.scope, voice, fullBook:single } });
+      await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'single', scope:single.scope, voice, lang:uiLang(), fullBook:single } });
     }
   }catch(e){}
 }
@@ -458,6 +459,7 @@ async function retryFailed(failed, voice){
 function setBookDay(day, index){ currentBookDay=day||''; currentDayIndex=index||''; $('bookmore').hidden = !currentBookDay; }
 function openBookView(html, driveUrl, dayInfo){
   $('booktitle').textContent='📖 '+L('ספר המסע','Story Book');   // 🌐 i18n: אחרי build הכותרת נשארה ברירת-המחדל העברית הסטטית
+  const _n=$('bookLangNote'); if(_n) _n.hidden=true;             // 🌐 בנייה-טרייה = בשפת-הצופה; הבאנר נקבע מחדש רק בפתיחה-מהמדף
   $('bookchips').hidden=true; $('bookchips').innerHTML=''; currentChapterIdx=-1; $('bookedit').hidden=true;   // עריכה נעשית ישירות על הרשומה בתוך הספר
   setBookDay(dayInfo&&dayInfo.day, dayInfo&&dayInfo.index);
   currentBookFileId=(dayInfo&&dayInfo.fileId)||'';
@@ -468,6 +470,7 @@ function openBookView(html, driveUrl, dayInfo){
 }
 function openChapteredView(failed, voice){
   $('booktitle').textContent='📖 '+L('ספר המסע','Story Book');   // 🌐 i18n: כותרת בשפת-הצופה גם במצב-פרקים
+  const _n2=$('bookLangNote'); if(_n2) _n2.hidden=true;          // 🌐 בנייה-טרייה = בשפת-הצופה
   const chips=$('bookchips'); chips.innerHTML=''; chips.hidden=false;
   bookChapters.forEach((c,idx)=>{ const b=document.createElement('button'); b.className='chip'; b.textContent=c.label; b.onclick=()=>showChapter(idx); chips.appendChild(b); });
   if(failed && failed.length){ const rb=document.createElement('button'); rb.className='chip fail'; rb.textContent='↻ '+failed.length+' '+L('נכשלו','failed'); rb.onclick=()=>retryFailed(failed, voice); chips.appendChild(rb); }
@@ -518,6 +521,20 @@ function setBookTitleMeta(r){   // כותרת: "📖 ספר המסע · עודכ
   $('booktitle').textContent=s;
   $('bookrebuild').classList.toggle('hasnew', !!(r&&r.hasUpdates));
   $('bookrebuild').title = (r&&r.hasUpdates) ? L('יש תוכן חדש מאז הבנייה — עדכן','New content since build — update') : L('עדכן/בנה מחדש','Update / rebuild');
+  bookLangNote(r);
+}
+// 🌐 הספר-השמור נבנה בשפה אחרת מזו של הצופה → באנר ברור + כפתור בנייה-מחדש (בלי ערבוב ובלי בלבול)
+function bookLangNote(r, htmlSample){
+  const note=$('bookLangNote'); if(!note) return;
+  let bl=(r&&r.lang)||'';
+  if(!bl && r && (r.htmlB64||r.firstHtmlB64)){ try{ const head=atob(String(r.htmlB64||r.firstHtmlB64).slice(0,200)); const m=head.match(/lang="(\w+)"/); if(m) bl=(m[1]==='en')?'en':'he'; }catch(e){} }   // manifests ישנים — זיהוי מראש-ה-HTML
+  if(bl && bl!==uiLang()){
+    note.innerHTML='<span style="flex:1">'+(uiLang()==='en'
+      ? '🌐 This book was built in Hebrew — rebuild it in English to read it.'
+      : '🌐 הספר הזה נבנה באנגלית — בנה מחדש בעברית כדי לקרוא.')+'</span>';
+    const b=document.createElement('button'); b.textContent=uiLang()==='en'?'🔄 Rebuild in English':'🔄 בנה מחדש בעברית';
+    b.onclick=()=>openBuildGate(); note.appendChild(b); note.hidden=false;
+  } else note.hidden=true;
 }
 $('bookclose').onclick=()=>{ $('bookview').hidden=true; $('bookframe').srcdoc=''; $('bookchips').hidden=true; $('bookchips').innerHTML=''; $('dayeditgate').hidden=true; bookChapters=[]; currentChapterIdx=-1; currentBookFileId=''; $('bookedit').hidden=true; setBookDay('',''); $('booktitle').textContent='📖 '+L('ספר המסע','Story Book'); $('bookrebuild').classList.remove('hasnew'); document.body.style.overflow=''; };
 // 🔄 עדכן/בנה מחדש — מתוך ה-viewer (פותח את שער-הבנייה)

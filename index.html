@@ -10,6 +10,16 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="יומן">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+/* 🌐 anti-flash boot: אם הצופה ידוע כ-Sky מהפעם הקודמת — קובעים en/ltr ומסתירים את ה-body
+   עד ש-applyLang מחליף את הטקסטים (עם safety-timeout 2.5ש' אם app.js לא נטען). לג'ק — אפס שינוי. */
+try{ if(localStorage.getItem('author')==='Sky'){
+  var d=document.documentElement; d.lang='en'; d.dir='ltr';
+  var s=document.createElement('style'); s.id='bootveil'; s.textContent='body{visibility:hidden}';
+  document.head.appendChild(s); document.title='Trip Journal';
+  setTimeout(function(){ var v=document.getElementById('bootveil'); if(v) v.remove(); }, 2500);
+} }catch(e){}
+</script>
 <style>
   :root{ --teal:#0f766e; --teal2:#115e59; --ink:#0b1220; --muted:#64748b; --bg:#f1f5f9; --line:#e2e8f0; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent }
@@ -69,6 +79,9 @@
   #bookchips .chip.on{ background:#0e7490; color:#fff; border-color:#0e7490 }
   #bookchips .chip.fail{ border-color:#ef4444; color:#b91c1c }
   #bookframe{ flex:1 1 auto; width:100%; border:0; background:#faf6ee }
+  #bookLangNote{ flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:10px 14px; background:#fef3c7; border-bottom:1px solid #fde68a; font-size:.92rem }
+  #bookLangNote[hidden]{ display:none }
+  #bookLangNote button{ border:0; border-radius:10px; background:#0e7490; color:#fff; padding:8px 14px; font-size:.9rem; font-weight:600; white-space:nowrap }
   #bookmeta{ font-size:.85rem; color:#64748b; margin:-4px 0 12px }
   #bkProgress{ font-size:.95rem; color:#0e7490; font-weight:600; margin:4px 0 8px }
   #bkProgress[hidden]{ display:none }
@@ -262,7 +275,7 @@
       <button id="rebuildbook" style="background:#0e7490">🔄 עדכן / בנה ספר</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v78 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v79 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -277,6 +290,7 @@
       <a id="bookdrive" href="#" target="_blank" rel="noopener" title="הקובץ נשמר בדרייב">💾</a>
     </div>
     <div id="bookchips" hidden></div>
+    <div id="bookLangNote" hidden></div>
     <iframe id="bookframe" title="ספר המסע"></iframe>
   </div>
 
@@ -572,6 +586,6 @@
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=78"></script>
+<script src="app.js?v=79"></script>
 </body>
 </html>
