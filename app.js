@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v79';
+const APP_VER='v80';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -269,30 +269,37 @@ async function enqueueExpense(data, file){
 }
 
 /* ---------- send + flush ---------- */
+/* P1-2 (Fable review, Codex-verified): פריט-capture לעולם לא נמחק מהתור על כשל.
+ * dbDel רק אחרי ok:true מהשרת. דחיית-שרת (ok:false — Lock timeout / auth / no trip / transient)
+ * → התור נעצר עם באנר קבוע "סנכרון מושהה — שום דבר לא אבד" + retry בהשהיה. אין מחיקה שקטה. */
 async function sendItem(item){
   const body={ ...item.payload, v:SCHEMA_V, token:token() };
   if(item.blob) body.dataB64=await blobToB64(item.blob);
   const r=await postEndpoint(body);
   if(!r.ok){ const e=new Error('HTTP '+r.status); e.retriable=true; throw e; }   // רשת/שרת-למטה → ננסה שוב
   const j=await r.json();
-  if(!j.ok){ const e=new Error(j.error||'server rejected'); e.permanent=true; throw e; }   // השרת דחה את הפריט → לא לנסות לנצח
+  if(!j.ok){ const e=new Error(j.error||'server rejected'); e.blocking=true; throw e; }   // השרת דחה → לא מוחקים; חוסמים-בגלוי ומנסים שוב
   return j;
 }
-let flushing=false, backoff=0;
+let flushing=false, backoff=0, syncBlocked=null;   // syncBlocked={msg,ts} — דחיית-שרת גלויה; שום פריט לא נמחק
 async function flush(){
   if(flushing||!token()) return; flushing=true;
   try{
     const items=(await dbAll()).sort((a,b)=>a.seq-b.seq);
     for(const it of items){
-      try{ await sendItem(it); await dbDel(it.seq); backoff=0; }
+      try{ await sendItem(it); await dbDel(it.seq); backoff=0;   // מחיקה מהתור — אך ורק אחרי הצלחה מאושרת
+        if(syncBlocked){ syncBlocked=null; logLine('✅ '+L('הסנכרון התחדש — הכל נשמר','Sync resumed — everything saved')); }
+      }
       catch(err){
-        if(err && err.permanent){   // פריט שהשרת דחה לצמיתות — הסר והמשך, אחרת הוא חוסם את כל התור לנצח
-          await dbDel(it.seq); logLine('⚠️ '+L('פריט נדחה ולא נשמר: ','Item rejected: ')+(err.message||''));
-          continue;
+        if(err && err.blocking && !syncBlocked){
+          syncBlocked={ msg:String(err.message||''), ts:Date.now() };
+          logLine('⛔ '+L('סנכרון מושהה — שום רשומה לא אבדה. שגיאת שרת: ','Sync paused — nothing was lost. Server error: ')+syncBlocked.msg);
         }
-        backoff=Math.min((backoff||1000)*2,60000); setTimeout(()=>{flushing=false;flush();},backoff); await render(); return;   // רשת — ננסה שוב מאוחר יותר
+        // הפריט נשאר בתור (FIFO נשמר) — retry בהשהיה גוברת; ייפתר לבד כשהשרת יחזור לענות ok:true
+        backoff=Math.min((backoff||1000)*2,60000); setTimeout(()=>{flushing=false;flush();},backoff); await render(); return;
       }
     }
+    if(syncBlocked) syncBlocked=null;   // התור התרוקן בהצלחה — אין עוד חסימה
   } finally { flushing=false; }
   await render();
 }
@@ -301,6 +308,8 @@ async function flush(){
 async function render(){
   const n=await dbCount(); const s=$('status'); const t=T();
   if(!token()){ s.textContent=t.needcfg; s.className='off'; return; }
+  // P1-2: באנר קבוע כשהשרת דוחה — המשתמש רואה שמשהו תקוע ושום דבר לא אבד
+  if(syncBlocked && n>0){ s.textContent='⛔ '+L('סנכרון מושהה · '+n+' ממתינות — שום דבר לא אבד','Sync paused · '+n+' pending — nothing lost'); s.className='off'; return; }
   if(!navigator.onLine){ s.textContent=t.off(n); s.className='off'; }
   else if(n>0){ s.textContent=t.pending(n); s.className='pending'; }
   else { s.textContent=t.synced; s.className='ok'; }
