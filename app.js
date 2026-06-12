@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v80';
+const APP_VER='v81';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -143,6 +143,10 @@ function applyLang(){
   opts('bkVoice',t.bk_voice); opts('bkScope',t.bk_scope);
   set('nbHdr',t.nb_hdr); set('nbSave',t.nb_save); set('nbOpen',t.nb_open); set('nbPacket',t.nb_packet); set('nbClose',t.close);
   set('dayeditClose',t.close); set('lessonToBrain',t.send_to_brain);
+  // NL-UX sweep: שער טיול-חדש — בשפת-הצופה (היה דו-לשוני סטטי)
+  const ntp=document.querySelector('#newtripgate p'); if(ntp) ntp.textContent=L('שם הטיול החדש','New trip name');
+  ph('newtripname', L('לדוגמה: יוון 2027','e.g. Greece 2027'));
+  set('newtripcreate', L('צור טיול','Create trip')); set('newtripcancel', L('ביטול','Cancel'));
   const ARIA={'סגור':'Close','תפריט':'Menu','כותב':'Writer','הוסף':'Add','נקה':'Clear','שאל':'Ask','שחזר':'Restore','מסמך':'Document','ארכיון':'Archive','סדר הכל':'Organize all','קבץ לפי מדינה':'Group by country','הדבק רבים':'Paste many','שלח':'Send','מתאריך':'From date','עד תאריך':'To date','שחזר תכנית':'Restore plan','עדכן או בנה מחדש':'Update / rebuild','ערוך את היום':'Edit this day','עוד תמונות מהיום':'More photos from this day'};
   const ARIA_BACK={}; Object.keys(ARIA).forEach(k=>ARIA_BACK[ARIA[k]]=k);
   document.querySelectorAll('[aria-label]').forEach(el=>{ const v=el.getAttribute('aria-label'); const m=en?ARIA[v]:ARIA_BACK[v]; if(m) el.setAttribute('aria-label',m); });
@@ -1208,7 +1212,7 @@ $('itinAskBtn').onclick=async()=>{
     const slow=setTimeout(()=>toast(L('עדיין עובד… (חילוץ ושמירה)','Still working… (extract & save)'),20000), 22000);
     try{
       if(deep){
-        const r=await api({action:'import_travel_reservation', tripId:getTripId(), text:q, author:getAuthor()});
+        const r=await api({action:'import_travel_reservation', tripId:getTripId(), text:q, author:getAuthor(), viewerLang:uiLang()});
         clearTimeout(slow); await reloadItin(); $('itinAsk').value='';
         const parts=[];
         if(r.plan){ if(r.plan.ok) parts.push(L('התכנית עודכנה','plan updated')); else if(r.plan.error) parts.push('⚠️ '+L('התכנית לא עודכנה','plan not updated')); }
@@ -1219,12 +1223,12 @@ $('itinAskBtn').onclick=async()=>{
         const summary='🔎 '+(parts.length?parts.join(' · '):L('לא נמצא מה לייבא','nothing to import'));
         toast(summary, 9000); logLine(summary);
       } else {
-        const r=await api({action:'import_latest_reservation', tripId:getTripId(), text:q, author:getAuthor()});
+        const r=await api({action:'import_latest_reservation', tripId:getTripId(), text:q, author:getAuthor(), viewerLang:uiLang()});
         clearTimeout(slow); await reloadItin(); $('itinAsk').value='';
         if(r.ok===false){ toast('⚠️ '+(r.error||L('שגיאה','Error')), 8000); logLine('⚠️ '+(r.error||'')); }
         else if(r.found===false){ toast('ℹ️ '+(r.message||L('לא נמצאה הזמנה','no booking found')), 9000); logLine('ℹ️ '+(r.message||'')); }
         else {
-          const kindHe={car:'רכב',hotel:'מלון',flight:'טיסה',transport:'תחבורה',other:'הזמנה'}[r.kind]||'הזמנה';
+          const kindHe={car:L('רכב','Car'),hotel:L('מלון','Hotel'),flight:L('טיסה','Flight'),transport:L('תחבורה','Transport'),other:L('הזמנה','Booking')}[r.kind]||L('הזמנה','Booking');
           const parts=[];
           if(r.plan){ if(r.plan.outOfRange) parts.push('⚠️ '+L('מחוץ לטווח הטיול — לא נוסף לתכנית','outside trip dates — not added to plan'));
             else if(r.plan.added) parts.push(L('נוסף לתכנית','added to plan')); else if(r.plan.updated) parts.push(L('עודכן בתכנית','updated in plan')); }
@@ -1243,31 +1247,36 @@ $('itinAskBtn').onclick=async()=>{
     finally{ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; }
     return;
   }
-  // ⚡ נתיב מהיר: בקשת "הוסף..." פשוטה (לא מייל, לא סדר-מחדש/מחק/העבר) → quick_add_item דטרמיניסטי
-  const addOnly = /הוסף|תוסיף|הוסיף|להוסיף|\badd\b/i.test(q) && !wantsEmail
+  // ⚡ נתיב מהיר: בקשת "הוסף..." פשוטה → quick_add_item דטרמיניסטי.
+  // NL-UX: quick_add הוא אופטימיזציה בלבד — אם הוא לא בטוח, נופלים אוטומטית ובשקט ל-AI המלא.
+  // המשתמש לעולם לא רואה שגיאת-regex ולא נדרש לנוסח/שעה/"יום שלישי".
+  const addOnly = /הוסף|תוסיף|הוסיף|להוסיף|\badd\b|\bput\b/i.test(q) && !wantsEmail
     && !/סדר|מחדש|מחק|הסר|העבר|תזיז|reorder|delete|remove|\bmove\b|נקה|clear|rewrite|ארגן/i.test(q);
   $('itinAskBtn').disabled=true; $('itinAskBtn').textContent='⏳';
   if(addOnly){
-    try{ const r=await api({action:'quick_add_item', tripId:getTripId(), text:q});
+    try{ const r=await api({action:'quick_add_item', tripId:getTripId(), text:q, viewerLang:uiLang()});
       if(r.ok){ await reloadItin(); $('itinAsk').value='';
         const it=r.item||{}; const resolved=(r.resolvedDay&&r.resolvedDay.label)?(' · 📅 '+r.resolvedDay.label):'';
         const summary='⚡ '+(r.duplicate?L('כבר קיים: ','Already there: '):L('נוסף: ','Added: '))+(it.title||'')+' · '+itinDayLabel(it.day)+(it.time?(' · '+it.time):'')+resolved;
         toast(summary, 6000); logLine(summary);
         $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; return; }
-      // נכשל: לא נופלים אוטומטית ל-AI המלא — מציגים את ההסבר (שמרמז על 🤖) ומאפשרים לג'ק להחליט
-      $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖';
-      alert((r.error||L('לא הצלחתי להוסיף מהר','Quick add failed'))+(r.useFullAi?L('\n\nאפשר לנסח שוב, או למחוק "הוסף" כדי שה-🤖 המלא יטפל.',' \n\nRephrase, or remove "add" so the full 🤖 handles it.'):''));
-      return;
+      // לא בטוח → ממשיכים ל-plan_ai המלא בלי להטריד את המשתמש
+      toast(L('🤖 רגע, חושב על זה…','🤖 One moment, thinking it through…'), 20000);
     }catch(e){ $('itinAskBtn').disabled=false; $('itinAskBtn').textContent='🤖'; alert(L('אין חיבור — נסה שוב','No connection — try again')); return; }
   }
   const before=itinItems.slice();   // snapshot מלא — diff אמיתי לפי id
-  try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q});
+  try{ const r=await api({action:'plan_ai', tripId:getTripId(), text:q, viewerLang:uiLang()});
     // מסמכים+קישורים מוצגים גם אם ה-AI נכשל; פירוט-הפריטים רק כשהצליח (לא ממציאים)
     const extra=[];
     if(r.savedDocs && r.savedDocs.length) extra.push(L(r.savedDocs.length+' מסמכים נשמרו', r.savedDocs.length+' documents saved'));
     if(r.sourceLinks) extra.push(L(r.sourceLinks+' קישורי-מקור', r.sourceLinks+' source links'));
     if(r.deduped) extra.push(L(r.deduped+' כפילויות אוחדו', r.deduped+' duplicates merged'));
-    if(r.ok){ // diff לפי חתימת-תוכן (השרת מקצה id חדש לכל פריט בכל קריאה, אז id לא אמין)
+    if(!r.ok && r.needsInfo && r.question){
+      // NL-UX: ה-AI צריך פרט אחד — שואלים שאלה אנושית קצרה בשפת-המשתמש; הטקסט נשאר בשדה לעידון
+      toast('🤖 '+r.question, 12000); logLine('🤖 '+r.question);
+      alert('🤖 '+r.question);
+    }
+    else if(r.ok){ // diff לפי חתימת-תוכן (השרת מקצה id חדש לכל פריט בכל קריאה, אז id לא אמין)
       const sig=it=>((it.title||'').trim()+'|'+(it.day||'')+'|'+(it.time||''));
       const beforeSigs=new Set(before.map(sig));
       itinItems=r.items||[]; $('itinAsk').value=''; renderItin();
