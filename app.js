@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v81';
+const APP_VER='v82';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -88,7 +88,11 @@ const I18N = {
 };
 const uiLang = () => getAuthor()==='Sky' ? 'en' : 'he';
 /* 🌐 Viewer Language Layer — תרגום-לתצוגה בלבד; המקור ב-Drive/Sheets לא משתנה לעולם */
-const needsViewTx = s => uiLang()==='en' ? /[֐-׿]/.test(String(s||'')) : /[A-Za-z][A-Za-z' -]{14,}/.test(String(s||''));
+// he-viewer: טקסט שיש בו עברית → תרגם רק אם יש ריצת-לטינית ארוכה (שם-מותג קצר כמו Ofran נשאר); אבל
+// טקסט שכולו אנגלי (בלי עברית כלל) — כמו "coffee" שנוצר ע"י Sky — תרגם תמיד, כדי שג'ק יראה עברית.
+const needsViewTx = s => { s = String(s||'').replace(/https?:\/\/\S+/g,'');
+  if(uiLang()==='en') return /[֐-׿]/.test(s);
+  return /[֐-׿]/.test(s) ? /[A-Za-z][A-Za-z' -]{14,}/.test(s) : /[A-Za-z]{2,}/.test(s); };
 const __vtCache = new Map();   // cache בצד-לקוח לסשן (בנוסף ל-cache בשרת)
 async function viewTexts(texts){   // מחזיר מערך display באותו אורך/סדר; fallback = המקור
   const out=texts.slice(); const miss=[], missIx=[];
