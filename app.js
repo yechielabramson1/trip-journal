@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v82';
+const APP_VER='v83';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -129,6 +129,8 @@ function applyLang(){
   // brain (lists + knowledge)
   set('brainbtn',t.btn_brain); set('brainTitle',t.brain_hub);
   ph('lvSearch',t.lv_search); ph('lvAdd',t.lv_add); ph('kvSearch',t.kv_search); ph('kvAdd',t.kv_add);
+  // 🧳 Trip Brain scope labels (גם כשהמסך סגור — שלא תישאר עברית סטטית אצל Sky); אם פתוח, רענן גם placeholder/מצב
+  try{ lvApplyScopeLabels(); if(!$('listview').hidden) lvSetScopeUI(); }catch(e){}
   set('pasteHdr',t.paste_hdr); ph('pasteText',t.paste_ph); set('pasteSplit',t.paste_split); set('pasteCancel',t.paste_cancel);
   set('lvSheet',t.open_sheet);
   // food log
@@ -1410,18 +1412,37 @@ $('brainbtn').onclick=()=>{ renderBrainTiles(); $('brain').hidden=false; };
 $('brainClose').onclick=()=>{ $('brain').hidden=true; };
 
 /* --- generic list (packing / pre-departure / kosher / favorites) --- */
-let lvKey=null, lvArchived=false, lvItems=[], lvSearchTimer=null, lvGroupByTag=false;
+// 🧳 Local-first: בתוך טיול ברירת-המחדל = מקומי ("הטיול הזה"); "גלובלי" = הרשימה החוצת-טיולים הקבועה.
+let lvKey=null, lvArchived=false, lvItems=[], lvSearchTimer=null, lvGroupByTag=false, lvScope='local';
+function lvApplyScopeLabels(){ $('lvScopeLocal').textContent=L('הטיול הזה','This trip'); $('lvScopeGlobal').textContent=L('גלובלי','Global'); }
+function lvSetScopeUI(){
+  $('lvScopeLocal').classList.toggle('on', lvScope==='local');
+  $('lvScopeGlobal').classList.toggle('on', lvScope==='global');
+  // שורת-ההוספה והחיפוש מותאמות-הקשר (placeholder)
+  $('lvAdd').placeholder = lvScope==='local' ? L('הוסף לטיול הזה…','Add to this trip…') : L('הוסף לגלובלי…','Add to global…');
+  $('lvSearch').placeholder = lvScope==='local' ? L('✨ הצע מהמוח לטיול הזה…','✨ Suggest from the Brain for this trip…') : L('שאל/בקש מהמוח… (הקלדה מסננת)','Ask the Brain… (typing filters)');
+}
 async function openList(tile){
   lvKey=tile.key; lvArchived=false; lvGroupByTag=false; $('lvSearch').value=''; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML=''; $('lvArchiveToggle').textContent='🗄️';
+  lvScope = getTripId() ? 'local' : 'global';                       // בתוך טיול → מקומי כברירת-מחדל
+  $('lvScopeBar').hidden = !getTripId();                             // בלי טיול נבחר → רק גלובלי, בלי segmented
+  lvApplyScopeLabels(); lvSetScopeUI();
   $('lvGroupToggle').style.display = (tile.key==='kosher') ? '' : 'none';   // מדינה = תגית משנית; קיבוץ אופציונלי לכשרות
   $('lvGroupToggle').style.opacity = '1';
   $('lvTitle').textContent=tile.emoji+' '+tileLabel(tile);
   $('listview').hidden=false; $('lvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>';
   await reloadList();
 }
+function lvSwitchScope(s){ if(lvScope===s) return; lvScope=s; lvArchived=false; $('lvArchiveToggle').textContent='🗄️';
+  lvAskMode=false; $('lvSearch').value=''; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML='';
+  lvSetScopeUI(); $('lvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>'; reloadList(); }
 let lvAskMode=false;   // אחרי שאלת-AI: הטקסט בשדה הוא שאלה, לא פילטר — הרשימה מוצגת מלאה
 async function reloadList(){
-  try{ const r=await api({ action:'get_list', listKey:lvKey, includeArchived:lvArchived, query:(lvAskMode?'':$('lvSearch').value.trim()) });
+  try{
+    const q=(lvAskMode?'':$('lvSearch').value.trim());
+    const r = lvScope==='local'
+      ? await api({ action:'list_trip_brain', tripId:getTripId(), area:lvKey, includeArchived:lvArchived, query:q })
+      : await api({ action:'get_list', listKey:lvKey, includeArchived:lvArchived, query:q });
     if(r.ok){ lvItems=r.items||[]; if(r.url) $('lvSheet').href=r.url; renderList();
       // 🌐 תרגום-תצוגה: פריטים שלא בשפת-הצופה מוצגים מתורגמים (המקור בגיליון לא משתנה)
       if(lvItems.some(it=>needsViewTx(it.text))){ const myKey=lvKey;
@@ -1444,14 +1465,26 @@ function lvRow(it){
     const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.displayText||it.text;
     tx.onclick=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); }; row.appendChild(tx);   // עריכה תמיד על המקור
     if(it.tag && !lvGroupByTag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
+    if(lvScope==='local'){   // 🌐 שמור גם למוח הגלובלי (המקומי נשאר) — פעולה מפורשת בלבד
+      const pr=document.createElement('button'); pr.className='lbtn promo'; pr.textContent='🌐'; pr.title=L('שמור גם למוח הגלובלי','Save also to the global Brain');
+      pr.setAttribute('aria-label', L('שמור גם לגלובלי','Promote to global')); pr.onclick=()=>promoteItem(it.id); row.appendChild(pr); }
     const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
   }
   return row;
 }
+async function promoteItem(id){
+  if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
+  try{ const r=await api({ action:'promote_trip_brain_item_to_global', tripId:getTripId(), area:lvKey, id:id });
+    if(r.ok){ toast(r.duplicate?L('כבר קיים במוח הגלובלי','Already in the global Brain'):L('🌐 נשמר גם למוח הגלובלי','🌐 Saved to the global Brain'),3500); }
+    else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
+  catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
+}
 function renderList(){
   const body=$('lvBody'); body.innerHTML='';
   const items = lvArchived ? lvItems.filter(x=>x.archived) : lvItems;
-  if(!items.length){ body.innerHTML='<div class="emptyday">'+(lvArchived?L('— הארכיון ריק —','— archive is empty —'):L('— ריק. הוסף פריט —','— empty. Add an item —'))+'</div>'; return; }
+  if(!items.length){ const emptyMsg = lvArchived ? L('— הארכיון ריק —','— archive is empty —')
+      : (lvScope==='local' ? L('— ריק. הוסף לטיול הזה, או ✨ הצע מהמוח —','— empty. Add to this trip, or ✨ Suggest from the Brain —') : L('— ריק. הוסף פריט —','— empty. Add an item —'));
+    body.innerHTML='<div class="emptyday">'+emptyMsg+'</div>'; return; }
   if(lvGroupByTag && !lvArchived){
     const groups={}; items.forEach(it=>{ const k=(it.tag||'').trim()||L('— ללא מדינה —','— no country —'); (groups[k]=groups[k]||[]).push(it); });
     Object.keys(groups).sort().forEach(g=>{ const h=document.createElement('div'); h.className='dayhdr'; h.textContent='🌍 '+g; body.appendChild(h);
@@ -1460,15 +1493,25 @@ function renderList(){
 }
 async function itemUpdate(id, patch){
   if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
-  try{ const r=await api(Object.assign({ action:'update_list_item', listKey:lvKey, id:id }, patch)); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
+  const req = lvScope==='local' ? Object.assign({ action:'update_trip_brain_item', tripId:getTripId(), area:lvKey, id:id }, patch)
+                                : Object.assign({ action:'update_list_item', listKey:lvKey, id:id }, patch);
+  try{ const r=await api(req); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
 }
 async function itemDelete(id){
-  try{ const r=await api({ action:'delete_list_item', listKey:lvKey, id:id }); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
+  const req = lvScope==='local' ? { action:'delete_trip_brain_item', tripId:getTripId(), area:lvKey, id:id }
+                                : { action:'delete_list_item', listKey:lvKey, id:id };
+  try{ const r=await api(req); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
+}
+// הוספה מודעת-scope (משמש את שורת-ההוספה ואת צ'יפי-ההצעות) — מקומי כברירת-מחדל בתוך טיול
+async function addItemForScope(text){
+  const req = lvScope==='local' ? { action:'add_trip_brain_item', tripId:getTripId(), area:lvKey, text:text }
+                                : { action:'add_list_item', listKey:lvKey, text:text };
+  return api(req);
 }
 async function listAddOne(){
   const v=$('lvAdd').value.trim(); if(!v) return;
   if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
-  $('lvAdd').value=''; try{ const r=await api({ action:'add_list_item', listKey:lvKey, text:v }); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
+  $('lvAdd').value=''; try{ const r=await addItemForScope(v); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
 }
 $('lvClose').onclick=()=>{ $('listview').hidden=true; };
 $('lvAddBtn').onclick=listAddOne;
@@ -1478,28 +1521,37 @@ $('lvSearch').addEventListener('input', ()=>{ lvAskMode=false; clearTimeout(lvSe
 $('lvSearch').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); lvAsk(); } });                       // Enter = שאל את המוח
 $('lvAskBtn').onclick=()=>lvAsk();
 $('lvSearchClear').onclick=()=>{ $('lvSearch').value=''; lvAskMode=false; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML=''; reloadList(); };
-// 🤖 שורת-ה-AI ברשימות: תשובה + הצעות-פריטים; ההוספה רק בלחיצת-המשתמש (➕ / הוסף הכל) — שקוף, בלי כתיבה אוטומטית
+$('lvScopeLocal').onclick=()=>lvSwitchScope('local');
+$('lvScopeGlobal').onclick=()=>lvSwitchScope('global');
+// 🤖/✨ שורת-ה-AI ברשימות: מקומי=הצעות מודעות-הקשר (suggest_from_global_for_trip) · גלובלי=brain_ai (תשובה+הצעות).
+// ההוספה תמיד בלחיצת-המשתמש (➕ / הוסף הכל), ל-scope הנוכחי — שקוף, בלי כתיבה אוטומטית.
 async function lvAsk(){
   const prompt=$('lvSearch').value.trim(); if(!prompt){ $('lvSearch').focus(); return; }
   if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
   const card=$('lvAnswer'); card.hidden=false; card.classList.remove('notfound');
-  card.innerHTML='<div class="kvahdr">🤖 '+L('המוח חושב על הרשימה שלך…','The Brain is thinking about your list…')+'</div>';
+  card.innerHTML='<div class="kvahdr">'+(lvScope==='local'?'✨ '+L('המוח חושב על הטיול הזה…','The Brain is thinking about this trip…'):'🤖 '+L('המוח חושב על הרשימה שלך…','The Brain is thinking about your list…'))+'</div>';
   $('lvAskBtn').disabled=true;
-  try{ const r=await api({ action:'brain_ai', area:lvKey, prompt:prompt, viewerLang:uiLang() });
+  try{
+    const r = lvScope==='local'
+      ? await api({ action:'suggest_from_global_for_trip', tripId:getTripId(), area:lvKey, prompt:prompt, viewerLang:uiLang() })
+      : await api({ action:'brain_ai', area:lvKey, prompt:prompt, viewerLang:uiLang() });
     if(!r.ok){ card.classList.add('notfound'); card.innerHTML='<div class="kvahdr">⚠️ '+escapeHtml(r.error||L('שגיאה','Error'))+'</div>'; return; }
     lvAskMode=true; reloadList();   // הטקסט בשדה = שאלה, לא פילטר — הרשימה למטה נשארת מלאה
-    let h='<div class="kvahdr">🧠 '+L('תשובת המוח','Brain answer')+'</div><div>'+escapeHtml(r.answer||'')+'</div>';
-    if(r.suggestedItems && r.suggestedItems.length){
-      h+='<div class="kvasrc">'+L('הצעות — לחץ ➕ כדי להוסיף לרשימה:','Suggestions — tap ➕ to add to the list:')+'</div><div class="lvsugg">'+
-        r.suggestedItems.map((s,i)=>'<span class="sg" data-i="'+i+'">'+escapeHtml(s)+'<button data-add="'+i+'" aria-label="הוסף">➕</button></span>').join('')+
-        '</div><button class="lvsuggall" id="lvSuggAll">➕ '+L('הוסף הכל','Add all')+' ('+r.suggestedItems.length+')</button>';
-    }
+    const sugg = lvScope==='local' ? (r.suggestions||[]) : (r.suggestedItems||[]);   // איחוד צורת-התשובה
+    let h='';
+    if(lvScope==='global') h+='<div class="kvahdr">🧠 '+L('תשובת המוח','Brain answer')+'</div><div>'+escapeHtml(r.answer||'')+'</div>';
+    else h+='<div class="kvahdr">✨ '+L('הצעות מהמוח לטיול הזה','Suggestions from the Brain for this trip')+'</div>';
+    if(sugg.length){
+      h+='<div class="kvasrc">'+(lvScope==='local'?L('לחץ ➕ כדי להוסיף לטיול הזה:','Tap ➕ to add to this trip:'):L('הצעות — לחץ ➕ כדי להוסיף לרשימה:','Suggestions — tap ➕ to add to the list:'))+'</div><div class="lvsugg">'+
+        sugg.map((s,i)=>'<span class="sg" data-i="'+i+'">'+escapeHtml(s)+'<button data-add="'+i+'" aria-label="'+L('הוסף','Add')+'">➕</button></span>').join('')+
+        '</div><button class="lvsuggall" id="lvSuggAll">➕ '+L('הוסף הכל','Add all')+' ('+sugg.length+')</button>';
+    } else if(lvScope==='local'){ h+='<div>'+L('אין הצעות חדשות — הרשימה שלך מכסה את זה 👍','No new suggestions — your list already covers it 👍')+'</div>'; }
     card.innerHTML=h;
-    // חיווט ההצעות — כל הוספה דרך add_list_item הרגיל (שקוף + מסוכם)
-    const sugg=r.suggestedItems||[]; let addedCount=0;
+    // חיווט ההצעות — כל הוספה דרך ה-scope הנוכחי (שקוף + מסוכם)
+    let addedCount=0;
     async function addOne(i){
       const el=card.querySelector('.sg[data-i="'+i+'"]'); if(!el || el.classList.contains('added')) return false;
-      try{ const rr=await api({ action:'add_list_item', listKey:lvKey, text:sugg[i] });
+      try{ const rr=await addItemForScope(sugg[i]);
         if(rr.ok){ el.classList.add('added'); addedCount++; return true; } }catch(e){}
       return false;
     }
