@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v83';
+const APP_VER='v84';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1465,10 +1465,11 @@ function lvRow(it){
     const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.displayText||it.text;
     tx.onclick=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); }; row.appendChild(tx);   // עריכה תמיד על המקור
     if(it.tag && !lvGroupByTag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
-    if(lvScope==='local'){   // 🌐 שמור גם למוח הגלובלי (המקומי נשאר) — פעולה מפורשת בלבד
-      const pr=document.createElement('button'); pr.className='lbtn promo'; pr.textContent='🌐'; pr.title=L('שמור גם למוח הגלובלי','Save also to the global Brain');
-      pr.setAttribute('aria-label', L('שמור גם לגלובלי','Promote to global')); pr.onclick=()=>promoteItem(it.id); row.appendChild(pr); }
-    const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
+    const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.setAttribute('aria-label',L('ארכב','Archive')); arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
+    if(lvScope==='local'){   // 🌐 פעולה גלויה ומתויגת: שמור גם למוח הגלובלי (המקומי נשאר) — פעולה מפורשת בלבד
+      const pr=document.createElement('button'); pr.className='lbtn promo'; pr.textContent='🌐 '+L('שמור גם לגלובלי','Save to global');
+      pr.title=L('שמור גם למוח הגלובלי (הפריט נשאר גם כאן)','Save also to the global Brain (stays here too)');
+      pr.setAttribute('aria-label', L('שמור גם לגלובלי','Save to global')); pr.onclick=()=>promoteItem(it.id); row.appendChild(pr); }
   }
   return row;
 }

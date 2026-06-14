@@ -196,7 +196,7 @@ try{ if(localStorage.getItem('author')==='Sky'){
   .lvadd input{ flex:1; padding:11px; border:1px solid #cbd5e1; border-radius:10px; font-size:1rem }
   .lvadd button{ border:0; background:var(--teal); color:#fff; border-radius:10px; padding:0 14px; font-size:1.05rem }
   #lvBody,#kvBody{ flex:1; overflow:auto; padding:8px 12px }
-  .litem{ display:flex; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin:6px 0 }
+  .litem{ display:flex; align-items:center; flex-wrap:wrap; gap:10px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin:6px 0 }
   .litem.done .ltext{ text-decoration:line-through; color:var(--muted) }
   .litem .lcheck{ width:24px; height:24px; flex:none }
   .litem .ltext{ flex:1; font-size:1rem; min-width:0; word-break:break-word }
@@ -227,7 +227,10 @@ try{ if(localStorage.getItem('author')==='Sky'){
   .scopebar[hidden]{ display:none }
   .scopebtn{ flex:1; border:1px solid #cbd5e1; background:#fff; color:#475569; border-radius:999px; padding:9px 12px; font-size:.95rem; font-weight:600 }
   .scopebtn.on{ background:#0f766e; color:#fff; border-color:#0f766e }
-  .litem .lbtn.promo{ color:#0e7490 }
+  /* 🌐 Promote — pill מתויג וברור (לא אייקון-בודד); נדחף לקצה ויורד לשורה משלו במסך צר */
+  .litem .lbtn.promo{ flex:0 0 auto; margin-inline-start:auto; background:#ecfeff; color:#0e7490; border:1px solid #a5f3fc;
+    border-radius:999px; padding:5px 12px; font-size:.82rem; font-weight:600; white-space:nowrap }
+  .litem .lbtn.promo:active{ background:#cffafe }
   /* travel-doc preview */
   #docResult{ background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:12px; margin:6px 0; text-align:right }
   #docResult .dtitle{ font-weight:700; font-size:1.05rem; color:var(--teal2); margin-bottom:8px }
@@ -281,7 +284,7 @@ try{ if(localStorage.getItem('author')==='Sky'){
       <button id="rebuildbook" style="background:#0e7490">🔄 עדכן / בנה ספר</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v83 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v84 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -596,6 +599,6 @@ try{ if(localStorage.getItem('author')==='Sky'){
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=83"></script>
+<script src="app.js?v=84"></script>
 </body>
 </html>
