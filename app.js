@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v85';
+const APP_VER='v86';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1513,6 +1513,7 @@ async function listAddOne(){
   const v=$('lvAdd').value.trim(); if(!v) return;
   if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
   const btn=$('lvAddBtn'); btn.disabled=true; const old=btn.textContent; btn.textContent='⏳';
+  toast(lvScope==='local'?L('מוסיף לטיול הזה…','Adding to this trip…'):L('מוסיף לגלובלי…','Adding to global…'),1800);
   try{
     const r=await addItemForScope(v);
     if(r.ok){ $('lvAdd').value=''; toast(lvScope==='local'?L('נוסף לטיול הזה ✓','Added to this trip ✓'):L('נוסף לגלובלי ✓','Added to global ✓'),2200); await reloadList(); }
@@ -1579,6 +1580,7 @@ $('pasteSplit').onclick=async()=>{
   const v=$('pasteText').value.trim(); if(!v) return;
   if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
   $('pasteSplit').disabled=true; const old=$('pasteSplit').textContent; $('pasteSplit').textContent=L('✨ מפצל…','✨ Splitting…');
+  toast(lvScope==='local'?L('מפצל ומוסיף לטיול הזה…','Splitting and adding to this trip…'):L('מפצל ומוסיף לגלובלי…','Splitting and adding to global…'),2500);
   try{
     const req = lvScope==='local'
       ? { action:'add_trip_brain_items', tripId:getTripId(), area:lvKey, text:v, viewerLang:uiLang() }
