@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v84';
+const APP_VER='v85';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1512,7 +1512,13 @@ async function addItemForScope(text){
 async function listAddOne(){
   const v=$('lvAdd').value.trim(); if(!v) return;
   if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
-  $('lvAdd').value=''; try{ const r=await addItemForScope(v); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
+  const btn=$('lvAddBtn'); btn.disabled=true; const old=btn.textContent; btn.textContent='⏳';
+  try{
+    const r=await addItemForScope(v);
+    if(r.ok){ $('lvAdd').value=''; toast(lvScope==='local'?L('נוסף לטיול הזה ✓','Added to this trip ✓'):L('נוסף לגלובלי ✓','Added to global ✓'),2200); await reloadList(); }
+    else alert(L('שגיאה: ','Error: ')+(r.error||''));
+  }catch(e){ alert(L('אין חיבור','No connection')); }
+  finally{ btn.disabled=false; btn.textContent=old; }
 }
 $('lvClose').onclick=()=>{ $('listview').hidden=true; };
 $('lvAddBtn').onclick=listAddOne;
@@ -1573,8 +1579,18 @@ $('pasteSplit').onclick=async()=>{
   const v=$('pasteText').value.trim(); if(!v) return;
   if(!navigator.onLine){ alert(L('צריך חיבור ל-AI','An AI connection is required')); return; }
   $('pasteSplit').disabled=true; const old=$('pasteSplit').textContent; $('pasteSplit').textContent=L('✨ מפצל…','✨ Splitting…');
-  try{ const r=await api({ action:'add_list_items', listKey:lvKey, text:v });
-    if(r.ok){ $('pastegate').hidden=true; logLine(L('➕ נוספו ','➕ Added ')+(r.count||0)); await reloadList(); } else alert(L('שגיאה','Error')); }
+  try{
+    const req = lvScope==='local'
+      ? { action:'add_trip_brain_items', tripId:getTripId(), area:lvKey, text:v, viewerLang:uiLang() }
+      : { action:'add_list_items', listKey:lvKey, text:v, viewerLang:uiLang() };
+    const r=await api(req);
+    if(r.ok){
+      $('pastegate').hidden=true;
+      const msg=(lvScope==='local'
+        ? L('➕ נוספו '+(r.count||0)+' פריטים לטיול הזה','➕ Added '+(r.count||0)+' items to this trip')
+        : L('➕ נוספו '+(r.count||0)+' פריטים לגלובלי','➕ Added '+(r.count||0)+' items to global'));
+      toast(msg,4500); logLine(msg); await reloadList();
+    } else alert(L('שגיאה: ','Error: ')+(r.error||'')); }
   catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
   finally{ $('pasteSplit').disabled=false; $('pasteSplit').textContent=old; }
 };
