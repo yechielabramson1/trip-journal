@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v87';
+const APP_VER='v89';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1413,7 +1413,7 @@ $('brainClose').onclick=()=>{ $('brain').hidden=true; };
 
 /* --- generic list (packing / pre-departure / kosher / favorites) --- */
 // 🧳 Local-first: בתוך טיול ברירת-המחדל = מקומי ("הטיול הזה"); "גלובלי" = הרשימה החוצת-טיולים הקבועה.
-let lvKey=null, lvArchived=false, lvItems=[], lvSearchTimer=null, lvGroupByTag=false, lvScope='local';
+let lvKey=null, lvArchived=false, lvItems=[], lvSearchTimer=null, lvGroupByTag=false, lvScope='local', lvOpenId=null;
 function lvApplyScopeLabels(){ $('lvScopeLocal').textContent=L('הטיול הזה','This trip'); $('lvScopeGlobal').textContent=L('גלובלי','Global'); }
 function lvSetScopeUI(){
   $('lvScopeLocal').classList.toggle('on', lvScope==='local');
@@ -1423,7 +1423,7 @@ function lvSetScopeUI(){
   $('lvSearch').placeholder = lvScope==='local' ? L('✨ הצע מהמוח לטיול הזה…','✨ Suggest from the Brain for this trip…') : L('שאל/בקש מהמוח… (הקלדה מסננת)','Ask the Brain… (typing filters)');
 }
 async function openList(tile){
-  lvKey=tile.key; lvArchived=false; lvGroupByTag=false; $('lvSearch').value=''; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML=''; $('lvArchiveToggle').textContent='🗄️';
+  lvKey=tile.key; lvArchived=false; lvGroupByTag=false; lvOpenId=null; $('lvSearch').value=''; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML=''; $('lvArchiveToggle').textContent='🗄️';
   lvScope = getTripId() ? 'local' : 'global';                       // בתוך טיול → מקומי כברירת-מחדל
   $('lvScopeBar').hidden = !getTripId();                             // בלי טיול נבחר → רק גלובלי, בלי segmented
   lvApplyScopeLabels(); lvSetScopeUI();
@@ -1433,7 +1433,7 @@ async function openList(tile){
   $('listview').hidden=false; $('lvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>';
   await reloadList();
 }
-function lvSwitchScope(s){ if(lvScope===s) return; lvScope=s; lvArchived=false; $('lvArchiveToggle').textContent='🗄️';
+function lvSwitchScope(s){ if(lvScope===s) return; lvScope=s; lvArchived=false; lvOpenId=null; $('lvArchiveToggle').textContent='🗄️';
   lvAskMode=false; $('lvSearch').value=''; $('lvAnswer').hidden=true; $('lvAnswer').innerHTML='';
   lvSetScopeUI(); $('lvBody').innerHTML='<div class="emptyday">'+L('טוען…','Loading…')+'</div>'; reloadList(); }
 let lvAskMode=false;   // אחרי שאלת-AI: הטקסט בשדה הוא שאלה, לא פילטר — הרשימה מוצגת מלאה
@@ -1452,28 +1452,44 @@ async function reloadList(){
   }catch(e){ $('lvBody').innerHTML='<div class="emptyday">'+L('אין חיבור','No connection')+'</div>'; }
 }
 function lvRow(it){
-  const row=document.createElement('div'); row.className='litem'+(it.done?' done':'');
+  const row=document.createElement('div'); row.className='litem'+(it.done?' done':'')+(lvArchived?' archived':'')+(lvOpenId===it.id?' expanded':'');
+  const main=()=>{ const m=document.createElement('div'); m.className='lmain'; return m; };
+  const actions=()=>{ const a=document.createElement('div'); a.className='lactions'; return a; };
+  const edit=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); };
+  const more=()=>{ const b=document.createElement('button'); b.className='lbtn morebtn'; b.textContent='⋯'; b.title=L('פעולות','Actions'); b.setAttribute('aria-label',L('פעולות','Actions')); b.onclick=()=>{ lvOpenId = lvOpenId===it.id ? null : it.id; renderList(); }; return b; };
   if(lvArchived){
-    const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.displayText||it.text; row.appendChild(tx);
-    if(it.tag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
-    const rest=document.createElement('button'); rest.className='lbtn'; rest.textContent='♻️'; rest.onclick=()=>itemUpdate(it.id,{archived:false}); row.appendChild(rest);
-    const del=document.createElement('button'); del.className='lbtn'; del.style.color='#b91c1c'; del.textContent='🗑️';
-    del.onclick=()=>{ if(confirm(L('למחוק לצמיתות?','Delete permanently?'))) itemDelete(it.id); }; row.appendChild(del);
+    const body=main();
+    const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.displayText||it.text; body.appendChild(tx);
+    if(it.tag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; body.appendChild(tg); }
+    row.appendChild(body);
+    row.appendChild(more());
+    const acts=actions();
+    const editBtn=document.createElement('button'); editBtn.className='lbtn editp'; editBtn.textContent='✏️ '+L('ערוך','Edit'); editBtn.onclick=edit; acts.appendChild(editBtn);
+    const rest=document.createElement('button'); rest.className='lbtn promo'; rest.textContent='♻️ '+L('שחזר','Restore'); rest.title=L('שחזר','Restore'); rest.setAttribute('aria-label',L('שחזר','Restore')); rest.onclick=()=>itemUpdate(it.id,{archived:false}); acts.appendChild(rest);
+    const del=document.createElement('button'); del.className='lbtn delp'; del.textContent='🗑️ '+L('מחק','Delete'); del.title=L('מחק לצמיתות','Delete permanently'); del.setAttribute('aria-label',L('מחק לצמיתות','Delete permanently'));
+    del.onclick=()=>{ if(confirm(L('למחוק לצמיתות?','Delete permanently?'))) itemDelete(it.id); }; acts.appendChild(del);
+    row.appendChild(acts);
   } else {
     const cb=document.createElement('input'); cb.type='checkbox'; cb.className='lcheck'; cb.checked=it.done;
     cb.onchange=()=>itemUpdate(it.id,{done:cb.checked}); row.appendChild(cb);
+    const body=main();
     const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.displayText||it.text;
-    tx.onclick=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); }; row.appendChild(tx);   // עריכה תמיד על המקור
-    if(it.tag && !lvGroupByTag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
-    const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.title=L('ארכב (הסתר, ניתן לשחזר)','Archive (hide, restorable)'); arch.setAttribute('aria-label',L('ארכב','Archive')); arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
+    tx.onclick=edit; body.appendChild(tx);   // עריכה תמיד על המקור
+    if(it.tag && !lvGroupByTag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; body.appendChild(tg); }
+    row.appendChild(body);
+    row.appendChild(more());
+    const acts=actions();
+    const editBtn=document.createElement('button'); editBtn.className='lbtn editp'; editBtn.textContent='✏️ '+L('ערוך','Edit'); editBtn.onclick=edit; acts.appendChild(editBtn);
+    const arch=document.createElement('button'); arch.className='lbtn editp'; arch.textContent='🗄️ '+L('ארכב','Archive'); arch.title=L('ארכב (הסתר, ניתן לשחזר)','Archive (hide, restorable)'); arch.setAttribute('aria-label',L('ארכב','Archive')); arch.onclick=()=>itemUpdate(it.id,{archived:true}); acts.appendChild(arch);
     if(lvScope==='local'){   // 🌐 פעולה גלויה ומתויגת: שמור גם למוח הגלובלי (המקומי נשאר) — פעולה מפורשת בלבד
-      const pr=document.createElement('button'); pr.className='lbtn promo'; pr.textContent='🌐 '+L('שמור גם לגלובלי','Save to global');
+      const pr=document.createElement('button'); pr.className='lbtn promo'; pr.textContent='🌐 Global';
       pr.title=L('שמור גם למוח הגלובלי (הפריט נשאר גם כאן)','Save also to the global Brain (stays here too)');
-      pr.setAttribute('aria-label', L('שמור גם לגלובלי','Save to global')); pr.onclick=()=>promoteItem(it.id); row.appendChild(pr); }
+      pr.setAttribute('aria-label', L('שמור גם לגלובלי','Save to global')); pr.onclick=()=>promoteItem(it.id); acts.appendChild(pr); }
     // 🗑️ מחיקה מלאה גלויה (נפרד מ-🗄️ ארכוב) — מבקש אישור, מוחק ממקור-האמת של ה-scope הנוכחי
     const del=document.createElement('button'); del.className='lbtn delp'; del.textContent='🗑️ '+L('מחק','Delete');
-    del.setAttribute('aria-label',L('מחק','Delete'));
-    del.onclick=()=>{ if(confirm(L('למחוק את הפריט הזה?','Delete this item?'))) itemDelete(it.id); }; row.appendChild(del);
+    del.title=L('מחק','Delete'); del.setAttribute('aria-label',L('מחק','Delete'));
+    del.onclick=()=>{ if(confirm(L('למחוק את הפריט הזה?','Delete this item?'))) itemDelete(it.id); }; acts.appendChild(del);
+    row.appendChild(acts);
   }
   return row;
 }
