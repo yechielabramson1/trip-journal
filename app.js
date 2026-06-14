@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v86';
+const APP_VER='v87';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1465,11 +1465,15 @@ function lvRow(it){
     const tx=document.createElement('span'); tx.className='ltext'; tx.textContent=it.displayText||it.text;
     tx.onclick=()=>{ const v=prompt(L('עריכת פריט:','Edit item:'), it.text); if(v!=null && v.trim()) itemUpdate(it.id,{text:v.trim()}); }; row.appendChild(tx);   // עריכה תמיד על המקור
     if(it.tag && !lvGroupByTag){ const tg=document.createElement('span'); tg.className='ltag'; tg.textContent=it.tag; row.appendChild(tg); }
-    const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.setAttribute('aria-label',L('ארכב','Archive')); arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
+    const arch=document.createElement('button'); arch.className='lbtn'; arch.textContent='🗄️'; arch.title=L('ארכב (הסתר, ניתן לשחזר)','Archive (hide, restorable)'); arch.setAttribute('aria-label',L('ארכב','Archive')); arch.onclick=()=>itemUpdate(it.id,{archived:true}); row.appendChild(arch);
     if(lvScope==='local'){   // 🌐 פעולה גלויה ומתויגת: שמור גם למוח הגלובלי (המקומי נשאר) — פעולה מפורשת בלבד
       const pr=document.createElement('button'); pr.className='lbtn promo'; pr.textContent='🌐 '+L('שמור גם לגלובלי','Save to global');
       pr.title=L('שמור גם למוח הגלובלי (הפריט נשאר גם כאן)','Save also to the global Brain (stays here too)');
       pr.setAttribute('aria-label', L('שמור גם לגלובלי','Save to global')); pr.onclick=()=>promoteItem(it.id); row.appendChild(pr); }
+    // 🗑️ מחיקה מלאה גלויה (נפרד מ-🗄️ ארכוב) — מבקש אישור, מוחק ממקור-האמת של ה-scope הנוכחי
+    const del=document.createElement('button'); del.className='lbtn delp'; del.textContent='🗑️ '+L('מחק','Delete');
+    del.setAttribute('aria-label',L('מחק','Delete'));
+    del.onclick=()=>{ if(confirm(L('למחוק את הפריט הזה?','Delete this item?'))) itemDelete(it.id); }; row.appendChild(del);
   }
   return row;
 }
@@ -1482,10 +1486,17 @@ async function promoteItem(id){
 }
 function renderList(){
   const body=$('lvBody'); body.innerHTML='';
+  // 🔍 אינדיקטור-פילטר פעיל: אם יש טקסט-חיפוש (לא ask, לא ארכיון) — פריטים שלא תואמים מוסתרים. שלא ייראה כאילו "נעלמו".
+  const filterQ = (!lvAskMode && !lvArchived) ? $('lvSearch').value.trim() : '';
+  if(filterQ){ const fb=document.createElement('div'); fb.className='lvfilter';
+    const sp=document.createElement('span'); sp.textContent='🔍 '+L('מסונן לפי: ','Filtered by: ')+'"'+filterQ+'"';
+    const cl=document.createElement('button'); cl.textContent=L('הצג הכל','Show all'); cl.onclick=()=>{ $('lvSearchClear').onclick(); };
+    fb.appendChild(sp); fb.appendChild(cl); body.appendChild(fb); }
   const items = lvArchived ? lvItems.filter(x=>x.archived) : lvItems;
-  if(!items.length){ const emptyMsg = lvArchived ? L('— הארכיון ריק —','— archive is empty —')
-      : (lvScope==='local' ? L('— ריק. הוסף לטיול הזה, או ✨ הצע מהמוח —','— empty. Add to this trip, or ✨ Suggest from the Brain —') : L('— ריק. הוסף פריט —','— empty. Add an item —'));
-    body.innerHTML='<div class="emptyday">'+emptyMsg+'</div>'; return; }
+  if(!items.length){ const emptyMsg = filterQ ? L('— אין פריטים שתואמים לסינון —','— no items match the filter —')
+      : (lvArchived ? L('— הארכיון ריק —','— archive is empty —')
+      : (lvScope==='local' ? L('— ריק. הוסף לטיול הזה, או ✨ הצע מהמוח —','— empty. Add to this trip, or ✨ Suggest from the Brain —') : L('— ריק. הוסף פריט —','— empty. Add an item —')));
+    body.insertAdjacentHTML('beforeend','<div class="emptyday">'+emptyMsg+'</div>'); return; }
   if(lvGroupByTag && !lvArchived){
     const groups={}; items.forEach(it=>{ const k=(it.tag||'').trim()||L('— ללא מדינה —','— no country —'); (groups[k]=groups[k]||[]).push(it); });
     Object.keys(groups).sort().forEach(g=>{ const h=document.createElement('div'); h.className='dayhdr'; h.textContent='🌍 '+g; body.appendChild(h);
@@ -1499,9 +1510,13 @@ async function itemUpdate(id, patch){
   try{ const r=await api(req); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
 }
 async function itemDelete(id){
+  if(!navigator.onLine){ alert(L('צריך חיבור','A connection is needed')); return; }
   const req = lvScope==='local' ? { action:'delete_trip_brain_item', tripId:getTripId(), area:lvKey, id:id }
                                 : { action:'delete_list_item', listKey:lvKey, id:id };
-  try{ const r=await api(req); if(r.ok) await reloadList(); }catch(e){ alert(L('אין חיבור','No connection')); }
+  try{ const r=await api(req);
+    if(r.ok){ toast(L('נמחק ✓','Deleted ✓'),2000); await reloadList(); }
+    else alert(L('שגיאה: ','Error: ')+(r.error||''));   // כשל → לא מעלימים מה-UI, מציגים שגיאה בשפת-הצופה
+  }catch(e){ alert(L('אין חיבור — נסה שוב','No connection — try again')); }
 }
 // הוספה מודעת-scope (משמש את שורת-ההוספה ואת צ'יפי-ההצעות) — מקומי כברירת-מחדל בתוך טיול
 async function addItemForScope(text){

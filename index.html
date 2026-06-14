@@ -231,6 +231,15 @@ try{ if(localStorage.getItem('author')==='Sky'){
   .litem .lbtn.promo{ flex:0 0 auto; margin-inline-start:auto; background:#ecfeff; color:#0e7490; border:1px solid #a5f3fc;
     border-radius:999px; padding:5px 12px; font-size:.82rem; font-weight:600; white-space:nowrap }
   .litem .lbtn.promo:active{ background:#cffafe }
+  /* 🗑️ Delete — pill אדום ברור (מחיקה מלאה, נפרד מ-🗄️ ארכוב) */
+  .litem .lbtn.delp{ flex:0 0 auto; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca; border-radius:999px;
+    padding:5px 12px; font-size:.82rem; font-weight:600; white-space:nowrap }
+  .litem .lbtn.delp:active{ background:#fee2e2 }
+  .litem .lbtn.promo ~ .lbtn.delp{ margin-inline-start:8px }
+  /* 🔍 אינדיקטור-פילטר פעיל — שלא ייראה כאילו פריטים "נעלמו" */
+  .lvfilter{ display:flex; align-items:center; gap:8px; background:#fffbeb; border:1px solid #fde68a; color:#92400e;
+    border-radius:10px; padding:7px 12px; font-size:.85rem; margin:2px 0 8px }
+  .lvfilter button{ margin-inline-start:auto; border:0; background:#f59e0b; color:#fff; border-radius:8px; padding:4px 12px; font-size:.82rem; font-weight:600 }
   /* travel-doc preview */
   #docResult{ background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:12px; margin:6px 0; text-align:right }
   #docResult .dtitle{ font-weight:700; font-size:1.05rem; color:var(--teal2); margin-bottom:8px }
@@ -284,7 +293,7 @@ try{ if(localStorage.getItem('author')==='Sky'){
       <button id="rebuildbook" style="background:#0e7490">🔄 עדכן / בנה ספר</button>
       <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
       <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
-      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v86 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v87 · 🗓️ הקש על *יום* לתצוגת שעות</div>
     </div>
   </nav>
 
@@ -599,6 +608,6 @@ try{ if(localStorage.getItem('author')==='Sky'){
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=86"></script>
+<script src="app.js?v=87"></script>
 </body>
 </html>
