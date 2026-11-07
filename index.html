@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0f766e">
+<title>יומן מסע</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="יומן">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<script>
+/* 🌐 anti-flash boot: אם הצופה ידוע כ-Sky מהפעם הקודמת — קובעים en/ltr ומסתירים את ה-body
+   עד ש-applyLang מחליף את הטקסטים (עם safety-timeout 2.5ש' אם app.js לא נטען). לצופה העברי — אפס שינוי. */
+try{ if(localStorage.getItem('author')==='Sky'){
+  var d=document.documentElement; d.lang='en'; d.dir='ltr';
+  var s=document.createElement('style'); s.id='bootveil'; s.textContent='body{visibility:hidden}';
+  document.head.appendChild(s); document.title='Trip Journal';
+  setTimeout(function(){ var v=document.getElementById('bootveil'); if(v) v.remove(); }, 2500);
+} }catch(e){}
+</script>
+<style>
+  :root{ --teal:#0f766e; --teal2:#115e59; --ink:#0b1220; --muted:#64748b; --bg:#f1f5f9; --line:#e2e8f0; }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent }
+  html,body{ margin:0; height:100%; font-family:system-ui,"Segoe UI",Arial,sans-serif; background:var(--bg); color:var(--ink) }
+  body{ display:flex; flex-direction:column; padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) }
+  /* header */
+  header{ display:flex; align-items:center; gap:8px; padding:10px 12px; background:var(--teal); color:#fff }
+  header .icon{ background:transparent; border:0; color:#fff; font-size:1.4rem; padding:4px 8px; border-radius:10px }
+  header .icon:active{ background:rgba(255,255,255,.15) }
+  #tripname{ flex:1; font-weight:700; font-size:1.05rem; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; background:transparent; border:0; color:#fff }
+  #who{ font-size:.8rem; background:rgba(255,255,255,.18); border:0; color:#fff; border-radius:999px; padding:4px 10px; white-space:nowrap }
+  /* main */
+  main{ flex:1; display:flex; flex-direction:column; padding:12px; gap:10px; min-height:0 }
+  textarea{ width:100%; flex:1; min-height:26vh; font-size:1.25rem; padding:14px; border:1px solid #cbd5e1; border-radius:14px; resize:none; line-height:1.5; background:#fff }
+  .actions{ display:grid; grid-template-columns:1fr 1fr; gap:10px }
+  button.act,label.act{ display:flex; align-items:center; justify-content:center; gap:8px; border:0; border-radius:16px; font-size:1.05rem; font-weight:600; padding:16px; color:#fff; background:var(--teal) }
+  button.act:active,label.act:active{ background:var(--teal2) }
+  /* תחושת-לחיצה גלובלית: כל כפתור "נלחץ" ויזואלית (כיווץ+כהות) — משוב מיידי לאצבע */
+  button,label.act,.chip,.dtab,a.lnk,a.dpick,.trip{ transition:transform .07s ease, filter .07s ease, background .12s ease }
+  button:active,label.act:active,.chip:active,.dtab:active,a.lnk:active,.dpick:active,.trip:active{ transform:scale(.95); filter:brightness(.9) }
+  button:disabled:active{ transform:none; filter:none }
+  .act.save{ grid-column:1 / -1; font-size:1.2rem; padding:18px }
+  .act.photo{ background:#334155 } .act.doc{ background:#475569 } .act.receipt{ background:#0e7490 } .act.ask{ background:#6d28d9 } .act.expense{ background:#15803d } .act.food{ background:#c2410c } .act.wrap{ background:#b45309 } .act.lesson{ background:#ca8a04 }
+  .wmsg{ border-radius:12px; padding:10px 12px; margin:6px 0; font-size:.95rem; line-height:1.5; white-space:pre-wrap }
+  .wmsg.ai{ background:#fff7ed; border:1px solid #fed7aa } .wmsg.me{ background:#e0f2fe; border:1px solid #bae6fd; text-align:right }
+  .gate .card select{ width:100%; margin:6px 0 12px; padding:13px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; background:#fff }
+  button:disabled{ opacity:.5 }
+  input[type=file]{ display:none }
+  #log{ font-size:.8rem; color:var(--muted); max-height:14vh; overflow:auto }
+  #log div{ padding:3px 0; border-bottom:1px solid var(--line) }
+  #status{ font-size:.85rem; padding:6px 12px; border-radius:999px; background:#e2e8f0; color:var(--muted); align-self:flex-start }
+  #status.ok{ background:#dcfce7; color:#15803d } #status.pending{ background:#fef9c3; color:#a16207 } #status.off{ background:#fee2e2; color:#b91c1c }
+  /* drawer */
+  .scrim{ position:fixed; inset:0; background:rgba(11,18,32,.45); opacity:0; pointer-events:none; transition:opacity .2s; z-index:8 }
+  .scrim.open{ opacity:1; pointer-events:auto }
+  #drawer{ position:fixed; top:0; right:-86vw; width:86vw; max-width:340px; height:100%; background:#fff; z-index:9;
+           transition:right .22s ease; display:flex; flex-direction:column; box-shadow:-8px 0 24px rgba(0,0,0,.15) }
+  #drawer.open{ right:0 }
+  #drawer h2{ margin:0; padding:18px 16px; background:var(--teal); color:#fff; font-size:1.1rem; padding-top:calc(18px + env(safe-area-inset-top)) }
+  #triplist{ flex:1; overflow:auto; padding:6px 0 }
+  .trip{ display:flex; align-items:center; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); font-size:1.05rem }
+  .trip.active{ background:#ccfbf1; font-weight:700 }
+  .trip .dot{ width:8px; height:8px; border-radius:50%; background:#cbd5e1 } .trip.active .dot{ background:var(--teal) }
+  #drawer .foot{ padding:12px 16px; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:8px }
+  #drawer .foot button{ width:100%; padding:14px; border:0; border-radius:14px; font-size:1.05rem; font-weight:600; background:var(--teal); color:#fff }
+  #bookview{ position:fixed; inset:0; z-index:60; background:#faf6ee; display:flex; flex-direction:column }
+  #bookview[hidden]{ display:none }
+  #bookbar{ display:flex; align-items:center; gap:10px; padding:calc(10px + env(safe-area-inset-top)) 14px 10px; background:#0e7490; color:#fff; flex:0 0 auto }
+  #bookbar #bookclose{ font-size:1.5rem; padding:2px 10px }
+  #bookbar #booktitle{ flex:1; font-weight:600; font-size:.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  #bookbar #bookrebuild.hasnew{ position:relative }
+  #bookbar #bookrebuild.hasnew::after{ content:''; position:absolute; top:0; right:2px; width:8px; height:8px; border-radius:50%; background:#f59e0b; border:1px solid #fff }
+  #bookbar button, #bookbar a{ background:transparent; border:0; color:#fff; font-size:1.2rem; cursor:pointer; text-decoration:none }
+  #bookchips{ display:flex; gap:6px; overflow-x:auto; padding:8px 12px; background:#fff7ed; border-bottom:1px solid #fed7aa; flex:0 0 auto }
+  #bookchips[hidden]{ display:none }
+  #bookchips .chip{ flex:0 0 auto; border:1px solid #fdba74; background:#fff; color:#9a3412; border-radius:999px; padding:6px 14px; font-size:.9rem; white-space:nowrap }
+  #bookchips .chip.on{ background:#0e7490; color:#fff; border-color:#0e7490 }
+  #bookchips .chip.fail{ border-color:#ef4444; color:#b91c1c }
+  #bookframe{ flex:1 1 auto; width:100%; border:0; background:#faf6ee }
+  #bookLangNote{ flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:10px 14px; background:#fef3c7; border-bottom:1px solid #fde68a; font-size:.92rem }
+  #bookLangNote[hidden]{ display:none }
+  #bookLangNote button{ border:0; border-radius:10px; background:#0e7490; color:#fff; padding:8px 14px; font-size:.9rem; font-weight:600; white-space:nowrap }
+  #bookmeta{ font-size:.85rem; color:#64748b; margin:-4px 0 12px }
+  #bkProgress{ font-size:.95rem; color:#0e7490; font-weight:600; margin:4px 0 8px }
+  #bkProgress[hidden]{ display:none }
+  #bkRange[hidden]{ display:none !important }
+  #bkRange input{ flex:1; min-width:0 }
+  #bookgate .card select{ text-align:right }
+  #dayeditBody .jent{ border:1px solid var(--line); border-radius:12px; padding:8px; margin:6px 0; background:#fff }
+  #dayeditBody .jent textarea{ width:100%; border:1px solid #cbd5e1; border-radius:10px; padding:8px; font-size:.95rem; resize:vertical }
+  #dayeditBody .jent .row{ display:flex; gap:6px; margin-top:6px; align-items:center }
+  #dayeditBody .jent .meta{ flex:1; font-size:.75rem; color:var(--muted) }
+  #dayeditBody .jent button{ border:0; border-radius:10px; padding:7px 12px; font-size:.9rem; color:#fff }
+  #dayeditBody .jent .sv{ background:#15803d } #dayeditBody .jent .del{ background:#dc2626 }
+  #dayeditBody .empty{ text-align:center; color:var(--muted); padding:20px }
+  /* 📅 Trip Days grid (reconstruction cockpit) */
+  #daysBody{ display:flex; flex-direction:column; gap:8px }
+  #daysBody .empty{ text-align:center; color:var(--muted); padding:20px }
+  .dayrow{ display:flex; flex-direction:column; align-items:stretch; gap:8px; width:100%; text-align:start;
+           border:1px solid var(--line); border-radius:12px; padding:12px 14px; background:#fff; color:var(--ink) }
+  .dayrow .dinfo{ display:flex; flex-direction:column; gap:2px; cursor:pointer }
+  .dayrow .dhead{ font-weight:700; font-size:1rem }
+  .dayrow .cnt{ font-size:.82rem; color:#15803d }
+  .dayrow.hungry{ border-style:dashed; border-color:#f59e0b; background:#fffbeb }
+  .dayrow .hungrytag{ font-size:.82rem; color:#b45309 }
+  .dayrow .dacts{ display:flex; gap:8px }
+  .dayrow .dact{ flex:1; padding:9px 8px; font-size:.9rem; font-weight:600; border:0; border-radius:10px; background:var(--teal); color:#fff; cursor:pointer }
+  .dayrow .dact.paste{ background:#6d28d9 }
+  #summarygate textarea{ width:100%; border:1px solid #cbd5e1; border-radius:10px; padding:10px; font-size:1rem; resize:vertical; background:#fff }
+  /* 🥗 kosher verdict — giant green/red/amber, verdict-first */
+  #kosherVerdict{ font-size:2rem; font-weight:800; border-radius:16px; padding:22px 12px; margin:8px 0; line-height:1.15 }
+  #kosherVerdict.yes{ background:#dcfce7; color:#15803d; border:3px solid #22c55e }
+  #kosherVerdict.no{ background:#fee2e2; color:#b91c1c; border:3px solid #ef4444 }
+  #kosherVerdict.unclear{ background:#fef3c7; color:#b45309; border:3px solid #f59e0b }
+  #kosherVerdict.loading{ background:#f1f5f9; color:#475569; border:3px solid #cbd5e1; font-size:1.1rem; font-weight:600 }
+  #kosherReason{ font-size:1rem; color:#334155; margin:2px 0 10px }
+  #kosherIngredients{ text-align:start; max-height:34vh; overflow:auto; margin:6px 0 }
+  #kosherIngredients .kih{ font-weight:700; margin:6px 0 4px }
+  #kosherIngredients .kir{ display:flex; justify-content:space-between; gap:12px; font-size:.9rem; padding:5px 0; border-bottom:1px solid var(--line) }
+  #kosherIngredients .kir .ko{ font-weight:600 } #kosherIngredients .kir .kt{ color:#64748b }
+  /* ✕ universal always-visible close on every modal card.
+     Root fix: cards were not scrollable, so tall ones (Food) clipped off-screen top+bottom → no reachable close.
+     Now: card scrolls internally, and the ✕ is sticky-pinned to the card top so it is ALWAYS visible. */
+  .gate > .card{ position:relative; max-height:calc(100vh - 32px); max-height:calc(100dvh - 32px); overflow-y:auto; -webkit-overflow-scrolling:touch }
+  .gate > .card > p:first-of-type{ padding-left:44px; min-height:30px }
+  .gate .card .xtop{ position:sticky; top:6px; z-index:5; width:40px; height:40px; min-width:40px; padding:0;
+         margin:0 auto -40px 0;   /* left-align (margin-right:auto) + cancel own height so it overlays the header */
+         display:flex; align-items:center; justify-content:center; border:0; border-radius:999px;
+         background:rgba(15,23,42,.12); color:#0b1220; font-size:1.15rem; line-height:1; cursor:pointer; font-weight:700 }
+  .gate .card .xtop:active{ background:rgba(15,23,42,.24) }
+  #docSaveRow{ display:flex; gap:8px; flex-wrap:wrap; margin:8px 0 }
+  #docSaveRow button{ flex:1 1 auto }
+  #dayeditBody .daypick{ display:flex; flex-direction:column; gap:8px }
+  #dayeditBody .daypick .dpick{ width:100%; text-align:start; border:1px solid #cbd5e1; border-radius:12px; padding:13px 14px; font-size:1rem; background:#fff; color:var(--ink) }
+  #nbHint{ font-size:.85rem; color:#64748b; margin:-4px 0 10px; line-height:1.5 }
+  #nbPrompts{ display:flex; flex-direction:column; gap:6px; margin:12px 0 0; max-height:34vh; overflow:auto }
+  #nbPrompts .pcard{ display:flex; align-items:center; gap:8px; border:1px solid #e2e8f0; border-radius:12px; padding:8px 10px; background:#f8fafc }
+  #nbPrompts .pcard .lbl{ flex:1; text-align:right; font-size:.95rem; font-weight:600; color:#334155 }
+  #nbPrompts .pcard button{ flex:0 0 auto; border:0; border-radius:10px; background:#0e7490; color:#fff; padding:8px 12px; font-size:.9rem }
+  #nbAiBox{ margin-top:10px; border:1px solid #c7d2fe; border-radius:12px; background:#eef2ff; padding:8px }
+  #nbAiText{ width:100%; min-height:150px; resize:vertical; border:1px solid #cbd5e1; border-radius:10px; padding:10px; font-size:.92rem; line-height:1.45; background:#fff; color:#0f172a }
+  #nbAiCopy{ margin-top:8px; background:#4f46e5 }
+  #drawer .foot a{ text-align:center; color:var(--teal2); font-size:.9rem; text-decoration:none }
+  /* 📚 dashboard — warm cream reader */
+  #dash{ background:#faf6ee }
+  /* mobile: horizontal-scroll tab row — no tab clipped; safe inline padding at both ends; comfortable targets; RTL/LTR via logical props */
+  #dashtabs{ display:flex; gap:8px; padding:8px 14px; background:#faf6ee; border-bottom:1px solid #ece2cf; flex:0 0 auto;
+             overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scrollbar-width:none }
+  #dashtabs::-webkit-scrollbar{ display:none }
+  #dashtabs::after{ content:''; flex:0 0 20px }   /* generous trailing spacer so the last tab rests fully visible after scroll (never half-cut) */
+  #dashtabs .dtab{ flex:0 0 auto; white-space:nowrap; border:1px solid #e7dcc6; background:#fffdf8; color:#6b5a3e; border-radius:999px; padding:10px 14px; font-size:.95rem; font-weight:600 }
+  #dashtabs .dtab.on{ background:#9a6a23; color:#fff; border-color:#9a6a23 }
+  #dashbody{ flex:1; overflow:auto; padding:12px; display:flex; flex-direction:column; gap:10px; background:#faf6ee }
+  #dashbody .gal{ display:grid; grid-template-columns:1fr 1fr; gap:8px }
+  #dashbody .gcard{ background:#fffdf8; border:1px solid #ece2cf; border-radius:12px; overflow:hidden; box-shadow:0 1px 3px rgba(120,90,40,.06) }
+  #dashbody .gcard img{ width:100%; height:120px; object-fit:cover; display:block; background:#f0e9da }
+  #dashbody .gcard .cap{ padding:6px 8px; font-size:.78rem; color:#5b5142; line-height:1.4 }
+  #dashbody .exsum{ background:#0e7490; color:#fff; border-radius:14px; padding:12px 16px; box-shadow:0 2px 8px rgba(14,116,144,.25) }
+  #dashbody .exsum-h{ font-size:.78rem; opacity:.85; margin-bottom:6px; letter-spacing:.5px }
+  #dashbody .exsum-row{ display:flex; justify-content:space-between; align-items:baseline; padding:3px 0 }
+  #dashbody .exsum-row .cur{ font-size:.95rem; opacity:.9 } #dashbody .exsum-row .val{ font-size:1.35rem; font-weight:700; font-variant-numeric:tabular-nums }
+  #dashbody .dcard{ background:#fffdf8; border:1px solid #ece2cf; border-radius:12px; padding:12px 14px; box-shadow:0 1px 3px rgba(120,90,40,.06) }
+  #dashbody .dashnote{ font-size:.8rem; color:#7a6f5c; background:#fffdf8; border:1px dashed #ddd0b8; border-radius:10px; padding:9px 12px }
+  #dashbody .dcard .row1{ display:flex; justify-content:space-between; gap:8px; align-items:baseline }
+  #dashbody .dcard .row1 span:first-child{ font-weight:600; color:#3b352d }
+  #dashbody .dcard .amt{ font-weight:700; color:#15803d; white-space:nowrap }
+  #dashbody .dcard .meta{ font-size:.8rem; color:#8a7d68; margin-top:4px }
+  #dashbody .dcard a{ color:#9a6a23; font-size:.88rem; text-decoration:none }
+  #dashbody .empty{ text-align:center; color:#8a7d68; padding:34px 12px; font-size:.95rem }
+  /* short timestamp — small, muted, bottom */
+  .ts{ font-size:.72rem; color:#a99; font-variant-numeric:tabular-nums }
+  .dcard .ts, .gcard .cap .ts{ display:block; margin-top:5px }
+  .litem .ts{ display:block; margin-top:5px }
+  .trip .ts{ margin-inline-start:auto; white-space:nowrap }
+  /* gates / modals */
+  .gate{ position:fixed; inset:0; background:rgba(11,18,32,.55); display:flex; align-items:center; justify-content:center; z-index:20; padding:18px }
+  #bookgate,#dayeditgate,#shortcutHelpgate,#photodaygate{ z-index:80 }   /* opened over the full-screen book view (z-60) */
+  .gate[hidden]{ display:none }
+  .gate .card{ background:#fff; border-radius:18px; padding:22px; width:min(90vw,380px); text-align:center }
+  .gate .card p{ font-size:1.15rem; margin:0 0 14px }
+  .gate .card input{ width:100%; margin:6px 0 12px; padding:14px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; text-align:center }
+  .gate .card textarea{ width:100%; margin:6px 0 10px; padding:12px; font-size:1rem; border:1px solid #cbd5e1; border-radius:12px; resize:none }
+  #askreply{ text-align:right; white-space:pre-wrap; font-size:.95rem; line-height:1.5; max-height:42vh; overflow:auto; background:#f8fafc; border-radius:12px; padding:10px; margin:6px 0 }
+  #askreply:empty{ display:none }
+  .act.itin{ background:#7c3aed }
+  .screen{ position:fixed; inset:0; background:var(--bg); z-index:12; display:flex; flex-direction:column }
+  .screen[hidden]{ display:none }
+  .ihead{ display:flex; align-items:center; gap:8px; padding:10px 12px; padding-top:calc(10px + env(safe-area-inset-top)); background:var(--teal); color:#fff }
+  .ihead .icon{ background:transparent;border:0;color:#fff;font-size:1.3rem;padding:4px 8px;border-radius:10px }
+  .ihead #itinTitle{ flex:1; font-weight:700; text-align:center; font-size:1rem }
+  .iai{ display:flex; gap:6px; padding:8px 12px; background:#ede9fe; border-bottom:1px solid #ddd6fe }
+  .iai input{ flex:1; padding:11px; border:1px solid #c4b5fd; border-radius:10px; font-size:.95rem; background:#fff }
+  .iai button{ border:0; background:#6d28d9; color:#fff; border-radius:10px; padding:0 16px; font-size:1.2rem }
+  #itinBody{ flex:1; overflow:auto; padding:6px 12px }
+  .dayhdr{ font-weight:700; color:var(--teal2); padding:10px 2px 4px; display:flex; justify-content:space-between; align-items:center }
+  .dayhdr button{ border:0; background:#ccfbf1; border-radius:8px; padding:4px 12px; font-size:1.1rem; color:var(--teal2) }
+  .icard{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 12px; margin:6px 0; display:flex; gap:10px; align-items:flex-start }
+  .icard:active{ background:#f8fafc }
+  .icard .t{ font-weight:700; color:var(--teal2); min-width:46px; font-variant-numeric:tabular-nums; font-size:.9rem }
+  .icard .bd{ flex:1; min-width:0 }
+  .icard .ttl{ font-weight:600 }
+  .icard .sub{ font-size:.84rem; color:var(--muted); margin-top:2px }
+  .icard .lnk{ display:inline-block; margin-inline-end:12px; font-size:.84rem; text-decoration:none; color:#0e7490 }
+  .icard .typ{ font-size:1.15rem }
+  .emptyday{ color:var(--muted); font-size:.84rem; padding:2px 2px 6px }
+  #filesList{ max-height:54vh; overflow:auto; margin:8px 0; display:flex; flex-wrap:wrap; gap:8px; justify-content:flex-start }
+  .fitem{ width:47%; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:#fff; text-decoration:none; color:var(--ink); display:flex; flex-direction:column }
+  .fitem img{ width:100%; height:96px; object-fit:cover; background:#f1f5f9 }
+  .fitem .fdoc{ height:96px; display:flex; align-items:center; justify-content:center; font-size:2rem; background:#f8fafc }
+  .fitem .fn{ font-size:.72rem; padding:5px 6px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .dayhdr.tap{ cursor:pointer } .dayhdr.tap:active{ background:#e2e8f0; border-radius:8px }
+  .iback{ background:#e2e8f0;border:0;border-radius:8px;padding:6px 12px;color:var(--teal2);font-size:.95rem;margin:6px 0 }
+  .grid{ position:relative; margin:4px 0 40px }
+  .hour{ position:absolute; left:0; right:0; height:54px; border-top:1px solid #e8edf3 }
+  .hour .hl{ position:absolute; right:2px; top:-8px; font-size:.7rem; color:#94a3b8; background:var(--bg); padding:0 3px }
+  .hour:active{ background:#f0fdfa }
+  .gblock{ position:absolute; right:46px; left:6px; background:#ccfbf1; border:1px solid #5eead4; border-radius:8px; padding:3px 7px; font-size:.82rem; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.06); touch-action:none; user-select:none }
+  .gblock.drag{ opacity:.9; box-shadow:0 6px 16px rgba(0,0,0,.22); z-index:6 }
+  .ghandle{ position:absolute; left:0; right:0; bottom:0; height:16px; touch-action:none }
+  .ghandle::after{ content:''; position:absolute; left:50%; bottom:3px; width:26px; height:3px; transform:translateX(-50%); background:rgba(15,118,110,.45); border-radius:3px }
+  .gblock.hotel{ background:#fae8ff; border-color:#e9d5ff } .gblock.travel{ background:#dbeafe; border-color:#bfdbfe } .gblock.meal{ background:#fef9c3; border-color:#fde68a }
+  .gblock .gt{ font-weight:700; font-size:.72rem; color:#475569; display:flex; gap:4px; align-items:center }
+  .gblock .gt .gic{ margin-inline-start:auto; font-size:.72rem; letter-spacing:1px }
+  .gblock .gttl{ font-weight:600; line-height:1.2; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical }
+  .gblock .gloc, .gblock .gnotes{ font-size:.74rem; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+  .gblock .gnotes{ color:#64748b; font-style:italic }
+  #toast{ position:fixed; left:50%; bottom:calc(18px + env(safe-area-inset-bottom)); transform:translateX(-50%) translateY(12px); max-width:88%; background:rgba(15,23,42,.94); color:#fff; padding:11px 16px; border-radius:12px; font-size:.9rem; line-height:1.35; text-align:center; box-shadow:0 6px 20px rgba(0,0,0,.28); opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:9000 }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(0) }
+  .gate .card button{ width:100%; margin:6px 0; padding:16px; font-size:1.1rem; border:0; border-radius:14px; background:var(--teal); color:#fff; font-weight:600 }
+  .gate .card .ghost{ background:#e2e8f0; color:var(--ink) }
+  /* brain (lists + knowledge) */
+  .act.brain{ background:#0891b2 }
+  .braintiles{ flex:1; overflow:auto; padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:12px; align-content:start }
+  .btile{ background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px 12px; text-align:center; font-weight:600; color:var(--ink); display:flex; flex-direction:column; gap:8px; align-items:center }
+  .btile:active{ background:#f1f5f9 }
+  .btile .bemoji{ font-size:2.1rem }
+  .lvadd{ display:flex; gap:6px; padding:8px 12px; background:#fff; border-bottom:1px solid var(--line) }
+  .lvadd input{ flex:1; padding:11px; border:1px solid #cbd5e1; border-radius:10px; font-size:1rem }
+  .lvadd button{ border:0; background:var(--teal); color:#fff; border-radius:10px; padding:0 14px; font-size:1.05rem }
+  #lvBody,#kvBody{ flex:1; overflow:auto; padding:8px 12px }
+  .litem{ display:grid; grid-template-columns:30px minmax(0,1fr) auto; align-items:center; gap:10px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:11px 12px; margin:6px 0 }
+  .litem.archived{ grid-template-columns:minmax(0,1fr) auto }
+  .litem.expanded{ border-color:#99f6e4; box-shadow:0 1px 0 rgba(15,118,110,.08) }
+  .litem.done .ltext{ text-decoration:line-through; color:var(--muted) }
+  .litem .lcheck{ width:24px; height:24px; flex:none }
+  .litem .lmain{ min-width:0; display:flex; align-items:flex-start; gap:7px; flex-wrap:wrap }
+  .litem .ltext{ font-size:1rem; min-width:0; overflow-wrap:anywhere; line-height:1.35 }
+  .litem .ltag{ justify-self:start; font-size:.72rem; background:#e0f2fe; color:#0369a1; border-radius:999px; padding:2px 8px; white-space:nowrap }
+  .litem .lactions{ grid-column:1/-1; display:none; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; padding-top:8px; border-top:1px solid #eef2f7 }
+  .litem.expanded .lactions{ display:grid }
+  .litem .lbtn{ border:0; background:transparent; font-size:1.05rem; color:#94a3b8; padding:0; width:38px; height:38px; display:inline-flex; align-items:center; justify-content:center; border-radius:12px; line-height:1 }
+  .litem .morebtn{ background:#f8fafc; border:1px solid #e2e8f0; color:#475569 }
+  .lvfoot{ display:block; text-align:center; color:var(--teal2); text-decoration:none; padding:10px; font-size:.9rem; border-top:1px solid var(--line) }
+  .kvtext{ line-height:1.6; font-size:1rem; background:#fff; border:1px solid var(--line); border-radius:12px; padding:14px }
+  .kvtext mark{ background:#fde68a; padding:0 1px }
+  .kvsec{ margin:18px 0 6px; padding:8px 12px; background:#f1f5f9; border-radius:10px; font-weight:800; font-size:1.02rem; color:#0f172a }
+  .kvsec:first-child{ margin-top:0 }
+  .kvul{ margin:4px 0 10px; padding-inline-start:20px }
+  .kvul li{ margin:5px 0 }
+  .kvp{ margin:6px 2px }
+  #kvAnswer,#lvAnswer{ margin:10px 12px 0; background:#ecfdf5; border:1px solid #a7f3d0; border-radius:14px; padding:12px 14px; line-height:1.55 }
+  #kvAnswer.notfound,#lvAnswer.notfound{ background:#f8fafc; border-color:var(--line) }
+  #kvAnswer .kvahdr,#lvAnswer .kvahdr{ font-weight:800; margin-bottom:6px }
+  #kvAnswer .kvasrc,#lvAnswer .kvasrc{ margin-top:8px; font-size:.85rem; color:#475569 }
+  #kvAnswer .kvaq,#lvAnswer .kvaq{ margin-top:6px; padding:6px 10px; background:#fff; border-inline-start:3px solid #34d399; border-radius:6px; font-size:.9rem; color:#334155 }
+  .kvgen{ margin-top:10px; padding:8px 10px; background:#eff6ff; border:1px dashed #93c5fd; border-radius:10px }
+  .kvgen .kvghdr{ font-weight:700; font-size:.85rem; color:#1d4ed8; margin-bottom:4px }
+  .lvsugg{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px }
+  .lvsugg .sg{ display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #99f6e4; border-radius:999px; padding:6px 6px 6px 12px; font-size:.92rem }
+  .lvsugg .sg button{ border:0; background:#0f766e; color:#fff; border-radius:999px; min-width:34px; min-height:34px; font-size:1.05rem }
+  .lvsugg .sg.added{ opacity:.55 } .lvsugg .sg.added button{ background:#94a3b8 }
+  .lvsuggall{ margin-top:8px; border:0; background:#0f766e; color:#fff; border-radius:12px; padding:10px 16px; font-size:.95rem; font-weight:600 }
+  /* 🧳 Local-first scope segmented control */
+  .scopebar{ display:flex; gap:6px; padding:8px 12px; background:#f8fafc; border-bottom:1px solid var(--line) }
+  .scopebar[hidden]{ display:none }
+  .scopebtn{ flex:1; border:1px solid #cbd5e1; background:#fff; color:#475569; border-radius:999px; padding:9px 12px; font-size:.95rem; font-weight:600 }
+  .scopebtn.on{ background:#0f766e; color:#fff; border-color:#0f766e }
+  /* Row actions are tucked behind "more" so list text stays readable. */
+  .litem .lactions .lbtn{ width:100%; min-width:0; padding:0 12px; gap:6px; font-size:.9rem; font-weight:700 }
+  .litem .lbtn.editp{ background:#f8fafc; color:#334155; border:1px solid #cbd5e1 }
+  .litem .lbtn.promo{ flex:0 0 auto; background:#ecfeff; color:#0e7490; border:1px solid #a5f3fc }
+  .litem .lbtn.promo:active{ background:#cffafe }
+  .litem .lbtn.delp{ flex:0 0 auto; background:#fef2f2; color:#b91c1c; border:1px solid #fecaca }
+  .litem .lbtn.delp:active{ background:#fee2e2 }
+  /* 🔍 אינדיקטור-פילטר פעיל — שלא ייראה כאילו פריטים "נעלמו" */
+  .lvfilter{ display:flex; align-items:center; gap:8px; background:#fffbeb; border:1px solid #fde68a; color:#92400e;
+    border-radius:10px; padding:7px 12px; font-size:.85rem; margin:2px 0 8px }
+  .lvfilter button{ margin-inline-start:auto; border:0; background:#f59e0b; color:#fff; border-radius:8px; padding:4px 12px; font-size:.82rem; font-weight:600 }
+  /* travel-doc preview */
+  #docResult{ background:#f8fafc; border:1px solid var(--line); border-radius:12px; padding:12px; margin:6px 0; text-align:right }
+  #docResult .dtitle{ font-weight:700; font-size:1.05rem; color:var(--teal2); margin-bottom:8px }
+  #docResult .drow{ display:flex; gap:8px; padding:3px 0; font-size:.92rem; border-bottom:1px dashed var(--line) }
+  #docResult .dl{ color:var(--muted); min-width:74px } #docResult .dv{ flex:1; word-break:break-word }
+  #docResult .dconf{ font-size:.78rem; color:var(--muted); margin-top:8px }
+  /* food photo analysis */
+  #foodAnalysis{ background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:12px; font-size:.92rem; line-height:1.5 }
+  #foodAnalysis .fa-veg{ font-weight:700; margin-bottom:6px }
+  #foodAnalysis .fa-warn{ color:#b91c1c } #foodAnalysis ul{ margin:4px 0; padding-inline-start:18px }
+</style>
+</head>
+<body>
+  <header>
+    <button class="icon" id="menu" aria-label="תפריט">☰</button>
+    <button id="tripname">…</button>
+    <button id="who" aria-label="כותב"></button>
+  </header>
+
+  <main>
+    <textarea id="txt" placeholder="דבר אל המקלדת או הקלד מה קורה עכשיו…" autocapitalize="sentences"></textarea>
+    <div id="jdayrow" style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:2px 0 8px; font-size:.85rem; color:#475569">
+      <label id="jDateLbl" for="jDate">🗓️ שייך ליום:</label>
+      <input type="date" id="jDate" style="padding:4px 6px; border:1px solid #cbd5e1; border-radius:8px">
+      <span id="jDateHint" style="font-size:.72rem; color:#94a3b8">ריק = Inbox</span>
+      <button id="daysOpen" class="ghost" style="padding:4px 10px; margin-inline-start:auto">📅 ימי הטיול</button>
+      <button id="inboxOpen" class="ghost" style="padding:4px 10px">🗂️ Inbox</button>
+    </div>
+    <div class="actions">
+      <button class="act save" id="save">💾 שמור ליומן</button>
+      <button class="act itin" id="itinbtn" style="grid-column:1 / -1">🗓️ תכנית הטיול</button>
+      <button class="act photo" id="photobtn">📷 תמונות</button>
+      <button class="act doc" id="docbtn">📁 מסמכים</button>
+      <button class="act receipt" id="rcptbtn">🧾 קבלות</button>
+      <button class="act expense" id="expensebtn">💶 הוצאה</button>
+      <button class="act food" id="foodbtn" style="grid-column:1 / -1">🍽️ יומן אוכל</button>
+      <button class="act ask" id="askbtn" style="grid-column:1 / -1">🤖 שאל את הקונסיירז'</button>
+      <button class="act lesson" id="lessonbtn" style="grid-column:1 / -1">💡 לקח מהטיול</button>
+      <button class="act wrap" id="wrapbtn" style="grid-column:1 / -1">🏁 סיום מסע — סיכום ולקחים</button>
+      <button class="act brain" id="brainbtn" style="grid-column:1 / -1">🧠 המוח — ידע לכל הטיולים</button>
+    </div>
+    <input id="cam" type="file" accept="image/*" capture="environment">
+    <input id="docfile" type="file">
+    <input id="rcptfile" type="file" accept="image/*,application/pdf">
+    <div id="status">…</div>
+    <div id="log"></div>
+  </main>
+
+  <!-- drawer -->
+  <div class="scrim" id="scrim"></div>
+  <nav id="drawer" aria-label="המסעות שלי">
+    <h2>🏔️ המסעות שלי</h2>
+    <div id="triplist"></div>
+    <div class="foot">
+      <button id="newtrip">➕ טיול חדש</button>
+      <button id="dashbtn">📚 כל מה שנשמר</button>
+      <button id="makebook">📖 פתח ספר מסע</button>
+      <button id="rebuildbook" style="background:#0e7490">🔄 עדכן / בנה ספר</button>
+      <button id="nbbtn">📓 מוח מחקר (NotebookLM)</button>
+      <a id="drivelink" href="#" target="_blank" rel="noopener">📂 פתח את הטיול בדרייב</a>
+      <div id="ver" style="font-size:.72rem; color:#94a3b8; text-align:center; padding-top:6px">v90 · 🗓️ הקש על *יום* לתצוגת שעות</div>
+    </div>
+  </nav>
+
+  <!-- book viewer (rendered in-app) -->
+  <div id="bookview" hidden>
+    <div id="bookbar">
+      <button id="bookclose" aria-label="סגור">✕</button>
+      <span id="booktitle">📖 ספר המסע</span>
+      <button id="bookrebuild" aria-label="עדכן או בנה מחדש" title="עדכן/בנה מחדש">🔄</button>
+      <button id="bookedit" aria-label="ערוך את היום" title="ערוך/מחק רשומות היום" hidden>✏️</button>
+      <button id="bookmore" aria-label="עוד תמונות מהיום" title="עוד תמונות מהיום" hidden>📸</button>
+      <button id="bookhelp" aria-label="איך מתקינים את הקיצור" title="איך מתקינים את קיצור התמונות">❓</button>
+      <a id="bookdrive" href="#" target="_blank" rel="noopener" title="הקובץ נשמר בדרייב">💾</a>
+    </div>
+    <div id="bookchips" hidden></div>
+    <div id="bookLangNote" hidden></div>
+    <iframe id="bookframe" title="ספר המסע"></iframe>
+  </div>
+
+  <!-- day editor (edit/delete journal entries of the current day, from the book) -->
+  <div id="dayeditgate" class="gate" hidden>
+    <div class="card" style="text-align:right">
+      <p id="dayeditHdr">✏️ עריכת רשומות היום</p>
+      <div id="dayeditBody" style="max-height:60vh; overflow:auto"></div>
+      <button id="dayeditClose" style="background:#94a3b8; margin-top:10px">סגור</button>
+    </div>
+  </div>
+
+  <!-- 🗓️ Inbox — journal entries without an event date, place them into a day -->
+  <div id="inboxgate" class="gate" hidden>
+    <div class="card" style="text-align:right">
+      <p id="inboxHdr">🗂️ Inbox — רשומות ללא יום</p>
+      <div id="inboxBody" style="max-height:60vh; overflow:auto"></div>
+      <button id="inboxClose" class="ghost" style="margin-top:10px">סגור</button>
+    </div>
+  </div>
+
+  <!-- 📅 Trip Days — reconstruction cockpit: tap a day to write into it -->
+  <div id="daysgate" class="gate" hidden>
+    <div class="card" style="text-align:right">
+      <p id="daysHdr">📅 ימי הטיול — לחצו על יום כדי לכתוב אליו</p>
+      <button id="pasteOpen" class="ghost" style="margin-bottom:8px">📋 הדבק סיכום</button>
+      <div id="daysBody" style="max-height:60vh; overflow:auto"></div>
+      <button id="daysClose" class="ghost" style="margin-top:10px">סגור</button>
+    </div>
+  </div>
+
+  <!-- 📋 Paste summary (ChatGPT / AI) into a chosen day -->
+  <div id="summarygate" class="gate" hidden>
+    <div class="card" style="text-align:right">
+      <p id="sumHdr">📋 הדבק סיכום ליום</p>
+      <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0; font-size:.85rem; color:#475569">
+        <label id="sumDateLbl" for="sumDate">🗓️ יום:</label>
+        <input type="date" id="sumDate" style="padding:4px 6px; border:1px solid #cbd5e1; border-radius:8px">
+        <label id="sumSrcLbl" for="sumSource" style="margin-inline-start:6px">מקור:</label>
+        <select id="sumSource" style="padding:4px 6px; border:1px solid #cbd5e1; border-radius:8px; width:auto; margin:0">
+          <option value="ChatGPT">ChatGPT</option>
+          <option value="Claude">Claude</option>
+          <option value="Grok">Grok</option>
+          <option value="Other">Other…</option>
+        </select>
+        <input id="sumSourceOther" type="text" placeholder="שם המקור (למשל Grok)" style="display:none; padding:4px 6px; border:1px solid #cbd5e1; border-radius:8px; width:auto; margin:0">
+      </div>
+      <textarea id="sumText" rows="6" placeholder="הדביקו סיכום שיחה / ChatGPT / זיכרון ליום זה…"></textarea>
+      <button id="sumSave">💾 שמור ליומן</button>
+      <button id="sumClose" class="ghost" style="margin-top:6px">סגור</button>
+    </div>
+  </div>
+
+  <!-- 📸 Day photos — fallback-C primary: copy the date, then let the user choose (Shortcut is optional) -->
+  <div id="photodaygate" class="gate" hidden>
+    <div class="card" style="text-align:right">
+      <p id="pdHdr">📸 תמונות היום</p>
+      <p id="pdMsg" style="font-size:.98rem; line-height:1.5; margin:0 0 14px"></p>
+      <button id="pdOpenPhotos" style="display:none">📱 פתח את Photos</button>
+      <button id="pdCopy" class="ghost">📋 רק העתק תאריך</button>
+      <button id="pdTry" class="ghost" style="font-size:.85rem; opacity:.8">📸 נסה את הקיצור (ניסיוני)</button>
+      <button id="pdHelp" class="ghost" style="font-size:.85rem; opacity:.8">❓ על הקיצור (ניסיוני)</button>
+      <button id="pdClose" class="ghost" style="margin-top:6px">סגור</button>
+    </div>
+  </div>
+
+  <!-- 📸 Apple Photos shortcut setup helper (no permissions, no upload — just how to build the iOS Shortcut) -->
+  <div id="shortcutHelpgate" class="gate" hidden>
+    <div class="card" style="text-align:right">
+      <p id="shHelpHdr">📸 התקנת קיצור התמונות</p>
+      <p id="shHelpIntro" style="font-size:.95rem; color:#475569; margin:0 0 10px"></p>
+      <ol id="shHelpSteps" style="text-align:start; font-size:.95rem; line-height:1.6; padding-inline-start:22px; margin:0 0 10px"></ol>
+      <p id="shHelpFallback" style="font-size:.9rem; color:#64748b; background:#f1f5f9; border-radius:10px; padding:8px 10px; margin:0 0 12px"></p>
+      <button id="shHelpOpen" style="display:none">📸 הקיצור מותקן — פתח עכשיו</button>
+      <button id="shHelpClose" class="ghost" style="margin-top:6px">סגור</button>
+    </div>
+  </div>
+
+  <!-- book gate (scope + voice) -->
+  <div id="bookgate" class="gate" hidden>
+    <div class="card">
+      <p id="bkHdr">📖 צור ספר מסע</p>
+      <div id="bookmeta"></div>
+      <select id="bkVoice">
+        <option value="authentic">✍️ אותנטי — המילים שלך + תמונות</option>
+        <option value="literary">📜 ספרותי — נרטיב AI + תמונות</option>
+        <option value="combined">📖 משולב — נרטיב + הרשומות</option>
+      </select>
+      <select id="bkScope">
+        <option value="all">📕 כל הטיול — ספר אחד</option>
+        <option value="chapters">📚 לפי פרקים (יום-יום)</option>
+        <option value="range">📅 טווח ימים</option>
+      </select>
+      <div id="bkRange" hidden style="display:flex; gap:6px">
+        <input type="date" id="bkFrom" aria-label="מתאריך">
+        <input type="date" id="bkTo" aria-label="עד תאריך">
+      </div>
+      <div id="bkProgress" hidden></div>
+      <button id="bkBuild" class="act save" style="margin-top:6px">בנה ספר</button>
+      <button id="bkCancel" style="background:#94a3b8; margin-top:8px">סגור</button>
+    </div>
+  </div>
+
+  <!-- NotebookLM "research brain" bridge (open the right notebook + ready prompts) -->
+  <div id="nbgate" class="gate" hidden>
+    <div class="card">
+      <p id="nbHdr">📓 מוח מחקר — NotebookLM</p>
+      <div id="nbHint"></div>
+      <button id="nbAiShare" style="background:#4f46e5; font-weight:700">🤖 שתף הקשר ל-AI</button>
+      <input id="nbUrl" type="url" placeholder="https://notebooklm.google.com/notebook/…" inputmode="url">
+      <div style="display:flex; gap:6px">
+        <button id="nbSave" style="flex:1; background:#475569">💾 שמור קישור</button>
+        <button id="nbOpen" class="act" style="flex:2; background:#6d28d9">📓 פתח מוח מחקר</button>
+      </div>
+      <button id="nbPacket" style="background:#0e7490; margin-top:8px">📦 עדכן חבילת מחקר</button>
+      <a id="nbPacketLink" href="#" target="_blank" rel="noopener" hidden style="display:block; margin-top:8px; color:#0e7490; font-size:.95rem"></a>
+      <div id="nbAiBox" hidden>
+        <textarea id="nbAiText" readonly></textarea>
+        <button id="nbAiCopy">📋 העתק prompt</button>
+      </div>
+      <div id="nbPrompts"></div>
+      <button id="nbClose" style="background:#94a3b8; margin-top:10px">סגור</button>
+    </div>
+  </div>
+
+  <!-- 📚 private trip dashboard (read-only reader) -->
+  <div id="dash" class="screen" hidden>
+    <header class="ihead">
+      <button class="icon" id="dashClose" aria-label="סגור">✕</button>
+      <span id="dashTitle">📚 כל מה שנשמר</span>
+      <span style="width:36px"></span>
+    </header>
+    <div id="dashtabs">
+      <button class="dtab on" data-tab="expenses">💶 הוצאות</button>
+      <button class="dtab" data-tab="docs">📁 מסמכים</button>
+      <button class="dtab" data-tab="lessons">💡 לקחים</button>
+      <button class="dtab" data-tab="photos">📷 תמונות</button>
+    </div>
+    <div id="dashbody"></div>
+  </div>
+
+  <!-- itinerary screen -->
+  <div id="itin" class="screen" hidden>
+    <header class="ihead">
+      <button class="icon" id="itinClose" aria-label="סגור">✕</button>
+      <span id="itinTitle">תכנית</span>
+      <button class="icon" id="itinUndo" aria-label="שחזר תכנית">↩️</button>
+      <button class="icon" id="itinAddTop" aria-label="הוסף">＋</button>
+    </header>
+    <div class="iai">
+      <input id="itinAsk" placeholder="ספר ל-AI מה לשנות… העבר ליום 3, הוסף ארוחת ערב…">
+      <button id="itinAskBtn" aria-label="AI">🤖</button>
+    </div>
+    <div id="itinBody"></div>
+  </div>
+
+  <!-- brain hub -->
+  <div id="brain" class="screen" hidden>
+    <header class="ihead">
+      <button class="icon" id="brainClose" aria-label="סגור">✕</button>
+      <span style="flex:1;text-align:center;font-weight:700"><span id="brainTitle">🧠 המוח</span></span>
+      <span style="width:36px"></span>
+    </header>
+    <div id="brainTiles" class="braintiles"></div>
+  </div>
+
+  <!-- generic list view (packing / pre-departure / kosher / favorites) -->
+  <div id="listview" class="screen" hidden>
+    <header class="ihead">
+      <button class="icon" id="lvClose" aria-label="סגור">✕</button>
+      <span id="lvTitle" style="flex:1;text-align:center;font-weight:700">רשימה</span>
+      <button class="icon" id="lvGroupToggle" aria-label="קבץ לפי מדינה" style="display:none">🌍</button>
+      <button class="icon" id="lvArchiveToggle" aria-label="ארכיון">🗄️</button>
+    </header>
+    <div id="lvScopeBar" class="scopebar">
+      <button id="lvScopeLocal" class="scopebtn on">הטיול הזה</button>
+      <button id="lvScopeGlobal" class="scopebtn">גלובלי</button>
+    </div>
+    <div class="iai" style="background:#ecfeff; border-color:#cffafe">
+      <input id="lvSearch" placeholder="שאל/בקש מהמוח… (הקלדה מסננת)">
+      <button id="lvAskBtn" aria-label="שאל" style="min-width:44px;min-height:44px;font-size:1.15rem">🤖</button>
+      <button id="lvSearchClear" aria-label="נקה" style="min-width:44px;min-height:44px">✕</button>
+    </div>
+    <div id="lvAnswer" hidden></div>
+    <div class="lvadd">
+      <input id="lvAdd" placeholder="הוסף פריט…" autocomplete="off">
+      <button id="lvAddBtn" aria-label="הוסף">＋</button>
+      <button id="lvAddManyBtn" aria-label="הדבק רבים">📋</button>
+    </div>
+    <div id="lvBody"></div>
+    <a id="lvSheet" class="lvfoot" href="#" target="_blank" rel="noopener">📊 פתח את הגיליון</a>
+  </div>
+
+  <!-- knowledge view (lessons / how-to) -->
+  <div id="knowview" class="screen" hidden>
+    <header class="ihead">
+      <button class="icon" id="kvClose" aria-label="סגור">✕</button>
+      <span id="kvTitle" style="flex:1;text-align:center;font-weight:700">ידע</span>
+      <button class="icon" id="kvOrganize" aria-label="סדר הכל">🧹</button>
+      <button class="icon" id="kvRestore" aria-label="שחזר">↩️</button>
+      <button class="icon" id="kvDoc" aria-label="מסמך">📂</button>
+    </header>
+    <div class="iai" style="background:#fef3c7; border-color:#fde68a">
+      <input id="kvSearch" placeholder="שאל את המוח: למשל מה למדתי על השכרת רכב?">
+      <button id="kvAskBtn" aria-label="שאל" style="min-width:44px;min-height:44px;font-size:1.15rem">🤖</button>
+      <button id="kvSearchClear" aria-label="נקה" style="min-width:44px;min-height:44px">✕</button>
+    </div>
+    <div id="kvAnswer" hidden></div>
+    <div class="lvadd">
+      <input id="kvAdd" placeholder="הוסף לקח / הוראה… ה-AI יארגן" autocomplete="off">
+      <button id="kvAddBtn" aria-label="הוסף">＋</button>
+    </div>
+    <div id="kvBody"></div>
+  </div>
+
+  <!-- paste-many gate (AI splits pasted text into items) -->
+  <div id="pastegate" class="gate" hidden><div class="card" style="text-align:right">
+    <p id="pasteHdr">📋 הדבק רשימה — ה-AI יפצל לפריטים</p>
+    <textarea id="pasteText" rows="6" placeholder="הדבק כאן טקסט חופשי / רשימה…"></textarea>
+    <button id="pasteSplit">✨ פצל והוסף</button>
+    <button id="pasteCancel" class="ghost">ביטול</button>
+  </div></div>
+
+  <!-- food log gate -->
+  <div id="foodgate" class="gate" hidden><div class="card" style="text-align:right">
+    <p id="foodHdr">🍽️ יומן אוכל</p>
+    <select id="foodKind">
+      <option value="מסעדה">🍴 מסעדה</option><option value="קפה">☕ קפה</option>
+      <option value="סופרמרקט">🛒 סופרמרקט</option><option value="בישול">🍳 בישלנו</option><option value="אחר">אחר</option>
+    </select>
+    <div style="display:flex; gap:6px; align-items:center; margin:6px 0; font-size:.85rem; color:#475569">
+      <label id="foodDateLbl" for="foodDate">🗓️ יום האכילה:</label>
+      <input type="date" id="foodDate" style="padding:4px 6px; border:1px solid #cbd5e1; border-radius:8px">
+    </div>
+    <textarea id="foodText" rows="3" placeholder="מה אכלתם / מה קניתם לאכול היום?"></textarea>
+    <button id="foodSave">💾 שמור</button>
+    <button id="mealPhotoBtn" class="ghost" style="margin-top:6px">📸 צלם ארוחה (זיהוי פריטים)</button>
+    <input id="mealPhotoFile" type="file" accept="image/*" capture="environment">
+    <button id="foodPhotoBtn" class="ghost" style="margin-top:6px">📷 נתח תפריט / שלט (כשר+טבעוני)</button>
+    <input id="foodPhotoFile" type="file" accept="image/*">
+    <button id="kosherBtn" style="margin-top:6px; background:#7c3aed">🥗 כשר או לא?</button>
+    <input id="kosherFile" type="file" accept="image/*" capture="environment">
+    <div id="foodAnalysis" style="display:none; text-align:right; margin:6px 0"></div>
+    <div id="foodList" style="max-height:30vh; overflow:auto; text-align:right; margin:6px 0"></div>
+    <a id="foodSheet" href="#" target="_blank" rel="noopener" style="display:none; text-align:center; color:var(--teal2); text-decoration:none; margin:6px 0">📊 פתח את גיליון האוכל</a>
+    <button id="foodClose" class="ghost">סגור</button>
+  </div></div>
+
+  <!-- 🥗 Kosher scan verdict — verdict-first, fail-closed. No permission, no upload beyond the analysis call. -->
+  <div id="koshergate" class="gate" hidden><div class="card" style="text-align:center">
+    <p id="kosherHdr">🥗 כשר או לא?</p>
+    <div id="kosherVerdict"></div>
+    <div id="kosherReason"></div>
+    <div id="kosherIngredients"></div>
+    <button id="kosherAgain" class="ghost" style="margin-top:8px">📷 סרוק תווית אחרת</button>
+    <button id="kosherClose" class="ghost">סגור</button>
+  </div></div>
+
+  <div id="lessongate" class="gate" hidden><div class="card" style="text-align:right">
+    <p id="lessonHdr">💡 לקח מהטיול — תובנה מהשטח</p>
+    <div id="lessonNote" style="font-size:.82rem; color:var(--muted); margin:-6px 0 8px"></div>
+    <textarea id="lessonText" rows="3" placeholder="מה הלקח / התובנה?"></textarea>
+    <button id="lessonSave">💾 שמור</button>
+    <div id="lessonList" style="max-height:34vh; overflow:auto; text-align:right; margin:6px 0"></div>
+    <button id="lessonToBrain" class="ghost" style="margin-top:6px">📤 שלח למוח הגלובלי</button>
+    <button id="lessonClose" class="ghost">סגור</button>
+  </div></div>
+
+  <!-- trip wrap-up screen (end of trip: organize everything + lessons chat) -->
+  <div id="wrap" class="screen" hidden>
+    <header class="ihead">
+      <button class="icon" id="wrapClose" aria-label="סגור">✕</button>
+      <span id="wrapTitle" style="flex:1;text-align:center;font-weight:700">🏁 סיכום המסע</span>
+      <button class="icon" id="wrapDoc" aria-label="מסמך">📂</button>
+    </header>
+    <div style="padding:10px 12px 0">
+      <button id="wrapGen" class="act" style="width:100%; background:#b45309">✨ הפק סיכום ולקחים</button>
+    </div>
+    <div id="wrapBody" style="flex:1; overflow:auto; padding:6px 12px"></div>
+    <div class="iai" style="background:#fff7ed; border-color:#fed7aa">
+      <input id="wrapChat" placeholder="מה היה טוב? מה לשפר לפעם הבאה?">
+      <button id="wrapSend" aria-label="שלח" style="background:#b45309">➤</button>
+    </div>
+    <button id="wrapSaveLessons" style="margin:8px 12px; padding:13px; border:0; border-radius:12px; background:#0891b2; color:#fff; font-weight:600">📥 שמור את הלקחים למוח</button>
+  </div>
+
+  <!-- itinerary item editor -->
+  <div id="itemgate" class="gate" hidden><div class="card" style="text-align:right">
+    <p id="itemHdr">פריט בתכנית</p>
+    <select id="itDay"></select>
+    <div style="display:flex; gap:8px">
+      <input id="itTime" type="time" style="flex:1"><input id="itEnd" type="time" style="flex:1">
+    </div>
+    <input id="itTitleInp" type="text" autocomplete="off" autocorrect="off" placeholder="מה? (למשל: אגם ברייס)">
+    <select id="itType">
+      <option value="activity">🥾 פעילות</option><option value="sight">📸 אתר</option>
+      <option value="meal">🍽️ אוכל</option><option value="hotel">🏨 מלון</option><option value="travel">🚗 נסיעה</option>
+    </select>
+    <input id="itLoc" type="text" autocomplete="off" autocorrect="off" placeholder="מקום / שם">
+    <input id="itAddr" type="text" autocomplete="off" autocorrect="off" placeholder="כתובת (יוצר לינק למפות + וייז)">
+    <textarea id="itNotes" rows="2" autocomplete="off" placeholder="הערות / לינק הזמנה"></textarea>
+    <button id="itSave">💾 שמור</button>
+    <button id="itDelete" class="ghost" style="display:none; color:#b91c1c">🗑️ מחק</button>
+    <button id="itCancel" class="ghost">סגור</button>
+  </div></div>
+
+  <!-- files gallery (photos / documents / receipts) -->
+  <div id="filesgate" class="gate" hidden><div class="card" style="text-align:right; width:min(94vw,460px)">
+    <p id="filesHdr">קבצים</p>
+    <button id="filesUpload">➕ העלה / צלם חדש</button>
+    <button id="docAnalyzeBtn" class="ghost" style="margin-top:6px">🔎 נתח מסמך נסיעה (AI)</button>
+    <input id="docAnalyzeFile" type="file" accept="image/*,application/pdf">
+    <div id="filesList"></div>
+    <button id="filesClose" class="ghost">סגור</button>
+  </div></div>
+
+  <!-- travel-doc analyze preview (P1: parse_travel_doc → manual-confirm actions) -->
+  <div id="docgate" class="gate" hidden><div class="card" style="text-align:right; width:min(94vw,460px)">
+    <p id="docHdr">🔎 ניתוח מסמך נסיעה</p>
+    <div id="docResult"></div>
+    <div id="docActions" style="display:none">
+      <button id="docSaveAll" style="display:none; background:#15803d">✅ שמור הכל המתאים</button>
+      <button id="docToExpense">💶 צור הוצאה + שמור קבלה</button>
+      <button id="docToItin">➕ הוסף לתכנית + שמור מסמך</button>
+      <button id="docToNote" class="ghost">📝 שמור כהערת יומן</button>
+    </div>
+    <!-- always available once a file was picked — the original is never discarded, even if AI fails -->
+    <div id="docSaveRow" style="display:none">
+      <button id="docSaveDoc">💾 שמור מסמך מקורי</button>
+      <button id="docSaveRcpt" class="ghost">🧾 שמור כקבלה</button>
+    </div>
+    <button id="docClose" class="ghost">סגור</button>
+  </div></div>
+
+  <!-- token gate -->
+  <div id="tokengate" class="gate" hidden><div class="card">
+    <p>הדבק את ה-token · Paste token</p>
+    <input id="tokin" type="text" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="xxxxxxxx-xxxx-…">
+    <button id="toksave">שמור · Save</button>
+  </div></div>
+
+  <!-- author gate -->
+  <div id="gate" class="gate" hidden><div class="card">
+    <p>מי כותב? · Who's writing?</p>
+    <button data-name="יחיאל">יחיאל</button>
+    <button data-name="Sky">Sky</button>
+  </div></div>
+
+  <!-- AI concierge -->
+  <div id="askgate" class="gate" hidden><div class="card" style="text-align:right">
+    <p id="askHdr">🤖 קונסיירז' AI</p>
+    <textarea id="askq" rows="2" placeholder="שאל על המסע… מקום, תאריך, מה עשינו"></textarea>
+    <div id="askreply"></div>
+    <a id="storylink" href="#" target="_blank" rel="noopener" style="display:none; text-align:center; color:var(--teal2); text-decoration:none; margin:4px 0">📂 פתח את הסיפור המלא</a>
+    <button id="asksend">שאל</button>
+    <button id="storybtn" class="ghost">📖 ספר את הסיפור</button>
+    <button id="askclose" class="ghost">סגור</button>
+  </div></div>
+
+  <!-- expense gate -->
+  <div id="expensegate" class="gate" hidden><div class="card" style="text-align:right">
+    <p id="exHdr">💶 הוצאה חדשה</p>
+    <input id="exAmount" type="number" inputmode="decimal" placeholder="סכום">
+    <select id="exCurrency"><option value="EUR">EUR €</option><option value="ILS">ILS ₪</option><option value="USD">USD $</option></select>
+    <select id="exCategory">
+      <option value="טיסות">טיסות</option><option value="השכרת רכב">השכרת רכב</option><option value="לינה">לינה</option><option value="אוכל ומסעדות">אוכל ומסעדות</option>
+      <option value="דלק/תחבורה">דלק/תחבורה</option><option value="אטרקציות">אטרקציות</option><option value="קניות">קניות</option><option value="אחר">אחר</option>
+    </select>
+    <input id="exDesc" type="text" placeholder="תיאור (לא חובה)">
+    <select id="exMethod"><option value="Apple Pay">Apple Pay</option><option value="מזומן">מזומן</option><option value="כרטיס אשראי">כרטיס אשראי</option><option value="אחר">אחר</option></select>
+    <label class="act receipt" for="exReceipt" id="exReceiptLabel" style="font-size:.95rem; padding:12px; margin-bottom:8px">📷 צרף קבלה (לא חובה)</label>
+    <input id="exReceipt" type="file" accept="image/*">
+    <button id="exPaste" class="ghost" style="margin-bottom:8px">📋 הדבק צילום מהלוח (Copy &amp; Delete)</button>
+    <label style="display:flex; align-items:center; gap:8px; justify-content:flex-end; font-size:.88rem; color:#475569; margin:0 0 10px">
+      <input id="exKeepImg" type="checkbox" style="width:auto; margin:0"> <span id="exKeepLbl">שמור גם את צילום הקבלה (לקבלות אמיתיות)</span>
+    </label>
+    <button id="exSave">💾 שמור הוצאה</button>
+    <button id="exDelete" class="ghost" style="display:none; color:#b91c1c">🗑️ מחק הוצאה</button>
+    <button id="exEditBtn" class="ghost">📋 ערוך הוצאה קיימת</button>
+    <div id="exList" style="display:none; max-height:30vh; overflow:auto; text-align:right; margin:6px 0"></div>
+    <a id="exSheetLink" href="#" target="_blank" rel="noopener" style="display:none; text-align:center; color:var(--teal2); text-decoration:none; margin:8px 0">📊 הצצה לגיליון ההוצאות</a>
+    <button id="exClose" class="ghost">סגור</button>
+  </div></div>
+
+  <!-- new trip gate -->
+  <div id="newtripgate" class="gate" hidden><div class="card">
+    <p>שם הטיול החדש · New trip name</p>
+    <input id="newtripname" type="text" placeholder="לדוגמה: יוון 2026">
+    <button id="newtripcreate">צור טיול · Create</button>
+    <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
+  </div></div>
+
+<script src="app.js?v=109"></script>
+</body>
+</html>
