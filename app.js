@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v111';
+const APP_VER='v112';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -255,6 +255,17 @@ async function dbAdd(i){ const db=await openDB(); return new Promise((res,rej)=>
 async function dbAll(){ const db=await openDB(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readonly'); const q=tx.objectStore(STORE).getAll(); q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
 async function dbDel(seq){ const db=await openDB(); return new Promise((res,rej)=>{ const tx=db.transaction(STORE,'readwrite'); tx.objectStore(STORE).delete(seq); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); }
 async function dbCount(){ return (await dbAll()).length; }
+// Q (release valve): conditional, metadata-only update of the CURRENT row in one readwrite transaction.
+// Reads the row inside the transaction; if it is gone (another tab sent/removed it) nothing is written — a missing
+// row is never recreated. If precond(currentRow) is false (state moved on), nothing is written. Only queue metadata
+// (fails / parked / lastError) is changed; the captured payload/blob are never rewritten from a stale snapshot.
+async function dbUpdateMeta(seq, precond, patch){ const db=await openDB(); return new Promise((res,rej)=>{
+  const tx=db.transaction(STORE,'readwrite'); const st=tx.objectStore(STORE); let applied=false, reason='';
+  const g=st.get(seq);
+  g.onsuccess=()=>{ const cur=g.result; if(!cur){ reason='missing'; return; } if(!precond(cur)){ reason='stale'; return; }
+    for(const k of ['fails','parked','lastError']) if(k in patch) cur[k]=patch[k];
+    st.put(cur); applied=true; };
+  tx.oncomplete=()=>res({ applied, reason }); tx.onerror=()=>rej(tx.error); tx.onabort=()=>rej(tx.error); }); }
 
 /* ---------- media helpers ---------- */
 function compressImage(file, maxDim=1600, quality=0.7){
@@ -328,15 +339,33 @@ async function sendItem(item){
   return j;
 }
 let flushing=false, backoff=0, syncBlocked=null;   // syncBlocked={msg,ts} — דחיית-שרת גלויה; שום פריט לא נמחק
+// Q: a single item the server keeps rejecting (not auth, not busy/network) is parked after PARK_AFTER consecutive
+// rejections — kept in IndexedDB with parked:true, shown in the status line, never deleted — so it can no longer
+// freeze every later capture. Auth is global (bad/missing token), so it never parks anything.
+const PARK_AFTER=3;
+// Only these exact backend answers are permanent, item-specific validation failures (Code.gs appendJournal_/addExpense_/
+// addFood_/setFoodDate_/addLesson_/uploadFile_). Everything else — auth, 'no trip' (could be systemic), unknown action,
+// generic exceptions — keeps today's blocking behaviour and never parks.
+const PERMANENT_ITEM_ERRORS = new Set(['missing entryId/ts','missing id','empty','missing foodId','invalid eventDate','missing lessonId','not found','missing fileId/ts/dataB64']);
 async function flush(){
   if(flushing||!token()) return; flushing=true;
   try{
-    const items=(await dbAll()).sort((a,b)=>a.seq-b.seq);
+    const items=(await dbAll()).filter(x=>!x.parked).sort((a,b)=>a.seq-b.seq);   // Q: parked items wait for the user's retry
     for(const it of items){
       try{ await sendItem(it); await dbDel(it.seq); backoff=0;   // מחיקה מהתור — אך ורק אחרי הצלחה מאושרת
-        if(syncBlocked){ syncBlocked=null; logLine('✅ '+L('הסנכרון התחדש — הכל נשמר','Sync resumed — everything saved')); }
+        if(syncBlocked){ syncBlocked=null; logLine('✅ '+L('הסנכרון התחדש','Sync resumed')); /* not "everything saved": parked items may still be unsynced */ }
       }
       catch(err){
+        if(err && err.blocking && PERMANENT_ITEM_ERRORS.has(String(err.message||''))){
+          const msg=String(err.message||''), prev=it.fails||0, next=prev+1, park=next>=PARK_AFTER;
+          let u=null;
+          try{ u=await dbUpdateMeta(it.seq, cur=> !cur.parked && (cur.fails||0)===prev, { fails:next, lastError:msg, parked:park }); }
+          catch(eU){ logLine('⚠️ '+L('לא הצלחתי לעדכן את מצב הפריט בתור (לא נמחק): ','Could not update the queued item state (not deleted): ')+String(eU&&eU.message||eU)); }
+          if(u && u.reason==='missing') continue;   // another tab already sent/removed it — never recreate, move on
+          if(u && u.applied && park){ syncBlocked=null; backoff=0;
+            logLine('⚠️ '+L('פריט אחד שהשרת דוחה שוב ושוב הועבר ל"דורש טיפול" — לא נמחק. שאר התור ממשיך. שגיאה: ','One item the server keeps rejecting moved to "needs attention" — not deleted. The rest of the queue continues. Error: ')+msg);
+            continue; }
+        }
         if(err && err.blocking && !syncBlocked){
           syncBlocked={ msg:String(err.message||''), ts:Date.now() };
           logLine('⛔ '+L('סנכרון מושהה — שום רשומה לא אבדה. שגיאת שרת: ','Sync paused — nothing was lost. Server error: ')+syncBlocked.msg);
@@ -351,13 +380,33 @@ async function flush(){
 }
 
 /* ---------- UI ---------- */
+// Q: user-initiated retry of every parked item. Guarded against overlapping taps; each release is a conditional
+// update (only a row that is still parked), so another tab's newer state is never overwritten. Failures are shown.
+let retryingParked=false;
+async function retryParked(){
+  if(retryingParked) return; retryingParked=true;
+  try{
+    const all=await dbAll();
+    for(const it of all){ if(!it.parked) continue;
+      try{ await dbUpdateMeta(it.seq, cur=> cur.parked===true, { parked:false, fails:0, lastError:'' }); }
+      catch(e){ logLine('⚠️ '+L('לא הצלחתי לשחרר פריט לניסיון חוזר (לא נמחק): ','Could not release an item for retry (not deleted): ')+String(e&&e.message||e)); }
+    }
+    await flush();
+  } finally { retryingParked=false; }
+  await render();
+}
 async function render(){
-  const n=await dbCount(); const s=$('status'); const t=T();
+  const all=await dbAll(); const p=all.filter(x=>x.parked).length; const n=all.length-p; const s=$('status'); const t=T();
+  const rb=$('retryParkedBtn');
+  if(rb){ rb.hidden = !(p>0); rb.textContent = p>0 ? L('🔁 נסה שוב '+p+' פריטים שדורשים טיפול','🔁 Retry '+p+' item(s) needing attention') : ''; rb.onclick = p>0 ? ()=>{ retryParked().catch(e=> logLine('⚠️ '+L('הניסיון החוזר נכשל (שום דבר לא נמחק): ','Retry failed (nothing was deleted): ')+String(e&&e.message||e))); } : null; }
   if(!token()){ s.textContent=t.needcfg; s.className='off'; return; }
+  const park = p>0 ? (' · ⚠️ '+L(p+' דורשים טיפול', p+' need attention')) : '';
+  // parked-only: never claim "everything synced" — these items are NOT on the server yet (kept, not deleted)
+  if(p>0 && n===0){ s.textContent='⚠️ '+L(p+' לא סונכרנו — דורשים טיפול (נשמרו, לא נמחקו)', p+' not synced — need attention (kept, not deleted)'); s.className='off'; return; }
   // P1-2: באנר קבוע כשהשרת דוחה — המשתמש רואה שמשהו תקוע ושום דבר לא אבד
-  if(syncBlocked && n>0){ s.textContent='⛔ '+L('סנכרון מושהה · '+n+' ממתינות — שום דבר לא אבד','Sync paused · '+n+' pending — nothing lost'); s.className='off'; return; }
-  if(!navigator.onLine){ s.textContent=t.off(n); s.className='off'; }
-  else if(n>0){ s.textContent=t.pending(n); s.className='pending'; }
+  if(syncBlocked && n>0){ s.textContent='⛔ '+L('סנכרון מושהה · '+n+' ממתינות — שום דבר לא אבד','Sync paused · '+n+' pending — nothing lost')+park; s.className='off'; return; }
+  if(!navigator.onLine){ s.textContent=t.off(n)+park; s.className='off'; }
+  else if(n>0){ s.textContent=t.pending(n)+park; s.className='pending'; }
   else { s.textContent=t.synced; s.className='ok'; }
 }
 function logLine(t){ const d=document.createElement('div'); d.textContent=t; $('log').prepend(d); }
