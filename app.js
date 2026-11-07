@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v110';
+const APP_VER='v111';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -324,7 +324,7 @@ async function sendItem(item){
   const r=await postEndpoint(body);
   if(!r.ok){ const e=new Error('HTTP '+r.status); e.retriable=true; throw e; }   // רשת/שרת-למטה → ננסה שוב
   const j=await r.json();
-  if(!j.ok){ const e=new Error(j.error||'server rejected'); e.blocking=true; throw e; }   // השרת דחה → לא מוחקים; חוסמים-בגלוי ומנסים שוב
+  if(!j.ok){ const e=new Error(j.error||'server rejected'); if(j.retryable) e.retriable=true; else e.blocking=true; throw e; }   // retryable (עומס/lock) → ניסיון שקט; אחרת חוסמים-בגלוי. בשני המקרים לא מוחקים
   return j;
 }
 let flushing=false, backoff=0, syncBlocked=null;   // syncBlocked={msg,ts} — דחיית-שרת גלויה; שום פריט לא נמחק
