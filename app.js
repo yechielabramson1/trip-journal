@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v109';
+const APP_VER='v110';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -1250,7 +1250,7 @@ $('storybtn').onclick=async()=>{
   if(!navigator.onLine){ $('askreply').textContent=T().neednet; return; }
   $('storylink').style.display='none';
   $('storybtn').disabled=true; $('askreply').textContent=L('📖 כותב את הסיפור…','📖 Writing the story…');
-  try{ const r=await api({ action:'story', tripId:getTripId(), scope:'all' });
+  try{ const r=await api({ action:'story', tripId:getTripId(), scope:'all', viewerLang:uiLang() });
     if(r.ok){ $('askreply').textContent=r.text; if(r.storyUrl){ $('storylink').href=r.storyUrl; $('storylink').style.display='block'; } }
     else { $('askreply').textContent='⚠️ '+(r.error||'error'); }
   }catch(e){ $('askreply').textContent=T().neednet; }
@@ -2315,7 +2315,7 @@ $('wrapGen').onclick=async()=>{
     const c=await ensureWrapCtx(pend);
     if(c!==true){ pend.remove(); wrapMsg('ai', (c&&c.service)?T().wrap_retry:('⚠️ '+((c&&c.error)||'error'))); return; }
     pend.textContent=T().wrap_summarizing;
-    const r=await api({ action:'trip_wrapup', tripId:getTripId() });
+    const r=await api({ action:'trip_wrapup', tripId:getTripId(), viewerLang:uiLang() });
     pend.remove();
     if(r.ok && r.text){ wrapUrl=r.url||'#'; wrapLastLessons=r.text||''; wrapMsg('ai', r.text);
       if(r.brainLessonsAdded) wrapMsg('ai', L('🧠 '+r.brainLessonsAdded+' לקחים נוספו למוח הגלובלי לטיולים הבאים.','🧠 '+r.brainLessonsAdded+' lessons added to the global Brain for future trips.')); }
@@ -2333,7 +2333,7 @@ async function wrapSendChat(){
     const c=await ensureWrapCtx(pend);
     if(c!==true){ pend.remove(); wrapMsg('ai', (c&&c.service)?T().wrap_retry:('⚠️ '+((c&&c.error)||'error'))); return; }
     pend.textContent=T().wrap_thinking;
-    const r=await api({ action:'wrapup_chat', tripId:getTripId(), text:q });
+    const r=await api({ action:'wrapup_chat', tripId:getTripId(), text:q, viewerLang:uiLang() });
     pend.remove();
     if(r.ok && r.reply){ wrapLastLessons=r.reply||wrapLastLessons; wrapMsg('ai', r.reply); }
     else if(r && r.service){ wrapMsg('ai', T().wrap_retry); }
