@@ -463,6 +463,7 @@ try{ if(localStorage.getItem('author')==='Sky'){
         <input type="date" id="bkFrom" aria-label="מתאריך">
         <input type="date" id="bkTo" aria-label="עד תאריך">
       </div>
+      <label style="display:flex; gap:6px; align-items:center; font-size:.85rem; margin-top:4px"><input type="checkbox" id="bkFull"><span id="bkFullLbl">בנה מחדש את כל הימים (גם ללא שינוי)</span></label>
       <div id="bkProgress" hidden></div>
       <button id="bkBuild" class="act save" style="margin-top:6px">בנה ספר</button>
       <button id="bkCancel" style="background:#94a3b8; margin-top:8px">סגור</button>
@@ -758,6 +759,6 @@ try{ if(localStorage.getItem('author')==='Sky'){
     <button id="newtripcancel" class="ghost">ביטול · Cancel</button>
   </div></div>
 
-<script src="app.js?v=112"></script>
+<script src="app.js?v=113"></script>
 </body>
 </html>

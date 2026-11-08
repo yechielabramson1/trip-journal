@@ -19,7 +19,7 @@ const clientId = () => { let c=localStorage.getItem('cid'); if(!c){c=uuid();loca
 const getAuthor = () => localStorage.getItem('author') || '';
 
 /* ---------- i18n (he/en by author) ---------- */
-const APP_VER='v112';
+const APP_VER='v113';
 const I18N = {
   he:{ synced:'הכל מסונכרן ✓', pending:n=>'מסנכרן · '+n+' ממתינות', off:n=>'לא מקוון · '+n+' ממתינות',
        needcfg:'נדרשת הגדרה — פתח קישור ה-token', saved:'📝 נשמר', compressing:'🗜️ מעבד…', queued:'⬆️ בתור', toobig:'⚠️ הקובץ גדול מדי', switched:'➡️ עברת ל', thinking:'🤖 חושב…', neednet:'🤖 צריך חיבור לאינטרנט',
@@ -482,7 +482,7 @@ $('newtripcreate').onclick=async()=>{
 // 📖 ספר המסע — בונה HTML פרטי ב-Drive ופותח אותו (ללא auto-share)
 // 📖 ספר המסע v2.1 — שער (היקף + קול), ספר-יחיד או chaptered (לולאת ימים)
 function b64ToUtf8(b64){ const bin=atob(b64); const bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i); return new TextDecoder('utf-8').decode(bytes); }
-let storyDaysCache=null, bookChapters=[], bookBuildId='', currentBookDay='', currentDayIndex='', currentChapterIdx=-1, currentBookFileId='';
+let storyDaysCache=null, bookChapters=[], bookBuildId='', currentBookDay='', currentDayIndex='', currentChapterIdx=-1, currentBookFileId='', bookBaseCreatedAt='';   // bookBaseCreatedAt: manifest this session builds on (reuse/shelf) — sent with every save
 function bkBusy(on, msg){ ['bkBuild','bkCancel','bkVoice','bkScope'].forEach(id=>{ $(id).disabled=on; }); const p=$('bkProgress'); if(on){ p.hidden=false; if(msg) p.textContent=msg; } else { p.hidden=true; } }
 function bkProgress(msg){ const p=$('bkProgress'); p.hidden=false; p.textContent=msg; }
 function logBookStats(s){ const ai = s.voiceFallback ? L(' · נכתב אותנטי (AI לא זמין)',' · authentic (AI unavailable)') : (s.aiUsed ? L(' · עם נרטיב AI',' · with AI narrative') : ''); logLine(T().book_done+' · '+(s.entries||0)+' '+L('רשומות','entries')+', '+(s.photos||0)+' '+L('תמונות','photos')+', '+Math.round((s.bytes||0)/1024)+'KB'+ai); }
@@ -501,6 +501,8 @@ async function openBuildGate(){
     const nd=storyDaysCache.length, np=(r&&r.totalPhotos)||0, long = nd>5 || np>50;
     $('bookmeta').textContent = nd+' '+L('ימים עם תוכן','days')+' · '+np+' '+L('תמונות','photos')+(long?(' · '+L('מומלץ: לפי פרקים','recommended: chapters')):'');
     $('bkScope').value = long ? 'chapters' : 'all'; onScopeChange();
+    if($('bkFull')) $('bkFull').checked=false;
+    if($('bkFullLbl')) $('bkFullLbl').textContent=L('בנה מחדש את כל הימים (גם ללא שינוי)','Rebuild all days (even unchanged)');
   }catch(e){ storyDaysCache=[]; $('bookmeta').textContent=''; }
 }
 function onScopeChange(){
@@ -521,14 +523,26 @@ $('bkBuild').onclick=async()=>{
 };
 
 // ----- ספר-יחיד (כל הטיול / טווח) -----
+// B: the manifest state a build starts from — createdAt of the current manifest, '__none__' if there is none.
+// If it cannot be read, the build does not start (a build needs the server anyway).
+async function captureBookBase_(){
+  try{ const m=await api({ action:'get_story_book_latest', tripId:getTripId(), light:true });
+    if(m && m.ok && m.createdAt) return { ok:true, base:m.createdAt, latest:m };
+    if(m && m.empty) return { ok:true, base:'__none__', latest:null };
+    return { ok:false };
+  }catch(e){ return { ok:false }; }
+}
 async function buildSingle(params){
   bkBusy(true, L('בונה ספר…','Building…'));
+  const cap=await captureBookBase_();
+  if(!cap.ok){ bkBusy(false); alert(L('אין חיבור לשרת — נסה שוב','No connection to the server — try again')); return; }
+  bookBaseCreatedAt=cap.base;
   try{
     const r=await api(Object.assign({ action:'build_story_book', tripId:getTripId(), viewerLang:uiLang() }, params));
     if(r.ok && r.htmlB64){ logBookStats(r.stats||{}); $('bookgate').hidden=true;
       const oneDay=(params.scope==='range' && params.fromDay===params.toDay)?params.fromDay:'';   // ספר של יום בודד → כפתור 📸 רלוונטי
       bookChapters=[]; bookBuildId='';
-      saveBookManifest('single', params.voice, { fileId:r.fileId, bytes:(r.stats&&r.stats.bytes)||0, scope:params.scope, day:oneDay, dayIndex:'' });
+      reportBookSave(await saveBookManifest('single', params.voice, { fileId:r.fileId, bytes:(r.stats&&r.stats.bytes)||0, scope:params.scope, day:oneDay, dayIndex:'' }));
       openBookView(b64ToUtf8(r.htmlB64), r.url, {day:oneDay, index:'', fileId:r.fileId||''}); }
     else if(r.ok && r.tooBig){ alert(L('📖 הספר גדול מדי לתצוגה — בחר "לפי פרקים". הקובץ נשמר בדרייב.','📖 Too large to display — choose "chapters". Saved to Drive.')); }
     else if(r && r.service){ alert(L('⏳ הבנייה ארכה — נסה "לפי פרקים"','⏳ Took too long — try "chapters"')); }
@@ -540,39 +554,66 @@ async function buildSingle(params){
 // ----- chaptered: לולאת בקשות-יום ב-PWA (פרק=בקשה אחת, קריאת-AI אחת לכל היותר) -----
 async function buildDayChapter_(d, voice){
   const r=await api({ action:'build_story_book', tripId:getTripId(), viewerLang:uiLang(), voice, scope:'chapter', day:d.day, dayIndex:d.index, buildId:bookBuildId, maxPhotos:8 });
-  if(r.ok && r.htmlB64){ bookChapters.push({ index:d.index, label:L('יום ','Day ')+d.index, day:d.day, fileId:r.fileId||'', htmlB64:r.htmlB64, aiUsed:(r.stats&&r.stats.aiUsed) }); return true; }
+  if(r.ok && r.htmlB64){ bookChapters.push({ index:d.index, label:L('יום ','Day ')+d.index, day:d.day, fileId:r.fileId||'', htmlB64:r.htmlB64, aiUsed:(r.stats&&r.stats.aiUsed), sig:r.sig||'', voice:(r.stats&&r.stats.voice)||'', lang:r.lang||'' }); return true; }
   return false;
 }
 // 📚 שמירת מצביע ל-Drive של הבנייה האחרונה — כך "פתח ספר" קורא מיד בלי build
 async function saveBookManifest(mode, voice, single){
   try{
+    let r;
     if(mode==='chaptered'){
-      const chapters=bookChapters.map(c=>({ index:c.index, day:c.day, label:c.label, fileId:c.fileId, aiUsed:c.aiUsed }));
-      if(!chapters.length || !chapters.every(c=>c.fileId)) return;   // לא שומרים manifest חלקי
-      await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'chaptered', scope:'chapters', voice, lang:uiLang(), buildId:bookBuildId, chapters, stats:{ chapters:chapters.length, aiChapters:bookChapters.filter(c=>c.aiUsed).length } } });
+      const chapters=bookChapters.map(c=>({ index:c.index, day:c.day, label:c.label, fileId:c.fileId, aiUsed:c.aiUsed, sig:c.sig||'', voice:c.voice||'', lang:c.lang||'' }));
+      if(!chapters.length || !chapters.every(c=>c.fileId)) return { ok:false, error:L('ספר חלקי — לא נשמר','Partial book — not saved') };   // לא שומרים manifest חלקי
+      r=await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'chaptered', scope:'chapters', voice, lang:uiLang(), buildId:bookBuildId, baseCreatedAt:bookBaseCreatedAt||'', chapters, stats:{ chapters:chapters.length, aiChapters:bookChapters.filter(c=>c.aiUsed).length } } });
     } else if(single && single.fileId){
-      await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'single', scope:single.scope, voice, lang:uiLang(), fullBook:single } });
-    }
-  }catch(e){}
+      r=await api({ action:'save_story_manifest', tripId:getTripId(), manifest:{ mode:'single', scope:single.scope, voice, lang:uiLang(), baseCreatedAt:bookBaseCreatedAt||'', fullBook:single } });
+    } else return { ok:false, error:'nothing to save' };
+    if(r && r.ok) bookBaseCreatedAt=r.createdAt||'';
+    return r||{ ok:false, error:'no response' };
+  }catch(e){ return { ok:false, error:String(e&&e.message||e) }; }
+}
+// B: a failed shelf save is shown — the book is not presented as saved
+function reportBookSave(r){
+  if(r && r.ok) return true;
+  const why=(r&&r.stale)?L('הספר עודכן במקביל במכשיר אחר','The book was updated in parallel elsewhere')
+    :(r&&r.missing)?L('חסרים פרקים שנבנו קודם','Previously built chapters are missing'):((r&&r.error)||'');
+  logLine('⚠️ '+L('הספר נבנה אבל לא נשמר במדף: ','Book built but NOT saved to the shelf: ')+why);
+  alert(L('⚠️ הספר לא נשמר במדף ('+why+'). בנה שוב — ואם זה חוזר, סמן "בנה מחדש את כל הימים".','⚠️ The book was not saved to the shelf ('+why+'). Build again — if it repeats, tick "Rebuild all days".'));
+  return false;
 }
 async function buildChaptered(voice){
-  let days=(storyDaysCache||[]).slice();
-  // 🛡️ תיקון "אין רשומות" כוזב: אם הטעינה הראשונית של story_days נכשלה (עומס/redirect) — מנסים שוב לפני שמתריעים
-  if(!days.length){ try{ const r=await api({ action:'story_days', tripId:getTripId() }); storyDaysCache=(r.ok&&r.days)?r.days:[]; days=storyDaysCache.slice(); }catch(e){} }
-  if(!days.length){ alert(L('אין עדיין רשומות לספר','No entries yet')); return; }
   bookBuildId=String(Date.now()); bookChapters=[]; const failed=[];
   bkBusy(true);
+  // 📚 B4 incremental: reuse a saved chapter only on an exact match (same day, index, content signature, voice, viewer
+  // language, file still present) unless "rebuild all days" is ticked. Anything else is rebuilt.
+  let prev=null, reused=0;
+  const cap=await captureBookBase_();
+  if(!cap.ok){ bkBusy(false); alert(L('אין חיבור לשרת — נסה שוב','No connection to the server — try again')); return; }
+  // B (final-review fix): the day list is read AFTER the base is captured — never the list cached when the dialog
+  // opened — so a day added by another device before this base is always part of this build. No stale fallback.
+  let days=null;
+  try{ const r=await api({ action:'story_days', tripId:getTripId() }); if(r && r.ok && Array.isArray(r.days)) days=r.days; }catch(e){ days=null; }
+  if(!days){ bkBusy(false); alert(L('לא הצלחתי לקרוא את ימי הטיול — נסה שוב','Could not read the trip days — try again')); return; }
+  storyDaysCache=days.slice();
+  if(!days.length){ bkBusy(false); alert(L('אין עדיין רשומות לספר','No entries yet')); return; }
+  const forced=!!($('bkFull') && $('bkFull').checked);
+  if(!forced && cap.latest && cap.latest.ok && cap.latest.mode==='chaptered') prev=cap.latest.chapters||[];
   for(let i=0;i<days.length;i++){
-    bkProgress(L('בונה יום ','Building day ')+(i+1)+'/'+days.length+'…');
-    try{ if(!await buildDayChapter_(days[i], voice)) failed.push(days[i]); }
-    catch(e){ failed.push(days[i]); }   // כשל-יום לא מוחק פרקים קודמים
+    const d=days[i];
+    const p=prev && prev.find(c=>c.day===d.day && Number(c.index)===Number(d.index) && c.sig && d.sig && c.sig===d.sig && c.fileId && !c.missing
+      && c.voice===voice && c.lang===uiLang());   // per-chapter rendering identity must match (unknown → rebuilt)
+    if(p){ bookChapters.push({ index:d.index, label:L('יום ','Day ')+d.index, day:d.day, fileId:p.fileId, htmlB64:null, aiUsed:p.aiUsed, sig:p.sig, voice:p.voice, lang:p.lang }); reused++; continue; }
+    bkProgress(L('בונה יום ','Building day ')+(i+1)+'/'+days.length+(reused?(' · '+reused+' '+L('ללא שינוי','unchanged')):'')+'…');
+    try{ if(!await buildDayChapter_(d, voice)) failed.push(d); }
+    catch(e){ failed.push(d); }   // כשל-יום לא מוחק פרקים קודמים
   }
   bkBusy(false);
+  bookBaseCreatedAt = cap.base;   // B: every save names the manifest state this build started from ('__none__' if none)
   if(!bookChapters.length){ alert(L('הבנייה נכשלה — נסה שוב','Build failed — try again')); return; }
   bookChapters.sort((a,b)=>a.index-b.index);
   const aiN=bookChapters.filter(c=>c.aiUsed).length;
-  logLine('📚 '+bookChapters.length+' '+L('פרקים','chapters')+(aiN?(' · '+aiN+' '+L('עם נרטיב','with narrative')):'')+(failed.length?(' · '+failed.length+' '+L('נכשלו','failed')):''));
-  if(!failed.length) saveBookManifest('chaptered', voice);   // ספר שלם → שמור מצביע ל"מדף"
+  logLine('📚 '+bookChapters.length+' '+L('פרקים','chapters')+(reused?(' · '+reused+' '+L('ללא שינוי (לא נבנו מחדש)','unchanged (not rebuilt)')):'')+(aiN?(' · '+aiN+' '+L('עם נרטיב','with narrative')):'')+(failed.length?(' · '+failed.length+' '+L('נכשלו','failed')):''));
+  if(!failed.length) reportBookSave(await saveBookManifest('chaptered', voice));   // ספר שלם → שמור מצביע ל"מדף" (כשל מוצג)
   $('bookgate').hidden=true; openChapteredView(failed, voice);
 }
 async function retryFailed(failed, voice){
@@ -581,7 +622,7 @@ async function retryFailed(failed, voice){
   for(let i=0;i<failed.length;i++){ bkProgress(L('בונה מחדש ','Rebuilding ')+(i+1)+'/'+failed.length+'…');
     try{ if(!await buildDayChapter_(failed[i], voice)) still.push(failed[i]); }catch(e){ still.push(failed[i]); } }
   bookChapters.sort((a,b)=>a.index-b.index);
-  if(!still.length) saveBookManifest('chaptered', voice);   // הושלם → רענן את ה"מדף"
+  if(!still.length) reportBookSave(await saveBookManifest('chaptered', voice));   // הושלם → רענן את ה"מדף" (כשל מוצג)
   openChapteredView(still, voice);
 }
 
@@ -631,9 +672,10 @@ async function openLatestBook(){
   if(r && r.empty) return openBuildGate();                                   // אין ספר עדיין → צור ראשון
   if(r && r.stale){ alert(L('הספר השמור חסר — בונים מחדש','Saved book missing — rebuilding')); return openBuildGate(); }
   if(!r || !r.ok){ alert(L('שגיאה: ','Error: ')+((r&&r.error)||'')); return openBuildGate(); }
+  bookBaseCreatedAt=r.createdAt||'';   // B: later saves from this shelf view are based on this manifest
   if(r.mode==='chaptered'){
     bookBuildId=String(Date.now());   // עריכות/rebuild מ"מדף" יקובצו לתת-תיקייה חדשה
-    bookChapters=(r.chapters||[]).map(c=>({ index:c.index, label:c.label||(L('יום ','Day ')+c.index), day:c.day, fileId:c.fileId, aiUsed:c.aiUsed, htmlB64:null }));
+    bookChapters=(r.chapters||[]).map(c=>({ index:c.index, label:c.label||(L('יום ','Day ')+c.index), day:c.day, fileId:c.fileId, aiUsed:c.aiUsed, sig:c.sig||'', voice:c.voice||'', lang:c.lang||'', htmlB64:null }));
     if(r.firstHtmlB64 && bookChapters[0]) bookChapters[0].htmlB64=r.firstHtmlB64;
     if(!bookChapters.length) return openBuildGate();
     openChapteredView([], r.voice||'authentic');
@@ -750,9 +792,9 @@ async function rebuildChapterForDay(day){   // בונה מחדש פרק-יום �
   const ch=bookChapters[idx]; const voice=(ch.aiUsed?'combined':'authentic');
   if(!bookBuildId) bookBuildId=String(Date.now());
   const r=await api({action:'build_story_book', tripId:getTripId(), viewerLang:uiLang(), scope:'chapter', day:ch.day, dayIndex:ch.index, buildId:bookBuildId, maxPhotos:8, voice});
-  if(r.ok && r.htmlB64){ ch.htmlB64=r.htmlB64; if(r.fileId) ch.fileId=r.fileId;
+  if(r.ok && r.htmlB64){ ch.htmlB64=r.htmlB64; if(r.fileId) ch.fileId=r.fileId; ch.sig=r.sig||''; ch.voice=(r.stats&&r.stats.voice)||''; ch.lang=r.lang||'';
     if(idx===currentChapterIdx){ if($('dayeditgate').hidden) showChapter(idx); else $('bookframe').srcdoc=b64ToUtf8(r.htmlB64); }
-    saveBookManifest('chaptered', voice); return true; }
+    reportBookSave(await saveBookManifest('chaptered', voice)); return true; }
   return false;
 }
 // ✏️🗑️ inline בתוך הספר: כל רשומת-יומן (data-eid) מקבלת כפתורי עריכה/מחיקה ישירות על-גבי הטקסט.
